@@ -1,0 +1,282 @@
+{% extends "end_user_base_template/dashboard.html" %}
+{% load humanize %}
+
+{% block title %}Dashboard{% endblock title %}
+
+{% block main-content %}
+<main class="content space-y-8 p-6">
+    <!-- Greeting Header -->
+    <header>
+        <h1 class="text-3xl font-bold text-gray-800">Welcome, {{ user.department|default:user.username }}</h1>
+        <p class="text-gray-600">Quick overview of your budget status and recent activities</p>
+    </header>
+
+    <!-- Key Metrics - 4 Cards -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Total Allocated -->
+        <div class="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl shadow-md border-l-4 border-green-500 hover:shadow-lg transition-all">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">Total Allocated</p>
+                    <p class="text-2xl font-bold text-green-700 mt-2">₱{{ total_allocated|floatformat:2|intcomma }}</p>
+                </div>
+                <div class="bg-green-500 text-white rounded-full p-3">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Used -->
+        <div class="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl shadow-md border-l-4 border-blue-500 hover:shadow-lg transition-all">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">Total Used</p>
+                    <p class="text-2xl font-bold text-blue-700 mt-2">₱{{ total_used|floatformat:2|intcomma }}</p>
+                    <p class="text-xs text-blue-600 mt-1">{{ utilization_percentage|floatformat:1 }}% utilized</p>
+                </div>
+                <div class="bg-blue-500 text-white rounded-full p-3">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Remaining Balance -->
+        <div class="bg-gradient-to-br from-yellow-50 to-yellow-100 p-6 rounded-xl shadow-md border-l-4 border-yellow-500 hover:shadow-lg transition-all">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">Remaining Balance</p>
+                    <p class="text-2xl font-bold text-yellow-700 mt-2">₱{{ total_remaining|floatformat:2|intcomma }}</p>
+                    <p class="text-xs text-yellow-600 mt-1">{{ remaining_percentage|floatformat:1 }}% available</p>
+                </div>
+                <div class="bg-yellow-500 text-white rounded-full p-3">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Documents -->
+        <div class="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl shadow-md border-l-4 border-purple-500 hover:shadow-lg transition-all">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600">Active Documents</p>
+                    <p class="text-2xl font-bold text-purple-700 mt-2">{{ total_active_documents }}</p>
+                    <p class="text-xs text-purple-600 mt-1">{{ pre_count }} PREs · {{ pr_count }} PRs · {{ ad_count }} ADs</p>
+                </div>
+                <div class="bg-purple-500 text-white rounded-full p-3">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Budget Usage Progress Bar -->
+    <section class="bg-white rounded-xl p-6 shadow-md">
+        <div class="flex justify-between items-center mb-3">
+            <h2 class="text-lg font-semibold text-gray-800">Budget Utilization</h2>
+            <span class="text-sm font-medium {% if utilization_percentage >= 90 %}text-red-600{% elif utilization_percentage >= 70 %}text-yellow-600{% else %}text-green-600{% endif %}">
+                {{ utilization_percentage|floatformat:1 }}%
+            </span>
+        </div>
+        <div class="relative w-full bg-gray-200 rounded-full h-6 overflow-hidden">
+            <div class="h-6 transition-all duration-700 rounded-full {% if utilization_percentage >= 90 %}bg-gradient-to-r from-red-500 to-red-600{% elif utilization_percentage >= 70 %}bg-gradient-to-r from-yellow-500 to-yellow-600{% else %}bg-gradient-to-r from-green-500 to-green-600{% endif %}"
+                 style="width: {{ utilization_percentage|floatformat:1 }}%;">
+            </div>
+        </div>
+        <div class="flex justify-between text-sm text-gray-600 mt-2">
+            <span>₱{{ total_used|floatformat:2|intcomma }} spent</span>
+            <span>of ₱{{ total_allocated|floatformat:2|intcomma }}</span>
+        </div>
+
+        <!-- Usage Breakdown -->
+        <div class="mt-4 grid grid-cols-3 gap-4">
+            <div class="text-center p-3 bg-gray-50 rounded-lg">
+                <p class="text-xs text-gray-500">PR Usage</p>
+                <p class="text-lg font-semibold text-gray-700">₱{{ total_pr_used|floatformat:0|intcomma }}</p>
+            </div>
+            <div class="text-center p-3 bg-gray-50 rounded-lg">
+                <p class="text-xs text-gray-500">AD Usage</p>
+                <p class="text-lg font-semibold text-gray-700">₱{{ total_ad_used|floatformat:0|intcomma }}</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quick Actions -->
+    <section class="bg-white rounded-xl p-6 shadow-md">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Quick Actions</h2>
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <a href="#" class="flex flex-col items-center justify-center p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition text-center">
+                <span class="text-3xl mb-2">📝</span>
+                <span class="text-sm font-medium text-gray-700">Submit PRE</span>
+            </a>
+            <a href="#" class="flex flex-col items-center justify-center p-4 bg-green-50 hover:bg-green-100 rounded-lg transition text-center">
+                <span class="text-3xl mb-2">🛒</span>
+                <span class="text-sm font-medium text-gray-700">Create PR</span>
+            </a>
+            <a href="#" class="flex flex-col items-center justify-center p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition text-center">
+                <span class="text-3xl mb-2">🎯</span>
+                <span class="text-sm font-medium text-gray-700">Create AD</span>
+            </a>
+            <a href="#" class="flex flex-col items-center justify-center p-4 bg-yellow-50 hover:bg-yellow-100 rounded-lg transition text-center">
+                <span class="text-3xl mb-2">📊</span>
+                <span class="text-sm font-medium text-gray-700">View Details</span>
+            </a>
+            <a href="#" class="flex flex-col items-center justify-center p-4 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition text-center">
+                <span class="text-3xl mb-2">📈</span>
+                <span class="text-sm font-medium text-gray-700">Reports</span>
+            </a>
+        </div>
+    </section>
+
+    <!-- Two Column Layout -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Quarterly Overview -->
+        <section class="bg-white rounded-xl p-6 shadow-md">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold text-gray-800">Quarterly Overview</h2>
+                <a href="#" class="text-sm text-blue-600 hover:text-blue-800">View Details →</a>
+            </div>
+            <div class="space-y-3">
+                {% for quarter_info in quarterly_data %}
+                <div class="border-l-4 {% if quarter_info.utilization >= 80 %}border-red-500{% elif quarter_info.utilization >= 50 %}border-yellow-500{% else %}border-green-500{% endif %} pl-4 py-2">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="font-semibold text-gray-700">{{ quarter_info.quarter }}</p>
+                            <p class="text-xs text-gray-500">₱{{ quarter_info.consumed|floatformat:0|intcomma }} / ₱{{ quarter_info.allocated|floatformat:0|intcomma }}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-sm font-bold {% if quarter_info.utilization >= 80 %}text-red-600{% elif quarter_info.utilization >= 50 %}text-yellow-600{% else %}text-green-600{% endif %}">
+                                {{ quarter_info.utilization|floatformat:1 }}%
+                            </p>
+                        </div>
+                    </div>
+                    <div class="mt-1 w-full bg-gray-200 rounded-full h-2">
+                        <div class="h-2 rounded-full {% if quarter_info.utilization >= 80 %}bg-red-500{% elif quarter_info.utilization >= 50 %}bg-yellow-500{% else %}bg-green-500{% endif %}"
+                             style="width: {{ quarter_info.utilization|floatformat:0 }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- Pending Approvals -->
+        <section class="bg-white rounded-xl p-6 shadow-md">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Pending Approvals</h2>
+            {% if total_pending > 0 %}
+            <div class="space-y-3">
+                {% if pending_pre_count > 0 %}
+                <div class="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-2xl">📋</span>
+                        <div>
+                            <p class="font-medium text-gray-700">PRE Documents</p>
+                            <p class="text-xs text-gray-500">Awaiting approval</p>
+                        </div>
+                    </div>
+                    <span class="bg-yellow-500 text-white px-3 py-1 rounded-full text-sm font-bold">{{ pending_pre_count }}</span>
+                </div>
+                {% endif %}
+
+                {% if pending_pr_count > 0 %}
+                <div class="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-2xl">🛒</span>
+                        <div>
+                            <p class="font-medium text-gray-700">Purchase Requests</p>
+                            <p class="text-xs text-gray-500">Awaiting approval</p>
+                        </div>
+                    </div>
+                    <span class="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-bold">{{ pending_pr_count }}</span>
+                </div>
+                {% endif %}
+
+                {% if pending_ad_count > 0 %}
+                <div class="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-2xl">🎯</span>
+                        <div>
+                            <p class="font-medium text-gray-700">Activity Designs</p>
+                            <p class="text-xs text-gray-500">Awaiting approval</p>
+                        </div>
+                    </div>
+                    <span class="bg-purple-500 text-white px-3 py-1 rounded-full text-sm font-bold">{{ pending_ad_count }}</span>
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="text-center py-8">
+                <svg class="w-16 h-16 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <p class="text-gray-500">No pending approvals</p>
+                <p class="text-sm text-gray-400 mt-1">All documents are processed</p>
+            </div>
+            {% endif %}
+        </section>
+    </div>
+
+    <!-- Recent Activity -->
+    <section class="bg-white rounded-xl p-6 shadow-md">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold text-gray-800">Recent Activity</h2>
+            <a href="#" class="text-sm text-blue-600 hover:text-blue-800">View All →</a>
+        </div>
+
+        {% if recent_activity %}
+        <div class="space-y-3">
+            {% for activity in recent_activity %}
+            <div class="flex items-start space-x-4 p-4 hover:bg-gray-50 rounded-lg transition">
+                <div class="flex-shrink-0">
+                    <span class="text-3xl">{{ activity.icon }}</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between">
+                        <p class="text-sm font-medium text-gray-900">{{ activity.title }}</p>
+                        <span class="ml-2 px-2 py-1 text-xs rounded-full
+                            {% if activity.status == 'Approved' %}bg-green-100 text-green-800
+                            {% elif activity.status == 'Pending' %}bg-yellow-100 text-yellow-800
+                            {% elif activity.status == 'Partially Approved' %}bg-blue-100 text-blue-800
+                            {% else %}bg-red-100 text-red-800{% endif %}">
+                            {{ activity.status }}
+                        </span>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-1">{{ activity.description }}</p>
+                    <div class="flex items-center justify-between mt-2">
+                        <span class="text-xs text-gray-400">{{ activity.date|naturaltime }}</span>
+                        <span class="text-sm font-semibold text-gray-700">₱{{ activity.amount|floatformat:2|intcomma }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-12">
+            <svg class="w-16 h-16 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+            </svg>
+            <p class="text-gray-500">No recent activity</p>
+            <p class="text-sm text-gray-400 mt-1">Start by submitting a PRE or creating a request</p>
+        </div>
+        {% endif %}
+    </section>
+
+    <!-- Link to Detailed Budget Overview -->
+    <section class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-8 shadow-lg text-center">
+        <h2 class="text-2xl font-bold text-white mb-2">Need More Details?</h2>
+        <p class="text-blue-100 mb-6">View comprehensive budget analysis, charts, and detailed reports</p>
+        <a href="#" class="inline-flex items-center px-6 py-3 bg-white text-blue-600 font-semibold rounded-lg hover:bg-blue-50 transition shadow-md">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+            </svg>
+            Go to Budget Overview
+        </a>
+    </section>
+</main>
+{% endblock %}

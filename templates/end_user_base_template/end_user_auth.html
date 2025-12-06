@@ -1,0 +1,17 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        {% block  title %} Default Title {% endblock  %}
+    </title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load HTMX -->
+    <script src="{% static 'js/htmx.min.js' %}"></script>
+</head>
+<body>
+    {% block content %}{% endblock %}
+</body>
+</html>

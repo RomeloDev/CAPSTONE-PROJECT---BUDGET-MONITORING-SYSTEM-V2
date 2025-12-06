@@ -1,0 +1,48 @@
+{% extends "admin_base_template/admin_auth.html" %}
+
+{% block title %}Admin Login{% endblock title %}
+
+{% block content %}
+    <!-- Logo and School Info -->
+    <div class="flex flex-col items-center justify-center mb-4 text-center">
+        <img src="https://bisu.edu.ph/wp-content/themes/gwt-wordpress-gwt-wordpress-26.0.0/images/bisu-logo2.png" 
+             alt="Bisu Logo" class="w-20 h-20 mb-2 drop-shadow-md">
+        <h2 class="text-sm font-medium text-gray-800">
+            Bohol Island State University - <span class="font-semibold">Balilihan Campus</span>
+        </h2>
+        <h1 class="text-2xl font-serif font-bold text-purple-900 drop-shadow-sm mt-1">
+            Budget Monitoring System
+        </h1>
+    </div>
+
+    <hr>
+
+    <div class="text-center mt-3 mb-6">
+        <h2 class="text-xl font-bold text-blue-600">Admin Panel Login</h2>
+        <p class="text-sm text-gray-500 mt-1">Sign in to access your dashboard</p>
+    </div>
+
+    {% if messages %}
+        <div class="text-sm text-red-600 text-center mb-4">
+            {% for message in messages %}
+                <p>{{ message }}</p>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <form method="post" class="space-y-5">
+        {% csrf_token %}
+        <div>
+            <label for="id_username" class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+            {{ form.username }}
+        </div>
+        <div>
+            <label for="id_password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            {{ form.password }}
+        </div>
+
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-md shadow-sm transition duration-150">
+            Login
+        </button>
+    </form>
+{% endblock content %}

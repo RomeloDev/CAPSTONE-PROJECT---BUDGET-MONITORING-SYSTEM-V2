@@ -1,0 +1,22 @@
+# Core Django
+Django==5.2.8
+gunicorn==23.0.0
+whitenoise==6.11.0
+
+# Database
+psycopg==3.3.1          # Modern PostgreSQL driver
+dj-database-url==2.3.0  # Database config parsing
+sqlparse==0.5.4
+
+# Environment
+python-dotenv==1.2.1
+
+# Utilities
+Pillow==11.0.0          # Image handling
+tzdata==2025.2
+
+# Tailwind (Standalone CLI wrapper - easiest setup)
+django-tailwind-cli==2.1.2
+
+# Admin Interface (Optional - Modern Tailwind Look)
+# django-unfold==0.35.0

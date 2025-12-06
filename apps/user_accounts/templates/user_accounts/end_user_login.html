@@ -1,0 +1,47 @@
+{% extends "end_user_base_template/end_user_auth.html" %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<div class="relative w-full h-screen">
+    <img src="/static/assets/admin_bg_img.jpg" alt="University Photo" class="absolute w-full h-full object-cover">
+    <div class="absolute inset-0 bg-purple-900 bg-opacity-70"></div>
+
+    <div class="h-screen flex flex-col items-center justify-center relative z-10">
+        <img src="https://bisu.edu.ph/wp-content/themes/gwt-wordpress-gwt-wordpress-26.0.0/images/bisu-logo2.png" 
+             alt="Bisu Logo" class="w-[80px] h-[80px] mb-3">
+        <h2 class="text-lg text-center font-semibold text-white drop-shadow-md">
+            Bohol Island State University - Balilihan Campus
+        </h2>
+        <h1 class="text-3xl md:text-4xl text-center font-serif font-bold mt-3 text-white drop-shadow-lg">
+            Budget Monitoring System
+        </h1>
+
+        <form method="POST" class="mt-8 w-full max-w-sm p-6 bg-white bg-opacity-20 backdrop-blur-md rounded-xl shadow-lg">
+            {% csrf_token %}
+            <h2 class="text-center text-white text-2xl font-semibold mb-6">Welcome Back!</h2>
+            
+            <div class="space-y-4">
+                <div class="flex items-center bg-white rounded-full px-4 py-3 shadow-md">
+                    <span class="text-gray-500"><i class="fas fa-envelope"></i></span>
+                    {{ form.username }} 
+                </div>
+
+                <div class="flex items-center bg-white rounded-full px-4 py-3 shadow-md">
+                    <span class="text-gray-500"><i class="fas fa-lock"></i></span>
+                    {{ form.password }}
+                </div>
+            </div>
+
+            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 mt-6 rounded-full font-semibold text-lg shadow-md transition duration-300">
+                LOGIN
+            </button>
+            
+            {% if form.errors %}
+                <p class="text-red-300 text-center mt-2 text-sm">Invalid username or password</p>
+            {% endif %}
+        </form>
+    </div>
+</div>    
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/js/all.min.js"></script>
+{% endblock %}

@@ -1,0 +1,8 @@
+venv/
+env/
+.env/
+.env
+*.pyc
+__pycache__/
+db.sqlite3
+.django_tailwind_cli/
