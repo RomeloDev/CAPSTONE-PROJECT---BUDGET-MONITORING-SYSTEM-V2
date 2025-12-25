@@ -1,0 +1,88 @@
+{% load humanize %}
+
+{% if items %}
+<div class="px-6 py-6 border-b border-gray-100 last:border-0 hover:bg-gray-50/50 transition duration-150">
+    <!-- Section Header -->
+    <div class="flex items-center gap-3 mb-4">
+        <div class="p-1.5 rounded bg-{{ icon_color }}-100 text-{{ icon_color }}-700">
+            {% if icon_color == 'blue' %}
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+            {% elif icon_color == 'purple' %}
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+            {% elif icon_color == 'amber' %}
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+            {% else %}
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+            {% endif %}
+        </div>
+        <h3 class="text-lg font-bold text-gray-800">{{ title }}</h3>
+        <span class="text-xs font-semibold bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full border border-gray-200">
+            {{ items|length }} Items
+        </span>
+    </div>
+
+    <!-- Table -->
+    <div class="overflow-x-auto border border-gray-200 rounded-lg">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                   {% if has_subcategory %}
+                    <th scope="col" class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-32">Subcategory</th>
+                    {% endif %}
+                    <th scope="col" class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Item Name</th>
+                    <th scope="col" class="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Q1</th>
+                    <th scope="col" class="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Q2</th>
+                    <th scope="col" class="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Q3</th>
+                    <th scope="col" class="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Q4</th>
+                    <th scope="col" class="px-4 py-2 text-right text-xs font-bold text-gray-600 uppercase tracking-wider bg-gray-100/50">Total</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for item in items %}
+                <tr class="hover:bg-gray-50 transition-colors">
+                    {% if has_subcategory %}
+                    <td class="px-4 py-3 whitespace-nowrap text-xs text-gray-500 font-medium">
+                        {{ item.subcategory|default:"-" }}
+                    </td>
+                    {% endif %}
+                    <td class="px-4 py-3 text-sm text-gray-900 font-medium">
+                        {{ item.item_name }}
+                        {% if item.is_custom_item %}
+                             <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800 ml-1">Custom</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-600 font-mono">
+                        {{ item.q1|floatformat:2|intcomma }}
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-600 font-mono">
+                        {{ item.q2|floatformat:2|intcomma }}
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-600 font-mono">
+                        {{ item.q3|floatformat:2|intcomma }}
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-600 font-mono">
+                        {{ item.q4|floatformat:2|intcomma }}
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-gray-900 bg-gray-50/50 font-mono">
+                        {{ item.total|floatformat:2|intcomma }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot class="bg-gray-50 border-t border-gray-200">
+                <tr>
+                    <td class="px-4 py-3 text-sm font-bold text-gray-900" 
+                        colspan="{% if has_subcategory %}2{% else %}1{% endif %}">
+                        TOTAL {{ title|upper }}
+                    </td>
+                    <td class="px-4 py-3 text-sm text-right font-semibold text-gray-700 font-mono">{{ total.q1|floatformat:2|intcomma }}</td>
+                    <td class="px-4 py-3 text-sm text-right font-semibold text-gray-700 font-mono">{{ total.q2|floatformat:2|intcomma }}</td>
+                    <td class="px-4 py-3 text-sm text-right font-semibold text-gray-700 font-mono">{{ total.q3|floatformat:2|intcomma }}</td>
+                    <td class="px-4 py-3 text-sm text-right font-semibold text-gray-700 font-mono">{{ total.q4|floatformat:2|intcomma }}</td>
+                    <td class="px-4 py-3 text-sm text-right font-bold text-blue-700 bg-blue-50/50 font-mono">{{ total.total|floatformat:2|intcomma }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+{% endif %}

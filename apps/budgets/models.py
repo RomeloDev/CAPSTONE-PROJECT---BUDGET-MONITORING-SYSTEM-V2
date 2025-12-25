@@ -7,6 +7,8 @@ import uuid
 import os
 from django.conf import settings
 from .managers import ArchiveManager
+from django.db.models import Sum
+from cloudinary_storage.storage import RawMediaCloudinaryStorage
 
 def approved_budget_upload_path(instance, filename):
     """
@@ -288,6 +290,78 @@ class BudgetAllocation(models.Model):
         Phase 5: New PRE Workflow
         """
         return self.pres.filter(status='Approved').exists()
+    
+    
+import uuid
+
+class PREDraft(models.Model):
+    """
+    Temporary draft storage for PRE uploads before final submission.
+    Created when user lands on Upload page, deleted after successful submission.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='pre_drafts'
+    )
+    budget_allocation = models.ForeignKey(
+        'BudgetAllocation',
+        on_delete=models.CASCADE,
+        related_name='pre_drafts'
+    )
+    uploaded_excel_file = models.FileField(
+        upload_to='pre_drafts/%Y/%m/',
+        storage=RawMediaCloudinaryStorage(),
+        null=True,
+        blank=True,
+        validators=[FileExtensionValidator(allowed_extensions=['xlsx', 'xls'])]
+    )
+    pre_filename = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_submitted = models.BooleanField(default=False)
+    class Meta:
+        db_table = 'pre_drafts'
+        verbose_name = 'PRE Draft'
+        verbose_name_plural = 'PRE Drafts'
+    def __str__(self):
+        return f"Draft for {self.budget_allocation} by {self.user}"
+class PREDraftSupportingDocument(models.Model):
+    """
+    Supporting documents attached to a PRE Draft.
+    """
+    draft = models.ForeignKey(
+        PREDraft,
+        on_delete=models.CASCADE,
+        related_name='supporting_documents'
+    )
+    document = models.FileField(
+        upload_to='pre_draft_docs/%Y/%m/',
+        storage=RawMediaCloudinaryStorage(),
+        validators=[FileExtensionValidator(
+            allowed_extensions=['pdf', 'docx', 'doc', 'xlsx', 'xls', 'jpg', 'jpeg', 'png']
+        )]
+    )
+    file_name = models.CharField(max_length=255)
+    file_size = models.BigIntegerField(help_text='File size in bytes')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    description = models.CharField(max_length=500, blank=True)
+    class Meta:
+        db_table = 'pre_draft_supporting_documents'
+        verbose_name = 'PRE Draft Supporting Document'
+    def __str__(self):
+        return self.file_name
+    
+    def get_file_size_display(self):
+        """Return human-readable file size"""
+        size = self.file_size
+        if size < 1024:
+            return f"{size} B"
+        elif size < 1024 * 1024:
+            return f"{size / 1024:.2f} KB"
+        else:
+            return f"{size / (1024 * 1024):.2f} MB"
 
 
 class DepartmentPRE(models.Model):
@@ -312,6 +386,7 @@ class DepartmentPRE(models.Model):
     # File uploads
     uploaded_excel_file = models.FileField(
         upload_to='pre_uploads/%Y/%m/',
+        storage=RawMediaCloudinaryStorage(),
         null=True,
         blank=True,
         validators=[FileExtensionValidator(allowed_extensions=['xlsx', 'xls'])],
@@ -544,6 +619,8 @@ class DepartmentPRE(models.Model):
     def total_remaining(self):
         """Calculate total remaining budget"""
         return self.total_amount - self.total_consumed
+    
+    
 
 
 class PurchaseRequest(models.Model):
@@ -1899,6 +1976,7 @@ class DepartmentPRESupportingDocument(models.Model):
     )
     document = models.FileField(
         upload_to='pre_supporting_docs/%Y/%m/',
+        storage=RawMediaCloudinaryStorage(),
         validators=[FileExtensionValidator(
             allowed_extensions=['pdf', 'docx', 'doc', 'xlsx', 'xls', 'jpg', 'jpeg', 'png']
         )],
@@ -3050,3 +3128,39 @@ class BudgetRealignmentSupportingDocument(models.Model):
             return f"{size_bytes / 1024:.1f} KB"
         else:
             return f"{size_bytes / (1024 * 1024):.1f} MB"
+        
+        
+class BudgetTransaction(models.Model):
+    """Tracks financial movements (Audit Trail for Budgets)"""
+    TRANSACTION_TYPES = [
+        ('ALLOCATION_CREATED', 'Allocation Created'),
+        ('ALLOCATION_UPDATED', 'Allocation Updated'),
+        ('REALIGNMENT', 'Budget Realignment'),
+        ('SUPPLEMENTAL', 'Supplemental Budget'),
+        ('REVERSION', 'Budget Reversion'),
+    ]
+    allocation = models.ForeignKey(
+        'BudgetAllocation', 
+        on_delete=models.CASCADE,
+        related_name='transactions'
+    )
+    transaction_type = models.CharField(max_length=50, choices=TRANSACTION_TYPES)
+    amount = models.DecimalField(max_digits=15, decimal_places=2) # The change amount (+/-)
+    
+    # Snapshots for history
+    previous_balance = models.DecimalField(max_digits=15, decimal_places=2)
+    new_balance = models.DecimalField(max_digits=15, decimal_places=2)
+    
+    remarks = models.TextField(blank=True)
+    created_by = models.ForeignKey('user_accounts.User', on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    class Meta:
+        ordering = ['-created_at']
+        
+    @property
+    def is_increase(self):
+        return self.amount > 0
+        
+    @property
+    def is_decrease(self):
+        return self.amount < 0

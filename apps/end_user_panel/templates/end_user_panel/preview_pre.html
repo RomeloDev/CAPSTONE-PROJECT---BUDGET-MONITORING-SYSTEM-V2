@@ -1,0 +1,355 @@
+{% extends "end_user_base_template/dashboard.html" %} 
+{% load humanize %} 
+
+{% block title %}Preview PRE{% endblock title %} 
+
+{% block main-content %}
+<div class="p-6 space-y-6 max-w-7xl mx-auto">
+  <!-- Back Link -->
+  <div>
+    <a
+      href="{% url 'upload_pre' allocation.id %}"
+      class="inline-flex items-center text-gray-600 hover:text-blue-600 gap-2 transition-colors font-medium text-sm"
+    >
+      <svg
+        class="w-4 h-4"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M10 19l-7-7m0 0l7-7m-7 7h18"
+        ></path>
+      </svg>
+      Back to Upload
+    </a>
+  </div>
+
+  <!-- Header -->
+  <div
+    class="bg-white border border-gray-200 rounded-xl shadow-sm p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+  >
+    <div>
+      <h1 class="text-2xl font-bold text-gray-800">
+        Preview & Submit Proposal
+      </h1>
+      <p class="text-gray-500 mt-1">
+        Review the extracted data carefully before final submission.
+      </p>
+    </div>
+    <span
+      class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-50 text-blue-700 border border-blue-100"
+    >
+      Step 2 of 2: Preview
+    </span>
+  </div>
+
+  <!-- Messages -->
+  {% if messages %}
+  <div class="space-y-3">
+    {% for message in messages %}
+    <div
+      class="p-4 rounded-lg flex items-center border shadow-sm {% if message.tags == 'error' %}bg-red-50 border-red-200 text-red-700 {% elif message.tags == 'success' %}bg-green-50 border-green-200 text-green-700 {% elif message.tags == 'warning' %}bg-amber-50 border-amber-200 text-amber-700 {% else %}bg-blue-50 border-blue-200 text-blue-700{% endif %}"
+    >
+      {{ message }}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Info Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <!-- Budget Allocation -->
+    <div
+      class="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl shadow-lg text-white p-6 relative overflow-hidden"
+    >
+      <div class="relative z-10">
+        <h3 class="font-semibold text-blue-100 flex items-center gap-2 mb-4">
+          <svg
+            class="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+            ></path>
+          </svg>
+          Budget Allocation
+        </h3>
+        <div class="space-y-2">
+          <div>
+            <p class="text-xs text-blue-200 uppercase tracking-wide">Title</p>
+            <p class="font-bold text-lg leading-tight">
+              {{ allocation.approved_budget.title }}
+            </p>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <p class="text-xs text-blue-200 uppercase tracking-wide">
+                Fiscal Year
+              </p>
+              <p class="font-medium">
+                FY {{ allocation.approved_budget.fiscal_year }}
+              </p>
+            </div>
+            <div>
+              <p class="text-xs text-blue-200 uppercase tracking-wide">
+                Remaining
+              </p>
+              <p class="font-bold">
+                ₱{{ allocation.remaining_balance|intcomma }}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Decorative circle -->
+      <div
+        class="absolute -bottom-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"
+      ></div>
+    </div>
+
+    <!-- PRE Summary -->
+    <div
+      class="bg-white border border-gray-200 rounded-xl shadow-sm p-6 relative overflow-hidden"
+    >
+      <div class="relative z-10">
+        <h3 class="font-semibold text-gray-800 flex items-center gap-2 mb-4">
+          <svg
+            class="w-5 h-5 text-gray-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            ></path>
+          </svg>
+          PRE Summary
+        </h3>
+        <div class="space-y-3">
+          <div>
+            <p class="text-xs text-gray-500 uppercase tracking-wide">
+              Filename
+            </p>
+            <p
+              class="font-medium text-gray-900 truncate"
+              title="{{ draft.pre_filename }}"
+            >
+              {{ draft.pre_filename }}
+            </p>
+          </div>
+          <div>
+            <p class="text-xs text-gray-500 uppercase tracking-wide">
+              Extracted Fiscal Year
+            </p>
+            <p class="font-medium text-gray-900">
+              {{ fiscal_year|default:"Not Detected" }}
+            </p>
+          </div>
+          <div>
+            <p class="text-xs text-gray-500 uppercase tracking-wide">
+              Grand Total Proposal
+            </p>
+            <div class="flex items-baseline gap-2">
+              <p
+                class="text-3xl font-bold {% if grand_total > allocation.remaining_balance %}text-red-600{% else %}text-emerald-600{% endif %}"
+              >
+                ₱{{ grand_total|intcomma }}
+              </p>
+              {% if grand_total > allocation.remaining_balance %}
+              <span
+                class="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded border border-red-100"
+                >Exceeds Budget</span
+              >
+              {% else %}
+              <span
+                class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded border border-emerald-100"
+                >Within Budget</span
+              >
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Decorative circle -->
+      <div
+        class="absolute -top-10 -right-10 w-40 h-40 bg-gray-50 rounded-full blur-2xl pointer-events-none"
+      ></div>
+    </div>
+  </div>
+
+  <!-- Validation Warnings Banner -->
+  {% if validation_warnings %}
+  <div
+    class="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-lg shadow-sm"
+  >
+    <div class="flex">
+      <div class="flex-shrink-0">
+        <svg
+          class="h-5 w-5 text-amber-400"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path
+            fill-rule="evenodd"
+            d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+            clip-rule="evenodd"
+          />
+        </svg>
+      </div>
+      <div class="ml-3 flex-1">
+        <h3 class="text-sm font-medium text-amber-800">
+          Excel Formula Corrected
+        </h3>
+        <div class="mt-2 text-sm text-amber-700">
+          <p class="mb-2">
+            The system detected calculation errors in your Excel file and has
+            automatically corrected them using the quarters provided
+            (Q1+Q2+Q3+Q4).
+          </p>
+          <ul class="list-disc pl-5 space-y-1">
+            {% for warning in validation_warnings %}
+            <li>
+              <span class="font-medium">{{ warning.item }}:</span>
+              Excel says
+              <span class="line-through"
+                >₱{{ warning.excel_total|floatformat:2|intcomma }}</span
+              >, corrected to
+              <strong>₱{{ warning.calculated|floatformat:2|intcomma }}</strong>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Data Tables -->
+  <div
+    class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden"
+  >
+    <div
+      class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between"
+    >
+      <h2 class="text-lg font-bold text-gray-800">Extracted Line Items</h2>
+      <span class="text-sm text-gray-500">Auto-extracted from Excel</span>
+    </div>
+
+    <div class="divide-y divide-gray-200">
+      <!-- 1. Receipts -->
+      {% include "end_user_panel/partials/preview_table.html" with title="Budget Receipts" items=extracted_data.receipts total=receipts_total icon_color="blue" %}
+
+      <!-- 2. Personnel -->
+      {% include "end_user_panel/partials/preview_table.html" with title="Personnel Services" items=extracted_data.personnel total=personnel_total icon_color="purple" %}
+
+      <!-- 3. MOOE -->
+      {% include "end_user_panel/partials/preview_table.html" with title="MOOE" items=extracted_data.mooe total=mooe_total icon_color="amber" has_subcategory=True %}
+
+      <!-- 4. Capital -->
+      {% include "end_user_panel/partials/preview_table.html" with title="Capital Outlays" items=extracted_data.capital total=capital_total icon_color="emerald" has_subcategory=True %}
+    </div>
+  </div>
+
+  <!-- Supporting Documents -->
+  <div
+    class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden"
+  >
+    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+      <h2 class="text-lg font-bold text-gray-800">Supporting Documents</h2>
+    </div>
+    <div class="p-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for doc in draft.supporting_documents.all %}
+        <div
+          class="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg shadow-sm"
+        >
+          <div class="p-2 bg-gray-50 rounded text-gray-500">
+            <!-- Generic File Icon -->
+            <svg
+              class="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+              ></path>
+            </svg>
+          </div>
+          <div class="min-w-0 flex-1">
+            <p
+              class="text-sm font-medium text-gray-900 truncate"
+              title="{{ doc.file_name }}"
+            >
+              {{ doc.file_name }}
+            </p>
+            <p class="text-xs text-gray-500">{{ doc.get_file_size_display }}</p>
+          </div>
+        </div>
+        {% empty %}
+        <p class="text-gray-500 text-sm italic col-span-full">
+          No supporting documents uploaded.
+        </p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div
+    class="bg-gray-50 border-t border-gray-200 p-6 rounded-b-xl flex items-center justify-end gap-3 sticky bottom-0 z-20"
+  >
+    <form method="POST">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="cancel" />
+      <button
+        type="submit"
+        class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-900 shadow-sm transition"
+      >
+        Cancel
+      </button>
+    </form>
+
+    <form method="POST">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="submit" />
+      <button type="submit" 
+      {% if grand_total > allocation.remaining_balance %}disabled{% endif %} class="px-5 py-2.5
+        text-sm font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700
+        shadow-sm transition flex items-center gap-2 transform active:scale-95
+        disabled:opacity-50 disabled:cursor-not-allowed">
+        <span>Submit Final Proposal</span>
+        <svg
+          class="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M5 13l4 4L19 7"
+          ></path>
+        </svg>
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock main-content %}

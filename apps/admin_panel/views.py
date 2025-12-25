@@ -3,6 +3,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.generic import TemplateView
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
+from django.utils.decorators import method_decorator
 from datetime import datetime
 from django.views.generic import ListView
 from apps.user_accounts.models import User
@@ -15,11 +16,16 @@ from apps.budgets.models import (
 )
 from django.contrib import messages
 from apps.admin_panel.models import AuditTrail
-from apps.budgets.models import ApprovedBudget
+from apps.budgets.models import ApprovedBudget, BudgetTransaction
 from apps.budgets.forms import ApprovedBudgetForm
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
+from .forms import BudgetAllocationForm, CustomUserCreationForm, CustomUserEditForm
+import json
+from django.views.decorators.http import require_POST
+from apps.admin_panel.utils import log_activity
+
 
 class AdminDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     """Dashboard for Budget Officers/Admins"""
@@ -334,3 +340,362 @@ def approved_budget_detail(request, pk):
     }
     
     return JsonResponse(data)
+
+@method_decorator(login_required, name="dispatch")
+class BudgetAllocationListView(ListView):
+    model = BudgetAllocation
+    template_name = 'admin_panel/budget_allocation.html'
+    context_object_name = 'allocations'
+    paginate_by = 10
+    
+    def get_queryset(self):
+        """"Handle Filtering and Search"""
+        queryset = super().get_queryset().select_related('approved_budget', 'end_user').filter(is_active=True).order_by('-allocated_at')
+        
+        # Filters
+        self.fiscal_year = self.request.GET.get('fiscal_year')
+        self.mfo = self.request.GET.get('mfo')
+        self.department = self.request.GET.get('department')
+        self.search = self.request.GET.get('search')
+        self.summary_year = self.request.GET.get('summary_year', 'all')
+        
+        if self.fiscal_year:
+            queryset = queryset.filter(approved_budget__fiscal_year=self.fiscal_year)
+            
+        if self.mfo:
+            queryset = queryset.filter(end_user__mfo=self.mfo)
+            
+        if self.department:
+            queryset = queryset.filter(department__icontains=self.department)
+            
+        if self.search:
+            queryset = queryset.filter(
+                Q(end_user__first_name__icontains=self.search) |
+                Q(end_user__last_name__icontains=self.search) |
+                Q(end_user__username__icontains=self.search)
+            )
+            
+        return queryset
+    
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        queryset = self.get_queryset()
+        
+        # Statistics
+        context['total_allocated'] = queryset.aggregate(Sum('allocated_amount'))['allocated_amount__sum'] or 0
+        context['total_remaining'] = queryset.aggregate(Sum('remaining_balance'))['remaining_balance__sum'] or 0
+        context['total_departments'] = queryset.values('department').distinct().count()
+        
+        total_used = context['total_allocated'] - context['total_remaining']
+        context['utilization_rate'] = (total_used / context['total_allocated'] * 100) if context['total_allocated'] > 0 else 0
+        
+        # Dropdowns
+        context['available_years'] = ApprovedBudget.objects.values_list('fiscal_year', flat=True).distinct().order_by('-fiscal_year')
+        context['mfos'] = User.objects.values_list('mfo', flat=True).distinct().exclude(mfo__isnull=True).exclude(mfo='')
+        context['approved_budgets'] = ApprovedBudget.objects.filter(is_active=True, remaining_budget__gt=0)
+        
+        context['selected_year'] = self.summary_year
+        return context
+    
+    def post(self, request, *args, **kwargs):
+        """"Handle Create and Edit Actions"""
+        action = request.POST.get('action')
+        
+        if action == 'edit':
+            return self.handle_edit(request)
+        else:
+            return self.handle_create(request)
+        
+    def handle_create(self, request):
+        form = BudgetAllocationForm(request.POST)
+        
+        if form.is_valid():
+            try:
+                allocation = form.save(commit=False)
+                allocation.end_user = form.end_user
+                allocation.department = form.end_user.department
+                allocation.remaining_balance = allocation.allocated_amount
+                allocation.save()
+                # Update Approved Budget
+                approved_budget = allocation.approved_budget
+                approved_budget.remaining_budget -= allocation.allocated_amount
+                approved_budget.save()
+                
+                messages.success(request, "Budget allocated successfully.")
+            except Exception as e:
+                messages.error(request, f"Error saving allocation: {e}")
+                
+        else:
+            for error in form.errors.values():
+                messages.error(request, error)
+                
+        return redirect('budget_allocation')
+    
+    def handle_edit(self, request):
+        allocation_id = request.POST.get('allocation_id')
+        allocation = get_object_or_404(BudgetAllocation, id=allocation_id)
+        
+        # Pass instance to form for update context
+        form = BudgetAllocationForm(request.POST, instance=allocation)
+        
+        if form.is_valid():
+            try:
+                new_amount = form.cleaned_data['allocated_amount']
+                old_amount = allocation.allocated_amount # Pre-update value (from DB)
+                
+                # Logic to update parent budget based on difference
+                difference = new_amount - old_amount
+                approved_budget = allocation.approved_budget
+                
+                if difference != 0:
+                    approved_budget.remaining_budget -= difference
+                    approved_budget.save()
+                # Save allocation with new amount
+                allocation = form.save(commit=False)
+                allocation.remaining_balance = new_amount - allocation.get_total_used()
+                allocation.save()
+                
+                messages.success(request, "Budget allocation updated successfully.")
+            except Exception as e:
+                messages.error(request, f"Error updating: {e}")
+        else:
+            for error in form.errors.values():
+                messages.error(request, error)
+                
+        return redirect('budget_allocation')
+    
+    
+@login_required
+def get_users_by_mfo(request):
+    """API: Get users for MFO dropdown"""
+    mfo = request.GET.get('mfo')
+    users = User.objects.filter(mfo=mfo, is_active=True).values('id', 'fullname', 'department')
+    data = [{'id': u['id'], 'name': f"{u['fullname']} ({u['department']})"} for u in users]
+    return JsonResponse({'users': data})
+@login_required
+def budget_allocation_detail(request, pk):
+    """API: Get allocation details for modal"""
+    allocation = get_object_or_404(BudgetAllocation, pk=pk)
+    
+    # helper to safely get user attributes
+    user = allocation.end_user
+    
+    data = {
+        'id': allocation.id,
+        # Approved Budget Info
+        'budget_title': allocation.approved_budget.title,
+        'fiscal_year': allocation.approved_budget.fiscal_year,
+        'approved_budget_total': float(allocation.approved_budget.amount),
+        'approved_budget_remaining': float(allocation.approved_budget.remaining_budget),
+        
+        # User Info
+        'end_user_name': user.get_full_name(),
+        'username': user.username,
+        'email': user.email,
+        # Use getattr for custom fields if they might not exist or be empty
+        'mfo': getattr(user, 'mfo', 'N/A'), 
+        'department': allocation.department, # BudgetAllocation has its own department field
+        'position': getattr(user, 'position', 'N/A'),
+        
+        # Financials
+        'allocated_amount': float(allocation.allocated_amount),
+        'remaining_balance': float(allocation.remaining_balance),
+        
+        # Usage breakdown
+        'pre_used': float(allocation.pre_amount_used),
+        'pr_used': float(allocation.pr_amount_used),
+        'ad_used': float(allocation.ad_amount_used),
+        'total_used': float(allocation.get_total_used()),
+        
+        # Meta
+        'allocated_at': allocation.allocated_at.strftime('%Y-%m-%d %H:%M'),
+    }
+    
+    return JsonResponse(data)
+
+# Users Management Views and API
+class ClientAccountsListView(ListView):
+    model = User
+    template_name = 'admin_panel/client_accounts.html'
+    context_object_name = 'users'
+    paginate_by = 20
+    
+    def get_queryset(self):
+        queryset = User.objects.filter(is_superuser=False, is_admin=False).order_by('-created_at')
+        
+        # Filtering
+        self.department = self.request.GET.get('department')
+        self.role = self.request.GET.get('role')
+        self.status = self.request.GET.get('status')
+        self.search = self.request.GET.get('search')
+        
+        if self.department:
+            queryset = queryset.filter(department=self.department)
+        if self.role == 'approving_officer':
+            queryset = queryset.filter(is_approving_officer=True)
+        elif self.role == 'end_user':
+            queryset = queryset.filter(is_approving_officer=False)
+        if self.status == 'active':
+            queryset = queryset.filter(is_active=True)
+        elif self.status == 'inactive':
+            queryset = queryset.filter(is_active=False)
+        if self.search:
+            queryset = queryset.filter(
+                Q(fullname__icontains=self.search) | 
+                Q(username__icontains=self.search) |
+                Q(email__icontains=self.search)
+            )
+        return queryset
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        queryset = self.get_queryset() # Current filtered
+        all_users = User.objects.filter(is_superuser=False, is_admin=False)
+        
+        # Statistics
+        context['total_users'] = all_users.count()
+        context['active_users'] = all_users.filter(is_active=True).count()
+        context['inactive_users'] = all_users.filter(is_active=False).count()
+        context['end_user_count'] = all_users.filter(is_approving_officer=False).count()
+        
+        # Filters
+        context['departments'] = User.objects.values_list('department', flat=True).distinct()
+        
+        return context
+    def post(self, request, *args, **kwargs):
+        action = request.POST.get('action')
+        
+        if action == 'create':
+            form = CustomUserCreationForm(request.POST)
+            if form.is_valid():
+                form.save()
+                messages.success(request, "User created successfully.")
+            else:
+                for error in form.errors.values():
+                    messages.error(request, error)
+                    
+        elif action == 'edit':
+            user_id = request.POST.get('user_id')
+            user = get_object_or_404(User, id=user_id)
+            form = CustomUserEditForm(request.POST, instance=user)
+            if form.is_valid():
+                form.save()
+                messages.success(request, "User updated successfully.")
+            else:
+                messages.error(request, "Error updating user.")
+                
+        return redirect('client_accounts')
+    
+@login_required
+def user_detail(request, pk):
+    user = get_object_or_404(User, pk=pk)
+    data = {
+        'id': user.id,
+        'fullname': user.fullname,
+        'username': user.username,
+        'email': user.email,
+        'department': user.department,
+        'mfo': user.mfo,
+        'position': user.position,
+        'is_active': user.is_active,
+        'is_approving_officer': user.is_approving_officer,
+        'created_at': user.created_at.strftime('%Y-%m-%d'),
+        'last_login': user.last_login.strftime('%Y-%m-%d %H:%M') if user.last_login else 'Never'
+    }
+    return JsonResponse(data)
+@login_required
+@require_POST
+def toggle_user_status(request, pk):
+    user = get_object_or_404(User, pk=pk)
+    # Check permission (cannot deactivate self)
+    if user == request.user:
+        return JsonResponse({'success': False, 'message': 'Cannot change your own status.'})
+        
+    user.is_active = not user.is_active
+    user.save()
+    status = "activated" if user.is_active else "deactivated"
+    return JsonResponse({'success': True, 'message': f"User {status} successfully."})
+@login_required
+@require_POST
+def bulk_user_action(request):
+    try:
+        data = json.loads(request.body)
+        action = data.get('action')
+        user_ids = data.get('user_ids', [])
+        
+        if not user_ids:
+            return JsonResponse({'success': False, 'message': 'No users selected.'})
+            
+        users = User.objects.filter(id__in=user_ids)
+        
+        if action == 'activate':
+            users.update(is_active=True)
+            message = f"{users.count()} users activated."
+        elif action == 'deactivate':
+            # Prevent self-deactivation if ID in list
+            users.exclude(id=request.user.id).update(is_active=False)
+            message = f"{users.count()} users deactivated."
+        else:
+            return JsonResponse({'success': False, 'message': 'Invalid action.'})
+            
+        return JsonResponse({'success': True, 'message': message})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
+    
+    
+class AuditTrailListView(LoginRequiredMixin, ListView):
+    template_name = 'admin_panel/audit_trail.html'
+    paginate_by = 20
+    context_object_name = 'page_obj'
+    def get_queryset(self):
+        tab = self.request.GET.get('tab', 'activity')
+        
+        if tab == 'budget':
+            # === BUDGET CHANGES TAB ===
+            queryset = BudgetTransaction.objects.select_related('allocation', 'allocation__end_user', 'created_by').all()
+            
+            # Filter: Department
+            dept = self.request.GET.get('department')
+            if dept:
+                queryset = queryset.filter(allocation__department=dept)
+                
+            # Filter: Transaction Type
+            trans_type = self.request.GET.get('transaction_type')
+            if trans_type:
+                queryset = queryset.filter(transaction_type=trans_type)
+                
+        else:
+            # === USER ACTIVITY TAB (Default) ===
+            queryset = AuditTrail.objects.select_related('user').all()
+            
+            # Filter: Department (via User)
+            dept = self.request.GET.get('department')
+            if dept:
+                queryset = queryset.filter(user__department=dept)
+                
+            # Filter: Action
+            action = self.request.GET.get('action')
+            if action:
+                queryset = queryset.filter(action=action)
+        # Common Filter: Date Range
+        start_date = self.request.GET.get('start_date')
+        end_date = self.request.GET.get('end_date')
+        if start_date:
+            queryset = queryset.filter(created_at__date__gte=start_date) if tab == 'budget' else queryset.filter(timestamp__date__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(created_at__date__lte=end_date) if tab == 'budget' else queryset.filter(timestamp__date__lte=end_date)
+            
+        return queryset
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['active_tab'] = self.request.GET.get('tab', 'activity')
+        
+        # Context for filters
+        context['departments'] = User.objects.values_list('department', flat=True).distinct()
+        
+        if context['active_tab'] == 'activity':
+            context['action_choices'] = AuditTrail.ACTION_CHOICES
+        else:
+            context['transaction_types'] = BudgetTransaction.TRANSACTION_TYPES
+            
+        return context

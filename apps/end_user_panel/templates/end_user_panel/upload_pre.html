@@ -1,0 +1,293 @@
+{% extends "end_user_base_template/dashboard.html" %}
+{% load humanize %}
+
+{% block title %}Upload PRE{% endblock title %}
+
+{% block main-content %}
+<div class="p-6 space-y-6 max-w-5xl mx-auto">
+
+    <!-- Back Button -->
+    <div>
+        <a href="{% url 'department_pre_page' %}" 
+           class="inline-flex items-center text-gray-600 hover:text-blue-600 gap-2 transition-colors font-medium text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Back to PRE Page
+        </a>
+    </div>
+
+    <!-- Page Header -->
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-8">
+        <div class="flex items-start justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">Upload PRE Document</h1>
+                <p class="text-gray-500 mt-1">Upload your completed Excel budget proposal and required supporting documents.</p>
+            </div>
+            <div class="hidden sm:block">
+                 <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-50 text-blue-700">
+                    Step 1 of 2: Upload & Review
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+        <div class="space-y-3">
+            {% for message in messages %}
+                <div class="p-4 rounded-lg flex items-center border shadow-sm
+                    {% if message.tags == 'error' %}bg-red-50 border-red-200 text-red-700
+                    {% elif message.tags == 'success' %}bg-green-50 border-green-200 text-green-700
+                    {% elif message.tags == 'warning' %}bg-amber-50 border-amber-200 text-amber-700
+                    {% else %}bg-blue-50 border-blue-200 text-blue-700{% endif %}">
+                    
+                    <svg class="w-5 h-5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        {% if message.tags == 'success' %}
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        {% elif message.tags == 'error' %}
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        {% else %}
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        {% endif %}
+                    </svg>
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left Column: Upload Forms -->
+        <div class="lg:col-span-2 space-y-6">
+            
+            <!-- 1. PRE Document Upload -->
+            <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
+                    <h3 class="font-semibold text-gray-800 flex items-center gap-2">
+                        <span class="flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold">1</span>
+                        PRE Excel Document
+                    </h3>
+                    <span class="text-xs font-medium text-red-500 bg-red-50 px-2 py-1 rounded">Required</span>
+                </div>
+                
+                <div class="p-6">
+                    {% if draft.uploaded_excel_file %}
+                    <!-- Existing File State -->
+                    <div class="mb-6 bg-emerald-50 border border-emerald-100 rounded-lg p-4 flex items-start justify-between">
+                        <div class="flex items-start gap-3">
+                             <div class="p-2 bg-emerald-100 rounded text-emerald-600">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                             </div>
+                             <div>
+                                 <p class="font-semibold text-emerald-900">PRE File Uploaded</p>
+                                 <p class="text-sm text-emerald-700 mt-0.5 break-all">{{ draft.uploaded_excel_file.name }}</p>
+                                 <p class="text-xs text-emerald-600 mt-1">Uploaded: {{ draft.updated_at|date:"M d, Y g:i A" }}</p>
+                             </div>
+                        </div>
+                        <a href="{{ draft.uploaded_excel_file.url }}" download class="text-sm font-medium text-emerald-700 hover:text-emerald-900 underline">
+                            Download
+                        </a>
+                    </div>
+                    {% endif %}
+
+                    <!-- Upload Area -->
+                    <form method="POST" enctype="multipart/form-data" class="group">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="upload_pre">
+                        <label for="pre_document" class="cursor-pointer block">
+                            <div class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-blue-500 hover:bg-blue-50/30 transition duration-200 group-hover:border-blue-400">
+                                <div class="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600">
+                                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                                    </svg>
+                                </div>
+                                <h4 class="text-gray-900 font-medium mb-1">
+                                    {% if draft.uploaded_excel_file %}Replace PRE File{% else %}Upload PRE File{% endif %}
+                                </h4>
+                                <p class="text-sm text-gray-500 mb-4">Click to browse or drag file here (.xlsx only)</p>
+                                <span class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
+                                    Browse Files
+                                </span>
+                            </div>
+                            <input type="file" name="pre_document" id="pre_document" accept=".xlsx" class="hidden" onchange="this.form.submit()">
+                        </label>
+                    </form>
+                    
+                    <div class="mt-4 flex items-center justify-between text-sm text-gray-500 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            Need the template?
+                        </span>
+                        <a href="#" class="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1 hover:underline">
+                            Download Excel Template
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Supporting Documents Upload -->
+            <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
+                    <h3 class="font-semibold text-gray-800 flex items-center gap-2">
+                        <span class="flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold">2</span>
+                        Supporting Documents
+                    </h3>
+                    <span class="text-xs font-medium text-red-500 bg-red-50 px-2 py-1 rounded">At least 1 required</span>
+                </div>
+                
+                <div class="p-6">
+                    <div class="mb-4 text-sm text-gray-600">
+                        <p class="mb-2">Please upload related quotes, invoices, activity designs, or detailed specifications.</p>
+                        
+                        <!-- Files List -->
+                        {% if draft.supporting_documents.exists %}
+                        <div class="space-y-3 mt-4">
+                            {% for doc in draft.supporting_documents.all %}
+                            <div class="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg group hover:border-blue-200 transition">
+                                <div class="flex items-center gap-3 overflow-hidden">
+                                     <div class="p-2 bg-white border border-gray-200 rounded text-gray-500">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                                        </svg>
+                                     </div>
+                                     <div class="min-w-0">
+                                         <p class="text-sm font-medium text-gray-900 truncate">{{ doc.file_name }}</p>
+                                         <p class="text-xs text-gray-500">{{ doc.get_file_size_display }}</p>
+                                     </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <form method="POST" class="inline">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="remove_supporting">
+                                        <input type="hidden" name="doc_id" value="{{ doc.id }}">
+                                        <button type="submit" class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition" title="Remove">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                            </svg>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="mt-4 p-4 border border-amber-200 bg-amber-50 rounded-lg text-amber-800 text-sm flex gap-3">
+                             <svg class="w-5 h-5 flex-shrink-0 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                             </svg>
+                             <div>
+                                <span class="font-bold">Missing Documents:</span> You must upload at least one supporting document to proceed.
+                             </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <form method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="upload_supporting">
+                        <label class="cursor-pointer block">
+                            <span class="inline-flex items-center px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition gap-2 text-sm font-medium shadow-sm">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                </svg>
+                                Add Documents
+                            </span>
+                            <input type="file" name="supporting_documents" multiple class="hidden" onchange="this.form.submit()">
+                        </label>
+                    </form>
+                </div>
+            </div>
+            
+        </div>
+
+        <!-- Right Column: Sidebar Info & Actions -->
+        <div class="space-y-6">
+            
+            <!-- Budget Info Card -->
+            <div class="bg-gradient-to-br from-blue-600 to-indigo-700 text-white rounded-xl shadow-lg p-6">
+                <h3 class="font-semibold text-lg text-blue-100 mb-4">Allocation Details</h3>
+                
+                <div class="space-y-4">
+                    <div>
+                        <p class="text-xs text-blue-200 uppercase tracking-wide">Approved Budget</p>
+                        <p class="font-medium text-lg leading-tight">{{ allocation.approved_budget.title }}</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                             <p class="text-xs text-blue-200 uppercase tracking-wide">Fiscal Year</p>
+                             <p class="font-bold">FY {{ allocation.approved_budget.fiscal_year }}</p>
+                        </div>
+                         <div>
+                             <p class="text-xs text-blue-200 uppercase tracking-wide">Allocated</p>
+                             <p class="font-bold">₱{{ allocation.allocated_amount|intcomma }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="pt-4 border-t border-blue-500/30">
+                        <p class="text-xs text-blue-200 uppercase tracking-wide">Remaining Balance</p>
+                        <p class="text-2xl font-bold mt-1 text-white">₱{{ allocation.remaining_balance|intcomma }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Action Panel -->
+            <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-6 sticky top-6">
+                <h3 class="font-semibold text-gray-800 mb-4">Submission Actions</h3>
+                
+                <div class="space-y-3">
+                    <form method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="continue">
+                        <button type="submit" 
+                            {% if not draft.uploaded_excel_file or not draft.supporting_documents.exists %}disabled{% endif %}
+                            class="w-full py-3 px-4 rounded-lg flex items-center justify-center gap-2 font-bold transition shadow-sm
+                            {% if draft.uploaded_excel_file and draft.supporting_documents.exists %}
+                                bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md
+                            {% else %}
+                                bg-gray-100 text-gray-400 cursor-not-allowed
+                            {% endif %}">
+                            <span>Continue to Preview</span>
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                            </svg>
+                        </button>
+                    </form>
+                    
+                    <div class="grid grid-cols-2 gap-3">
+                         <a href="{% url 'department_pre_page' %}" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-center font-medium transition text-sm">
+                            Cancel
+                         </a>
+                         
+                        <form method="POST">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="clear_draft">
+                            <button type="submit" onclick="return confirm('Clear all uploaded files? This cannot be undone.')" 
+                                    class="w-full px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 text-center font-medium transition text-sm">
+                                Clear Draft
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                
+                {% if not draft.uploaded_excel_file or not draft.supporting_documents.exists %}
+                <div class="mt-4 text-xs text-gray-500 bg-gray-50 p-3 rounded border border-gray-100">
+                    <p class="font-medium text-gray-700 mb-1">To continue:</p>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li class="{% if draft.uploaded_excel_file %}text-emerald-600 line-through{% endif %}">Upload PRE Excel file</li>
+                        <li class="{% if draft.supporting_documents.exists %}text-emerald-600 line-through{% endif %}">Upload at least 1 supporting doc</li>
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+            
+        </div>
+    </div>
+</div>
+{% endblock main-content %}

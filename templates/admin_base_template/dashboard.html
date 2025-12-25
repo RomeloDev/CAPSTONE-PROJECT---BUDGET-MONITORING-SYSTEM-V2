@@ -71,7 +71,7 @@
             </li>
             
             <li>
-              <a href="#"
+              <a href="{% url "client_accounts" %}"
                  class="flex items-center gap-2 px-3 py-2 rounded-md relative group
                  {% if request.resolver_match.url_name == 'client_accounts' %}
                    bg-blue-600 text-white font-medium
@@ -86,7 +86,7 @@
             </li>
 
             <li>
-              <a href="#"
+              <a href="{% url "audit_trail" %}"
                  class="flex items-center gap-2 px-3 py-2 rounded-md relative group
                  {% if request.resolver_match.url_name == 'audit_trail' %}
                    bg-blue-600 text-white font-medium
@@ -116,7 +116,7 @@
             </li>
 
             <li>
-              <a href="#"
+              <a href="{% url "budget_allocation" %}"
                  class="flex items-center gap-2 px-3 py-2 rounded-md relative group
                  {% if request.resolver_match.url_name == 'budget_allocation' %}
                    bg-blue-600 text-white font-medium
