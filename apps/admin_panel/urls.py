@@ -14,4 +14,9 @@ urlpatterns = [
     path('users/<int:pk>/toggle-status/', views.toggle_user_status, name='toggle_user_status'),
     path('users/bulk-action/', views.bulk_user_action, name='bulk_user_action'),
     path('audit-trail/', views.AuditTrailListView.as_view(), name='audit_trail'),
+    path('pre/', views.PRERequestListView.as_view(), name='admin_pre_list'),
+    path('pre/<uuid:pk>/', views.PREDetailView.as_view(), name='admin_pre_detail'),
+    path('pre/<uuid:pre_id>/action/', views.admin_handle_pre_action, name='admin_handle_pre_action'),
+    path('pre/<uuid:pre_id>/verify/', views.admin_verify_and_approve_pre, name='admin_verify_and_approve_pre'),
+    path('pre/<uuid:pre_id>/upload-doc/', views.admin_upload_approved_document, name='admin_upload_approved_document'), 
 ]

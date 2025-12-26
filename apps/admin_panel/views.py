@@ -1,18 +1,19 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.views.generic import TemplateView
+from django.views.generic import TemplateView, ListView, DetailView
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from datetime import datetime
-from django.views.generic import ListView
 from apps.user_accounts.models import User
 from apps.budgets.models import (
     ApprovedBudget, 
     BudgetAllocation, 
     DepartmentPRE, 
     PurchaseRequest, 
-    ActivityDesign
+    ActivityDesign,
+    RequestApproval,
+    SystemNotification,
 )
 from django.contrib import messages
 from apps.admin_panel.models import AuditTrail
@@ -20,8 +21,8 @@ from apps.budgets.models import ApprovedBudget, BudgetTransaction
 from apps.budgets.forms import ApprovedBudgetForm
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
-from django.contrib.auth.decorators import login_required
-from .forms import BudgetAllocationForm, CustomUserCreationForm, CustomUserEditForm
+from django.contrib.auth.decorators import login_required, user_passes_test
+from .forms import BudgetAllocationForm, CustomUserCreationForm, CustomUserEditForm, ApprovedDocumentUploadForm
 import json
 from django.views.decorators.http import require_POST
 from apps.admin_panel.utils import log_activity
@@ -699,3 +700,287 @@ class AuditTrailListView(LoginRequiredMixin, ListView):
             context['transaction_types'] = BudgetTransaction.TRANSACTION_TYPES
             
         return context
+    
+    
+class PRERequestListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    model = DepartmentPRE
+    template_name = 'admin_panel/pre_list.html'
+    context_object_name = 'pres'
+    paginate_by = 10
+    ordering = ['-submitted_at']
+    def test_func(self):
+        return self.request.user.is_superuser or self.request.user.is_staff
+    def get_queryset(self):
+        queryset = super().get_queryset().exclude(status='Draft').select_related(
+            'submitted_by', 
+            'budget_allocation',
+            'budget_allocation__approved_budget'
+        )
+        # --- Filtering ---
+        search_query = self.request.GET.get('search', '')
+        department = self.request.GET.get('department', '')
+        status = self.request.GET.get('status', '')
+        date_from = self.request.GET.get('date_from', '')
+        date_to = self.request.GET.get('date_to', '')
+        # Search (ID prefix or Submitter Name)
+        if search_query:
+            queryset = queryset.filter(
+                Q(id__icontains=search_query) |
+                Q(submitted_by__first_name__icontains=search_query) |
+                Q(submitted_by__last_name__icontains=search_query) |
+                Q(submitted_by__username__icontains=search_query)
+            )
+        if department:
+            queryset = queryset.filter(department=department)
+        if status:
+            queryset = queryset.filter(status=status)
+        if date_from:
+            queryset = queryset.filter(submitted_at__date__gte=date_from)
+        
+        if date_to:
+            queryset = queryset.filter(submitted_at__date__lte=date_to)
+        return queryset
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # --- Stats Counters ---
+        # We calculate these on the FULL dataset, not just the filtered page
+        all_pres = DepartmentPRE.objects.all()
+        
+        context['stats'] = {
+            'total': all_pres.exclude(status='Draft').count(),
+            'pending': all_pres.filter(status='Pending').count(),
+            'approved': all_pres.filter(status='Approved').count(),
+            'rejected': all_pres.filter(status='Rejected').count(),
+        }
+        # --- Filter Options ---
+        # Get distinct departments from existing PREs (since DeptStation model doesn't exist)
+        context['departments'] = DepartmentPRE.objects.values_list('department', flat=True).distinct().order_by('department')
+        
+        # Status choices from model
+        context['status_choices'] = DepartmentPRE.STATUS_CHOICES
+        return context
+    
+    
+class PREDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+    model = DepartmentPRE
+    template_name = 'admin_panel/pre_detail.html'
+    context_object_name = 'pre'
+    
+    def test_func(self):
+        return self.request.user.is_superuser or self.request.user.is_staff
+    def get_queryset(self):
+        # Optimize query to fetch related data in one go
+        return super().get_queryset().select_related(
+            'submitted_by',
+            'budget_allocation',
+            'budget_allocation__approved_budget'
+        ).prefetch_related(
+            'line_items__category',
+            'line_items__subcategory',
+            # 'supporting_documents' # Uncomment if you have a related_name for documents
+        )
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        pre = self.object
+        
+        # 1. Approval History
+        # If RequestApproval model exists, fetch history
+        if RequestApproval:
+             context['approval_history'] = RequestApproval.objects.filter(
+                content_type='pre',
+                object_id=pre.id
+            ).select_related('approved_by').order_by('-approved_at')
+        
+        # 2. Supporting Documents
+        # If created in previous migration, fetch them
+        if hasattr(pre, 'supporting_documents'):
+            context['supporting_documents'] = pre.supporting_documents.all().order_by('-uploaded_at')
+        # 3. Budget Tracking Breakdown (The Complex Part)
+        # Calculates consumption for PRs and ADs per quarter
+        line_items_with_breakdown = []
+        
+        # Iterate over all line items
+        for item in pre.line_items.all():
+            item_data = {
+                'item': item,
+                'quarters': []
+            }
+            # Generate breakdown for each quarter
+            # This relies on item.get_quarter_breakdown() method on PRELineItem model
+            for quarter in ['Q1', 'Q2', 'Q3', 'Q4']:
+                if hasattr(item, 'get_quarter_breakdown'):
+                    breakdown = item.get_quarter_breakdown(quarter)
+                    item_data['quarters'].append(breakdown)
+            
+            line_items_with_breakdown.append(item_data)
+            
+        context['line_items_with_breakdown'] = line_items_with_breakdown
+        
+        return context
+    
+    
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def admin_handle_pre_action(request, pre_id):
+    if request.method != 'POST':
+        return redirect('admin_pre_list')
+    
+    pre = get_object_or_404(DepartmentPRE, id=pre_id)
+    action = request.POST.get('action')
+    department_name = pre.department  # Store for message
+    
+    if action == 'approve':
+        if pre.status == 'Pending':
+            pre.status = 'Partially Approved'
+            pre.partially_approved_at = timezone.now()
+            pre.save()
+            
+            # Create Approval Record
+            RequestApproval.objects.create(
+                content_type='pre',
+                object_id=pre.id,
+                approved_by=request.user,
+                approval_level='partial',
+                comments=request.POST.get('comments', '')
+            )
+            
+            # Send Notification
+            SystemNotification.objects.create(
+                recipient=pre.submitted_by,
+                title='PRE Partially Approved',
+                message=f'Your PRE for {department_name} has been partially approved.',
+                content_type='pre',
+                object_id=pre.id
+            )
+            
+            messages.success(request, f'PRE {str(pre.id)[:8]} has been partially approved.')
+        else:
+            messages.warning(request, 'This PRE cannot be approved in its current status.')
+            
+    elif action == 'reject':
+        if pre.status == 'Pending':
+            reason = request.POST.get('reason', 'No reason provided')
+            pre.status = 'Rejected'
+            pre.rejection_reason = reason
+            pre.save()
+            
+            # Create Rejection Record
+            RequestApproval.objects.create(
+                content_type='pre',
+                object_id=pre.id,
+                approved_by=request.user,
+                approval_level='rejected',
+                comments=reason
+            )
+            
+            # Send Notification
+            SystemNotification.objects.create(
+                recipient=pre.submitted_by,
+                title='PRE Rejected',
+                message=f'Your PRE for {department_name} has been rejected. Reason: {reason}',
+                content_type='pre',
+                object_id=pre.id
+            )
+            
+            messages.success(request, 'PRE has been rejected.')
+        else:
+            messages.warning(request, 'This PRE cannot be rejected in its current status.')
+            
+    return redirect('admin_pre_detail', pk=pre.id) # Ensure this matches your detail view URL name
+
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def admin_verify_and_approve_pre(request, pre_id):
+    if request.method != 'POST':
+        return redirect('admin_pre_detail', pk=pre_id)
+    pre = get_object_or_404(DepartmentPRE, id=pre_id)
+    action = request.POST.get('action')
+    comment = request.POST.get('reason', '') # Reuse 'reason' field for rejection comments
+    if pre.status != 'Awaiting Admin Verification':
+        messages.error(request, f'Cannot verify PRE. Current status: {pre.status}')
+        return redirect('admin_pre_detail', pk=pre.id)
+    if action == 'approve':
+        pre.status = 'Approved'
+        pre.awaiting_verification = False
+        pre.final_approved_at = timezone.now() # Use appropriate timestamp field
+        pre.admin_notes = comment
+        pre.save()
+        # Update budget consumption (Crucial!)
+        if pre.budget_allocation:
+            # Assuming budget_allocation has logic to update balances
+            # pre.budget_allocation.update_balance(pre.total_amount) 
+            pass 
+        RequestApproval.objects.create(
+            content_type='pre',
+            object_id=pre.id,
+            approved_by=request.user,
+            approval_level='final',
+            comments='Documents verified and approved.'
+        )
+        
+        SystemNotification.objects.create(
+            recipient=pre.submitted_by,
+            title='PRE Verified & Approved',
+            message=f'Your signed documents for PRE {str(pre.id)[:8]} have been verified. Request is now fully approved.',
+            content_type='pre',
+            object_id=pre.id
+        )
+        messages.success(request, 'PRE verified and fully approved!')
+    elif action == 'reject':
+        # Revert to Partially Approved, require re-upload
+        pre.status = 'Partially Approved'
+        pre.awaiting_verification = False
+        pre.rejection_reason = comment
+        pre.save()
+        
+        # Ideally, delete the invalid documents here if you have a relation to them
+        # pre.signed_documents.all().delete()
+        RequestApproval.objects.create(
+            content_type='pre',
+            object_id=pre.id,
+            approved_by=request.user,
+            approval_level='verification_rejected',
+            comments=comment
+        )
+        
+        SystemNotification.objects.create(
+            recipient=pre.submitted_by,
+            title='Documents Rejected',
+            message=f'The signed documents for PRE {str(pre.id)[:8]} were rejected. Please check comments and re-upload.',
+            content_type='pre',
+            object_id=pre.id
+        )
+        messages.warning(request, 'Verification rejected. User has been notified to re-upload.')
+    return redirect('admin_pre_detail', pk=pre.id)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def admin_upload_approved_document(request, pre_id):
+    pre = get_object_or_404(DepartmentPRE, id=pre_id)
+    
+    if request.method == 'POST':
+        # Simply handling file manually for simplicity, or use a Form
+        if 'approved_document' in request.FILES:
+            file = request.FILES['approved_document']
+            pre.approved_documents = file # Adjust field name to match your model
+            pre.status = 'Approved'
+            pre.final_approved_at = timezone.now()
+            pre.save()
+            
+            RequestApproval.objects.create(
+                content_type='pre',
+                object_id=pre.id,
+                approved_by=request.user,
+                approval_level='final',
+                comments='Admin manually uploaded signed document.'
+            )
+            
+            messages.success(request, 'Document uploaded and PRE fully approved.')
+            return redirect('admin_pre_detail', pk=pre.id)
+        else:
+            messages.error(request, 'No file selected.')
+            
+    return render(request, 'admin_panel/upload_approved_doc.html', {'pre': pre})

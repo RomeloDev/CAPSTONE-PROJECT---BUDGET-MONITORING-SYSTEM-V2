@@ -1,5 +1,5 @@
 from django import forms
-from apps.budgets.models import BudgetAllocation, ApprovedBudget
+from apps.budgets.models import BudgetAllocation, ApprovedBudget, DepartmentPRE
 from apps.user_accounts.models import User
 from django.contrib.auth.hashers import make_password
 
@@ -92,3 +92,8 @@ class CustomUserEditForm(forms.ModelForm):
     class Meta:
         model = User
         fields = ['fullname', 'email', 'position', 'mfo', 'department', 'is_active', 'is_approving_officer']
+        
+class ApprovedDocumentUploadForm(forms.ModelForm):
+    class Meta:
+        model = DepartmentPRE
+        fields = ['approved_documents'] # Check exact field name in your model
