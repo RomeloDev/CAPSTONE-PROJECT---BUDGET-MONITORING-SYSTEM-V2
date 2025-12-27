@@ -14,4 +14,12 @@ urlpatterns = [
     
     # Placeholder for Template Download
     # path('download-template/', views.download_pre_template, name='download_pre_template'),
+    
+    path('pre/<uuid:pre_id>/upload-signed-docs/', views.upload_approved_pre_documents, name='upload_approved_pre_documents'),
+    path('budget/overview/', views.budget_overview, name='budget_overview'),
+    path('budget/pre-details/', views.pre_budget_details, name='pre_budget_details'),
+    path('budget/quarterly/', views.quarterly_analysis, name='quarterly_analysis'),
+    path('budget/history/', views.transaction_history, name='transaction_history'),
+    path('budget/reports/', views.budget_reports, name='budget_reports'),
+
 ]

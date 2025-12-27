@@ -1,0 +1,275 @@
+{% extends "end_user_base_template/dashboard.html" %}
+{% load humanize %}
+
+{% block title %}Budget Reports{% endblock title %}
+
+{% block main-content %}
+<div class="p-6 space-y-8 max-w-7xl mx-auto">
+    <!-- Header -->
+    <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Budget Reports</h1>
+            <p class="text-sm text-gray-600 mt-1">Generate and export comprehensive budget reports</p>
+        </div>
+        <div>
+            <a href="{% url 'budget_overview' %}" class="inline-flex items-center px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition shadow-sm">
+                ← Back to Overview
+            </a>
+        </div>
+    </header>
+
+    <!-- Report Types Grid -->
+    <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Budget Summary Report -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition">
+            <div class="flex items-start space-x-4">
+                <div class="p-3 bg-purple-50 rounded-lg">
+                    <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-lg font-semibold text-gray-800">Budget Summary Report</h3>
+                    <p class="text-sm text-gray-600 mt-1 mb-4">Complete overview of budget allocations, PRE details, and transaction summaries</p>
+                    
+                    <div class="space-y-3">
+                        <!-- Preview Button -->
+                        <a href="#" onclick="alert('Report generation coming in next phase!'); return false;" 
+                           class="flex items-center justify-center w-full px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition shadow-sm">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                            </svg>
+                            Preview Report
+                        </a>
+
+                        <!-- Download Options -->
+                        <div class="flex gap-2">
+                            <button onclick="alert('Export coming soon!')" class="flex-1 inline-flex items-center justify-center px-3 py-2 bg-emerald-50 text-emerald-700 text-sm font-medium rounded-lg hover:bg-emerald-100 transition border border-emerald-200">
+                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3"></path>
+                                </svg>
+                                Excel
+                            </button>
+                            <button onclick="alert('Export coming soon!')" class="flex-1 inline-flex items-center justify-center px-3 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 transition border border-red-200">
+                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3"></path>
+                                </svg>
+                                PDF
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quarterly Report -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition">
+            <div class="flex items-start space-x-4">
+                <div class="p-3 bg-blue-50 rounded-lg">
+                    <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-lg font-semibold text-gray-800">Quarterly Report</h3>
+                    <p class="text-sm text-gray-600 mt-1 mb-4">Quarter-specific breakdown with line items and transactions</p>
+                    
+                    <div class="space-y-3">
+                        <div>
+                            <label for="quarterly_quarter" class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Select Quarter</label>
+                            <select id="quarterly_quarter" class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                {% for q in quarters %}
+                                <option value="{{ q }}">{{ q }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <button onclick="previewQuarterly()" class="flex items-center justify-center w-full px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition shadow-sm">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                            </svg>
+                            Preview Report
+                        </button>
+
+                        <div class="flex gap-2">
+                            <button onclick="exportQuarterly('excel')" class="flex-1 inline-flex items-center justify-center px-3 py-2 bg-emerald-50 text-emerald-700 text-sm font-medium rounded-lg hover:bg-emerald-100 transition border border-emerald-200">
+                                Excel
+                            </button>
+                            <button onclick="exportQuarterly('pdf')" class="flex-1 inline-flex items-center justify-center px-3 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 transition border border-red-200">
+                                PDF
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Category-wise Report -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition">
+            <div class="flex items-start space-x-4">
+                <div class="p-3 bg-emerald-50 rounded-lg">
+                    <svg class="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                    </svg>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-lg font-semibold text-gray-800">Category-wise Report</h3>
+                    <p class="text-sm text-gray-600 mt-1 mb-4">Budget breakdown by category (Personnel, MOOE, Capital)</p>
+                    
+                    <div class="space-y-3">
+                        <a href="#" onclick="alert('Report generation coming in next phase!'); return false;" 
+                           class="flex items-center justify-center w-full px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition shadow-sm">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                            </svg>
+                            Preview Report
+                        </a>
+
+                        <div class="flex gap-2">
+                            <button onclick="alert('Export coming soon!')" class="flex-1 inline-flex items-center justify-center px-3 py-2 bg-emerald-50 text-emerald-700 text-sm font-medium rounded-lg hover:bg-emerald-100 transition border border-emerald-200">
+                                Excel
+                            </button>
+                            <button onclick="alert('Export coming soon!')" class="flex-1 inline-flex items-center justify-center px-3 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 transition border border-red-200">
+                                PDF
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transaction Report -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition">
+            <div class="flex items-start space-x-4">
+                <div class="p-3 bg-amber-50 rounded-lg">
+                    <svg class="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-lg font-semibold text-gray-800">Transaction Report</h3>
+                    <p class="text-sm text-gray-600 mt-1 mb-4">Complete list of all transactions within a date range</p>
+                    
+                    <div class="space-y-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">From</label>
+                                <input type="date" id="transaction_date_from" class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">To</label>
+                                <input type="date" id="transaction_date_to" class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                            </div>
+                        </div>
+
+                        <button onclick="previewTransaction()" class="flex items-center justify-center w-full px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition shadow-sm">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                            </svg>
+                            Preview Report
+                        </button>
+
+                        <div class="flex gap-2">
+                            <button onclick="exportTransaction('excel')" class="flex-1 inline-flex items-center justify-center px-3 py-2 bg-emerald-50 text-emerald-700 text-sm font-medium rounded-lg hover:bg-emerald-100 transition border border-emerald-200">
+                                Excel
+                            </button>
+                            <button onclick="exportTransaction('pdf')" class="flex-1 inline-flex items-center justify-center px-3 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 transition border border-red-200">
+                                PDF
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quick Navigation -->
+    <section class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-lg p-8 text-white">
+        <h3 class="text-xl font-bold mb-2">Detailed Analysis</h3>
+        <p class="mb-6 text-blue-100 opacity-90">View specific data directly on the platform before exporting</p>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <a href="{% url 'pre_budget_details' %}" class="bg-white/10 hover:bg-white/20 rounded-lg p-4 transition flex items-center space-x-3 backdrop-blur-sm border border-white/10">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                <span class="font-medium">PRE Details</span>
+            </a>
+            <a href="{% url 'quarterly_analysis' %}" class="bg-white/10 hover:bg-white/20 rounded-lg p-4 transition flex items-center space-x-3 backdrop-blur-sm border border-white/10">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                </svg>
+                <span class="font-medium">Quarterly Analysis</span>
+            </a>
+            <a href="{% url 'transaction_history' %}" class="bg-white/10 hover:bg-white/20 rounded-lg p-4 transition flex items-center space-x-3 backdrop-blur-sm border border-white/10">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span class="font-medium">Transaction History</span>
+            </a>
+        </div>
+    </section>
+
+    <!-- Info Section -->
+    <section class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-6">File Formats</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="flex items-start space-x-3">
+                <div class="p-2 bg-emerald-50 rounded-lg text-emerald-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h4 class="font-medium text-gray-800">Excel (.xlsx)</h4>
+                    <p class="text-xs text-gray-500 mt-1">Best for data analysis. Includes multiple sheets and formulas.</p>
+                </div>
+            </div>
+            <div class="flex items-start space-x-3">
+                <div class="p-2 bg-red-50 rounded-lg text-red-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h4 class="font-medium text-gray-800">PDF Document</h4>
+                    <p class="text-xs text-gray-500 mt-1">Best for printing and official submissions. Static layout.</p>
+                </div>
+            </div>
+            <div class="flex items-start space-x-3">
+                <div class="p-2 bg-gray-50 rounded-lg text-gray-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h4 class="font-medium text-gray-800">CSV</h4>
+                    <p class="text-xs text-gray-500 mt-1">Raw data format. Import into any spreadsheet software.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<script>
+// Placeholder functions for future implementation
+function previewQuarterly() {
+    alert('Report generation coming in next phase!');
+}
+
+function exportQuarterly(format) {
+    alert(`Export to ${format.toUpperCase()} coming soon!`);
+}
+
+function previewTransaction() {
+    alert('Report generation coming in next phase!');
+}
+
+function exportTransaction(format) {
+    alert(`Export to ${format.toUpperCase()} coming soon!`);
+}
+</script>
+{% endblock main-content %}

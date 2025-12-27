@@ -95,7 +95,7 @@
             </li> {% endcomment %}
             {% comment %} Budget Monitoring {% endcomment %}
             <li>
-                <a href="#" class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white
+                <a href="{% url "budget_overview" %}" class="flex items-center p-2 text-gray-900 rounded-lg dark:text-white
                 {% if request.resolver_match.url_name == 'budget_overview' or request.resolver_match.url_name == 'pre_budget_details' or request.resolver_match.url_name == 'quarterly_analysis' or request.resolver_match.url_name == 'transaction_history' or request.resolver_match.url_name == 'budget_reports' %}
                    bg-gray-700
                  {% else %}

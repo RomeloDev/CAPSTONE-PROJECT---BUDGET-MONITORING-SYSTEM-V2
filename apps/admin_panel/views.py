@@ -14,6 +14,7 @@ from apps.budgets.models import (
     ActivityDesign,
     RequestApproval,
     SystemNotification,
+    DepartmentPREApprovedDocument
 )
 from django.contrib import messages
 from apps.admin_panel.models import AuditTrail
@@ -778,7 +779,8 @@ class PREDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
         ).prefetch_related(
             'line_items__category',
             'line_items__subcategory',
-            # 'supporting_documents' # Uncomment if you have a related_name for documents
+            'supporting_documents',      
+            'signed_approved_documents'
         )
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
