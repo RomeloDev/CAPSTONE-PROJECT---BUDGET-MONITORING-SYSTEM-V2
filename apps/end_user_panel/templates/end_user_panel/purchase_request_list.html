@@ -1,0 +1,258 @@
+{% extends "end_user_base_template/dashboard.html" %}
+{% load humanize %}
+
+{% block title %}Purchase Requests & Activity Designs{% endblock title %}
+
+{% block main-content %}
+<div class="p-6 space-y-6 max-w-7xl mx-auto">
+    <!-- Header -->
+    <header class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Request Management</h1>
+            <p class="text-sm text-gray-600 mt-1">Manage your purchase requests and activity designs</p>
+        </div>
+        {% if messages %}
+        <div class="fixed top-4 right-4 z-50 w-full max-w-sm">
+            {% for message in messages %}
+            <div data-toast class="mb-2 p-4 rounded-lg shadow-lg flex items-center gap-3 transform transition-all duration-300 translate-x-full opacity-0
+                {% if message.tags == 'error' %}bg-red-50 text-red-800 border-l-4 border-red-500
+                {% elif message.tags == 'success' %}bg-emerald-50 text-emerald-800 border-l-4 border-emerald-500
+                {% elif message.tags == 'warning' %}bg-amber-50 text-amber-800 border-l-4 border-amber-500
+                {% else %}bg-blue-50 text-blue-800 border-l-4 border-blue-500{% endif %}">
+                {% if message.tags == 'error' %}
+                <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                {% elif message.tags == 'success' %}
+                <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                {% endif %}
+                <p class="text-sm font-medium">{{ message }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </header>
+
+    <!-- Summary Statistics -->
+    <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- PR Summary -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                <div class="p-2 bg-blue-50 rounded-lg mr-3">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+                Purchase Requests
+            </h3>
+            <div class="grid grid-cols-3 gap-4">
+                <div class="p-3 bg-gray-50 rounded-lg text-center">
+                    <p class="text-xs text-gray-500 uppercase font-semibold">Total</p>
+                    <p class="text-xl font-bold text-gray-900 mt-1">{{ purchase_requests|length }}</p>
+                </div>
+                <div class="p-3 bg-amber-50 rounded-lg text-center">
+                    <p class="text-xs text-amber-600 uppercase font-semibold">Pending</p>
+                    <p class="text-xl font-bold text-amber-700 mt-1">{{ pr_pending_count }}</p>
+                </div>
+                <div class="p-3 bg-emerald-50 rounded-lg text-center">
+                    <p class="text-xs text-emerald-600 uppercase font-semibold">Approved</p>
+                    <p class="text-xl font-bold text-emerald-700 mt-1">{{ pr_approved_count }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- AD Summary -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                <div class="p-2 bg-green-50 rounded-lg mr-3">
+                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                </div>
+                Activity Designs
+            </h3>
+            <div class="grid grid-cols-3 gap-4">
+                <div class="p-3 bg-gray-50 rounded-lg text-center">
+                    <p class="text-xs text-gray-500 uppercase font-semibold">Total</p>
+                    <p class="text-xl font-bold text-gray-900 mt-1">{{ activity_designs|length }}</p>
+                </div>
+                <div class="p-3 bg-amber-50 rounded-lg text-center">
+                    <p class="text-xs text-amber-600 uppercase font-semibold">Pending</p>
+                    <p class="text-xl font-bold text-amber-700 mt-1">{{ ad_pending_count }}</p>
+                </div>
+                <div class="p-3 bg-emerald-50 rounded-lg text-center">
+                    <p class="text-xs text-emerald-600 uppercase font-semibold">Approved</p>
+                    <p class="text-xl font-bold text-emerald-700 mt-1">{{ ad_approved_count }}</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quick Actions -->
+    <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <a href="#" class="group p-4 bg-white border border-gray-200 rounded-xl shadow-sm hover:border-blue-400 hover:shadow-md transition-all">
+            <div class="flex items-center">
+                <div class="p-3 bg-blue-100 text-blue-600 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Create Purchase Request</h3>
+                    <p class="text-sm text-gray-500">Upload document for procurable items</p>
+                </div>
+            </div>
+        </a>
+
+        <a href="#" class="group p-4 bg-white border border-gray-200 rounded-xl shadow-sm hover:border-green-400 hover:shadow-md transition-all">
+            <div class="flex items-center">
+                <div class="p-3 bg-green-100 text-green-600 rounded-lg group-hover:bg-green-600 group-hover:text-white transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Create Activity Design</h3>
+                    <p class="text-sm text-gray-500">Upload document for non-procurable items</p>
+                </div>
+            </div>
+        </a>
+    </section>
+
+    <!-- Purchase Requests Table -->
+    <section class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+            <h2 class="text-lg font-semibold text-gray-800">Purchase Requests</h2>
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Procurable</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">PR No.</th>
+                        <th class="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                        <th class="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Purpose</th>
+                        <th class="px-6 py-3 text-right font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                        <th class="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th class="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 bg-white">
+                    {% for pr in purchase_requests %}
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">{{ pr.pr_number }}</td>
+                        <td class="px-6 py-4 text-gray-600">
+                            <span class="block text-gray-900 font-medium">{{ pr.department }}</span>
+                            <span class="text-xs">{{ pr.submitted_by.get_full_name }}</span>
+                        </td>
+                        <td class="px-6 py-4 text-gray-600 max-w-xs truncate" title="{{ pr.purpose }}">
+                            {{ pr.purpose }}
+                        </td>
+                        <td class="px-6 py-4 text-gray-900 font-medium text-right">
+                            ₱{{ pr.total_amount|floatformat:2|intcomma }}
+                        </td>
+                        <td class="px-6 py-4 text-gray-600 whitespace-nowrap">
+                            {{ pr.created_at|date:"M d, Y" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full
+                                {% if pr.status == 'Approved' %}bg-green-100 text-green-800
+                                {% elif pr.status == 'Pending' %}bg-amber-100 text-amber-800
+                                {% elif pr.status == 'Partially Approved' %}bg-indigo-100 text-indigo-800
+                                {% else %}bg-red-100 text-red-800{% endif %}">
+                                {{ pr.status }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <a href="#" class="text-blue-600 hover:text-blue-900 hover:underline">View</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="px-6 py-10 text-center text-gray-500">
+                            <p>No purchase requests found.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Activity Designs Table -->
+    <section class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+            <h2 class="text-lg font-semibold text-gray-800">Activity Designs</h2>
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Non-Procurable</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">AD No.</th>
+                        <th class="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Purpose</th>
+                        <th class="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                        <th class="px-6 py-3 text-right font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                        <th class="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th class="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 bg-white">
+                    {% for ad in activity_designs %}
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">{{ ad.ad_number|default:"Draft" }}</td>
+                        <td class="px-6 py-4 text-gray-600 max-w-xs truncate" title="{{ ad.purpose }}">
+                            {{ ad.purpose }}
+                        </td>
+                        <td class="px-6 py-4 text-gray-600">
+                            <span class="block text-gray-900 font-medium">{{ ad.department }}</span>
+                            <span class="text-xs">{{ ad.submitted_by.get_full_name }}</span>
+                        </td>
+                        <td class="px-6 py-4 text-gray-900 font-medium text-right">
+                            ₱{{ ad.total_amount|floatformat:2|intcomma }}
+                        </td>
+                        <td class="px-6 py-4 text-gray-600 whitespace-nowrap">
+                            {{ ad.created_at|date:"M d, Y" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full
+                                {% if ad.status == 'Approved' %}bg-green-100 text-green-800
+                                {% elif ad.status == 'Pending' %}bg-amber-100 text-amber-800
+                                {% elif ad.status == 'Partially Approved' %}bg-indigo-100 text-indigo-800
+                                {% else %}bg-red-100 text-red-800{% endif %}">
+                                {{ ad.status }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <a href="#" class="text-blue-600 hover:text-blue-900 hover:underline">View</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="px-6 py-10 text-center text-gray-500">
+                            <p>No activity designs found.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+<script>
+    // Simple toast animation
+    document.addEventListener('DOMContentLoaded', () => {
+        const toasts = document.querySelectorAll('[data-toast]');
+        toasts.forEach((toast, index) => {
+            setTimeout(() => {
+                toast.classList.remove('translate-x-full', 'opacity-0');
+            }, index * 100);
+
+            setTimeout(() => {
+                toast.classList.add('translate-x-full', 'opacity-0');
+            }, 5000 + (index * 100));
+        });
+    });
+</script>
+{% endblock main-content %}

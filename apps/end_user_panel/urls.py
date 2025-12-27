@@ -21,5 +21,5 @@ urlpatterns = [
     path('budget/quarterly/', views.quarterly_analysis, name='quarterly_analysis'),
     path('budget/history/', views.transaction_history, name='transaction_history'),
     path('budget/reports/', views.budget_reports, name='budget_reports'),
-
+    path('pr-ad-requests/', views.pr_ad_list, name='pr_ad_list'),
 ]

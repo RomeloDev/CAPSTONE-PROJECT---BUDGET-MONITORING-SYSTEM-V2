@@ -1037,3 +1037,43 @@ def budget_reports(request):
         # You can add more dynamic context here later if needed
     }
     return render(request, 'end_user_panel/budget_reports.html', context)
+
+
+@login_required
+@user_passes_test(lambda u: not u.is_staff and not u.is_superuser)
+def pr_ad_list(request):
+    """
+    Purchase Requests & Activity Designs List Page
+    Lists all PRs and ADs submitted by the user's department(s)
+    """
+    
+    # 1. Get user's active budget allocations to identify relevant departments/scopes
+    budget_allocations = BudgetAllocation.objects.filter(
+        end_user=request.user,
+        is_active=True
+    )
+    # 2. Fetch Purchase Requests (PRs)
+    # Filter PRs linked to user's allocations or submitted by user (adjust logic based on precise requirements)
+    purchase_requests = PurchaseRequest.objects.filter(
+        budget_allocation__in=budget_allocations
+    ).order_by('-created_at')
+    # 3. Fetch Activity Designs (ADs)
+    activity_designs = ActivityDesign.objects.filter(
+        budget_allocation__in=budget_allocations
+    ).order_by('-created_at')
+    # 4. Calculate Summary Statistics
+    pr_pending_count = purchase_requests.filter(status='Pending').count()
+    pr_approved_count = purchase_requests.filter(status='Approved').count()
+    
+    ad_pending_count = activity_designs.filter(status='Pending').count()
+    ad_approved_count = activity_designs.filter(status='Approved').count()
+    # 5. Context
+    context = {
+        'purchase_requests': purchase_requests,
+        'activity_designs': activity_designs,
+        'pr_pending_count': pr_pending_count,
+        'pr_approved_count': pr_approved_count,
+        'ad_pending_count': ad_pending_count,
+        'ad_approved_count': ad_approved_count,
+    }
+    return render(request, 'end_user_panel/purchase_request_list.html', context)
