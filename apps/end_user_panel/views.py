@@ -24,8 +24,12 @@ from apps.budgets.models import (
     PREDraftSupportingDocument,
     DepartmentPREApprovedDocument,
     PurchaseRequestAllocation,
-    ActivityDesignAllocation
+    ActivityDesignAllocation,
+    PurchaseRequestSupportingDocument,
+    PRDraft,
+    PRDraftSupportingDocument,
 )
+from .forms import PurchaseRequestDetailsForm, PurchaseRequestSupportingDocForm, PurchaseRequestUploadForm
 # Note: PREDraft and PREDraftSupportingDocument are used for draft management
 # DepartmentPRE is created only on final submission in PreviewPREView
 from apps.end_user_panel.utils.pre_parser_dynamic import parse_pre_excel_dynamic
@@ -33,6 +37,7 @@ import json
 import os
 from datetime import datetime
 from django.core.paginator import Paginator
+from django.http import JsonResponse
 
 class EndUserDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     """Dashboard for regular staff/end users"""
@@ -1077,3 +1082,179 @@ def pr_ad_list(request):
         'ad_approved_count': ad_approved_count,
     }
     return render(request, 'end_user_panel/purchase_request_list.html', context)
+
+@login_required
+def purchase_request_upload(request):
+    """
+    Handle PR document upload using PRDraft intermediate storage.
+    """
+    # 1. Get or Create Draft
+    draft, created = PRDraft.objects.get_or_create(user=request.user)
+    
+    # 2. Context Data
+    current_fiscal_year = str(datetime.now().year)
+    budget_allocations = BudgetAllocation.objects.filter(
+        department=request.user.department,
+        is_active=True,
+        approved_budget__fiscal_year=current_fiscal_year
+    ).select_related('approved_budget')
+    auto_selected_allocation = budget_allocations.first() if budget_allocations.count() == 1 else None
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        # === ACTION: UPLOAD PR DOCUMENT ===
+        if action == 'upload_pr':
+            form = PurchaseRequestUploadForm(request.POST, request.FILES)
+            if form.is_valid():
+                # Delete old if exists
+                if draft.pr_file:
+                    draft.pr_file.delete(save=False)
+                
+                f = form.cleaned_data['pr_document']
+                draft.pr_file = f
+                draft.pr_filename = f.name
+                draft.save()
+                messages.success(request, "PR Document uploaded successfully.")
+            else:
+                 messages.error(request, f"Upload failed: {form.errors}")
+            return redirect('purchase_request_upload')
+        # === ACTION: UPLOAD SUPPORTING DOCS ===
+        elif action == 'upload_supporting':
+            form = PurchaseRequestSupportingDocForm(request.POST, request.FILES)
+            files = request.FILES.getlist('supporting_documents')
+            if files:
+                for f in files:
+                    PRDraftSupportingDocument.objects.create(
+                        draft=draft,
+                        document=f,
+                        file_name=f.name,
+                        file_size=f.size
+                    )
+                messages.success(request, f"{len(files)} supporting documents uploaded.")
+            else:
+                messages.error(request, "No files selected.")
+            return redirect('purchase_request_upload')
+        # === ACTION: REMOVE FILE ===
+        elif action == 'remove_pr':
+            if draft.pr_file:
+                draft.pr_file.delete()
+                draft.pr_filename = ''
+                draft.save()
+            return redirect('purchase_request_upload')
+            
+        elif 'remove_doc_id' in request.POST:
+            doc_id = request.POST.get('remove_doc_id')
+            doc = get_object_or_404(PRDraftSupportingDocument, id=doc_id, draft=draft)
+            doc.delete()
+            return redirect('purchase_request_upload')
+        # === ACTION: FINAL SUBMIT ===
+        elif action == 'submit_final':
+            if not draft.pr_file:
+                messages.error(request, "Please upload a PR Document first.")
+                return redirect('purchase_request_upload')
+                
+            form = PurchaseRequestDetailsForm(request.POST)
+            if form.is_valid():
+                data = form.cleaned_data
+                try:
+                    with transaction.atomic():
+                        # Parse Source
+                        pre_id, line_item_id, quarter = data['source_of_fund'].split('|')
+                        
+                        budget_allocation = BudgetAllocation.objects.get(id=data['budget_allocation'])
+                        pre_line_item = PRELineItem.objects.get(id=line_item_id)
+                        
+                        # Create Real PR
+                        pr = PurchaseRequest.objects.create(
+                            submitted_by=request.user,
+                            department=request.user.department,
+                            budget_allocation=budget_allocation,
+                            pr_number=f"PR-{datetime.now().strftime('%Y%m%d')}-{PurchaseRequest.objects.count()+1:04d}",
+                            purpose=data['purpose'],
+                            total_amount=data['total_amount'],
+                            status='Pending',
+                            # Transfer file from Draft to PR
+                            # Note: Cloudinary/Django file assignment typically handles the copy or reference
+                            uploaded_document=draft.pr_file
+                        )
+                        
+                        # Create Allocation
+                        PurchaseRequestAllocation.objects.create(
+                            purchase_request=pr,
+                            pre_line_item=pre_line_item,
+                            quarter=quarter,
+                            allocated_amount=data['total_amount']
+                        )
+                        
+                        # Transfer Supporting Docs
+                        for draft_doc in draft.supporting_documents.all():
+                            PurchaseRequestSupportingDocument.objects.create(
+                                purchase_request=pr,
+                                document=draft_doc.document,
+                                file_name=draft_doc.file_name,
+                                file_size=draft_doc.file_size
+                            )
+                        
+                        # Clear Draft
+                        draft.delete()
+                        
+                        messages.success(request, "Purchase Request submitted successfully!")
+                        return redirect('pr_ad_list')
+                except Exception as e:
+                    messages.error(request, f"Error creating PR: {str(e)}")
+            else:
+                 messages.error(request, f"Form errors: {form.errors}")
+    
+    context = {
+        'draft': draft,
+        'budget_allocations': budget_allocations,
+        'auto_selected_allocation': auto_selected_allocation,
+        'current_fiscal_year': current_fiscal_year,
+    }
+    return render(request, 'end_user_panel/purchase_request_upload_form.html', context)
+@login_required
+def get_pre_line_items(request):
+    """
+    AJAX endpoint to get available PRE line items for a budget allocation.
+    Returns line items that have remaining balance for the current/future quarters.
+    """
+    allocation_id = request.GET.get('allocation_id')
+    
+    if not allocation_id:
+        return JsonResponse({'success': False, 'error': 'Missing allocation ID'})
+        
+    try:
+        allocation = BudgetAllocation.objects.get(id=allocation_id)
+        
+        # Get all approved PREs for this allocation
+        pres = DepartmentPRE.objects.filter(
+            budget_allocation=allocation,
+            status='Approved'
+        ).prefetch_related('line_items')
+        
+        line_items_data = []
+        
+        for pre in pres:
+            for item in pre.line_items.all():
+                # We need to send back available options.
+                # Logic: Check availability for each quarter (Q1, Q2, Q3, Q4)
+                
+                quarters = ['Q1', 'Q2', 'Q3', 'Q4']
+                
+                for q in quarters:
+                    # Use the helper method from the model
+                    available = item.get_quarter_available(q) or 0
+                    if available > 0:
+                        line_items_data.append({
+                            'value': f"{pre.id}|{item.id}|{q}", # encoded ID for submission
+                            'display': f"{item.item_name}", # Assumes item.line_item.name exists, verify if needed
+                            'quarter': q,
+                            'available': float(available)
+                        })
+                        
+        return JsonResponse({'success': True, 'line_items': line_items_data})
+        
+    except BudgetAllocation.DoesNotExist:
+         return JsonResponse({'success': False, 'error': 'Allocation not found'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})

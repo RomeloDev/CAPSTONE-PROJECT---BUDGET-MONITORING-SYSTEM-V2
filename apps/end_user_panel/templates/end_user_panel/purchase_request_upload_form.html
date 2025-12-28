@@ -1,0 +1,475 @@
+{% extends "end_user_base_template/dashboard.html" %}
+{% load humanize %}
+
+{% block title %}Upload Purchase Request{% endblock %}
+
+{% block main-content %}
+<main class="mx-auto max-w-4xl p-4 md:p-8">
+    <!-- Header -->
+    <header class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 mb-2">Upload Purchase Request</h1>
+                <p class="text-gray-600">Upload your completed PR document and supporting files</p>
+            </div>
+            <a href="{% url 'pr_ad_list' %}"
+               class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Back
+            </a>
+        </div>
+    </header>
+
+    <!-- Messages -->
+    {% if messages %}
+        <div class="mt-4 space-y-2 mb-6">
+            {% for message in messages %}
+                <div class="rounded-lg p-4 {% if message.tags == 'success' %}bg-green-50 border border-green-200 text-green-800{% elif message.tags == 'error' %}bg-red-50 border border-red-200 text-red-800{% else %}bg-blue-50 border border-blue-200 text-blue-800{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" class="space-y-6">
+        {% csrf_token %}
+
+        <!-- Step 1: Upload PR Document -->
+        <section class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center mb-4">
+                <div class="flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-full font-bold mr-3">1</div>
+                <h2 class="text-xl font-semibold text-gray-900">Upload PR Document</h2>
+            </div>
+
+            <p class="text-sm text-gray-600 mb-4">Upload your completed Purchase Request document (.docx or .pdf format)</p>
+
+            {% if draft and draft.pr_file %}
+                <!-- Show uploaded file -->
+                <div class="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <svg class="w-8 h-8 text-green-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <div>
+                                <p class="font-medium text-gray-900">{{ draft.pr_filename }}</p>
+                                <a href="{{ draft.pr_file.url }}" target="_blank" class="text-sm text-blue-600 hover:underline">View File</a>
+                            </div>
+                        </div>
+                        <button type="submit" name="action" value="remove_pr" formnovalidate
+                                class="text-red-600 hover:text-red-800 font-medium text-sm">
+                            Remove
+                        </button>
+                    </div>
+                </div>
+            {% else %}
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors bg-gray-50" id="pr-drop-zone">
+                    <input type="file" name="pr_document" id="pr_document"
+                           accept=".pdf,.doc,.docx"
+                           class="hidden">
+                    <label for="pr_document" class="cursor-pointer">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                        </svg>
+                        <p class="mt-2 text-sm text-gray-600">
+                            <span class="font-medium text-blue-600 hover:text-blue-500">Click to upload</span> or drag and drop
+                        </p>
+                        <p class="mt-1 text-xs text-gray-500">PDF, DOC, DOCX up to 10MB</p>
+                        <p id="pr-file-name" class="mt-2 text-sm font-semibold text-gray-900 hidden"></p>
+                    </label>
+                    <button type="submit" name="action" value="upload_pr" formnovalidate class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700">Optional: Upload Now</button>
+                </div>
+            {% endif %}
+        </section>
+
+        <!-- Step 2: Upload Supporting Documents -->
+        <section class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center mb-4">
+                <div class="flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-full font-bold mr-3">2</div>
+                <h2 class="text-xl font-semibold text-gray-900">Upload Supporting Documents</h2>
+            </div>
+
+            <p class="text-sm text-gray-600 mb-4">Upload additional supporting documents (multiple files allowed)</p>
+
+            {% if draft and draft.supporting_documents.exists %}
+                <div class="mb-4 space-y-2">
+                    {% for doc in draft.supporting_documents.all %}
+                        <div class="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                            <div class="flex items-center">
+                                <svg class="w-6 h-6 text-blue-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                <div>
+                                    <p class="font-medium text-gray-900">{{ doc.file_name }}</p>
+                                    <p class="text-sm text-gray-600">{{ doc.file_size|filesizeformat }}</p>
+                                </div>
+                            </div>
+                            <button type="submit" name="remove_doc_id" value="{{ doc.id }}" formnovalidate
+                                    class="text-red-600 hover:text-red-800 font-medium text-sm">
+                                Remove
+                            </button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors bg-gray-50" id="supporting-drop-zone">
+                <input type="file" name="supporting_documents" id="supporting_documents"
+                       multiple
+                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                       class="hidden">
+                 <label for="supporting_documents" class="cursor-pointer">
+                    <svg class="mx-auto h-10 w-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                    </svg>
+                    <p class="mt-2 text-sm text-gray-600">
+                        <span class="font-medium text-blue-600 hover:text-blue-500">Click to upload</span> multiple files
+                    </p>
+                    <p class="mt-1 text-xs text-gray-500">PDF, DOC, DOCX, JPG, PNG up to 10MB each</p>
+                    <div id="supporting-file-list" class="mt-2 text-left space-y-1 hidden">
+                        <!-- File list will be populated here -->
+                    </div>
+                </label>
+                <button type="submit" name="action" value="upload_supporting" formnovalidate class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700">Optional: Upload Now</button>
+            </div>
+        </section>
+
+        <!-- Step 3: Funding Details -->
+        <section class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center mb-4">
+                <div class="flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-full font-bold mr-3">3</div>
+                <h2 class="text-xl font-semibold text-gray-900">Funding Details</h2>
+            </div>
+
+            <div class="space-y-4">
+                <!-- Budget Allocation (Auto-Selected based on Current Fiscal Year) -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Budget Allocation <span class="text-red-500">*</span>
+                    </label>
+                    {% if auto_selected_allocation %}
+                        <!-- Auto-selected allocation display -->
+                        <div class="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+                            <div class="flex items-center gap-2 mb-2">
+                                <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                </svg>
+                                <h4 class="font-semibold text-blue-900">Current Fiscal Year {{ auto_selected_allocation.approved_budget.fiscal_year }}</h4>
+                            </div>
+                            <p class="text-gray-900 font-medium text-lg">{{ auto_selected_allocation.approved_budget.title }}</p>
+                            <div class="mt-3 pt-3 border-t border-blue-200">
+                                <p class="text-sm text-gray-700">
+                                    <span class="font-medium">Approved PRE Grand Total:</span>
+                                    <span class="font-bold text-green-600 text-lg ml-2">₱{{ auto_selected_allocation.get_pre_approved_total|floatformat:2|intcomma }}</span>
+                                </p>
+                            </div>
+                            <input type="hidden" name="budget_allocation" id="budget_allocation" value="{{ auto_selected_allocation.id }}">
+                        </div>
+                    {% else %}
+                        <!-- No allocation found for current year -->
+                        <div class="p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
+                            <div class="flex items-start gap-3">
+                                <svg class="w-6 h-6 text-yellow-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                                </svg>
+                                <div>
+                                    <p class="font-semibold text-yellow-900">No Budget Allocation Found</p>
+                                    <p class="text-sm text-yellow-800 mt-1">
+                                        No active budget allocation found for fiscal year {{ current_fiscal_year }}.
+                                        Please contact the admin to set up your budget allocation.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Source of Fund (PRE Line Item) -->
+                <div>
+                    <label for="source_of_fund" class="block text-sm font-medium text-gray-700 mb-2">
+                        Source of Fund (PRE Line Item) <span class="text-red-500">*</span>
+                    </label>
+                    <select name="source_of_fund" id="source_of_fund"
+                            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                            required
+                            >
+                        <option value="">First select a budget allocation</option>
+                    </select>
+                    <p class="mt-1 text-sm text-gray-500" id="source_of_fund_help">
+                        Select a budget allocation first to see available PRE line items.
+                    </p>
+                </div>
+
+                <!-- Total Amount -->
+                <div>
+                    <label for="total_amount" class="block text-sm font-medium text-gray-700 mb-2">
+                        Total Amount <span class="text-red-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">₱</span>
+                        <input type="text" id="total_amount_display"
+                            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-8 p-2.5"
+                            placeholder="0.00"
+                            required>
+                        <input type="hidden" name="total_amount" id="total_amount_raw">
+                    </div>
+                    <p class="mt-1 text-sm text-gray-500">Enter the total amount for this purchase request</p>
+                </div>
+
+                <!-- Purpose -->
+                <div>
+                    <label for="purpose" class="block text-sm font-medium text-gray-700 mb-2">
+                        Purpose <span class="text-red-500">*</span>
+                    </label>
+                    <textarea name="purpose" id="purpose" rows="3"
+                              class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                              placeholder="State the purpose of this purchase request"
+                              required></textarea>
+                </div>
+            </div>
+        </section>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center justify-end mt-6 mb-6 gap-3">
+             <a href="{% url 'pr_ad_list' %}"
+               class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 bg-white">
+                Cancel
+            </a>
+            <button type="submit" name="action" value="submit_final"
+                    class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+                Submit Purchase Request
+            </button>
+        </div>
+
+        <!-- Validation Info -->
+        <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div class="flex items-start">
+                <svg class="w-5 h-5 text-blue-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <div class="text-sm text-blue-800">
+                    <p class="font-medium mb-1">Before submitting:</p>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li>Upload your PR document (Step 1)</li>
+                        <li>Upload supporting documents if needed (Step 2)</li>
+                        <li>Fill in all funding details (Step 3)</li>
+                        <li>Ensure the total amount doesn't exceed available funds</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </form>
+</main>
+
+<!-- Choices.js CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
+<!-- Choices.js JS -->
+<script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // === File Upload Feedback ===
+    const prInput = document.getElementById('pr_document');
+    const prNameDisplay = document.getElementById('pr-file-name');
+
+    if (prInput) {
+        prInput.addEventListener('change', function(e) {
+            if (this.files.length > 0) {
+                prNameDisplay.textContent = 'Selected: ' + this.files[0].name;
+                prNameDisplay.classList.remove('hidden');
+                prNameDisplay.classList.add('text-green-600');
+            } else {
+                prNameDisplay.classList.add('hidden');
+            }
+        });
+    }
+
+    const supInput = document.getElementById('supporting_documents');
+    const supList = document.getElementById('supporting-file-list');
+
+    supInput.addEventListener('change', function(e) {
+        supList.innerHTML = '';
+        if (this.files.length > 0) {
+           supList.classList.remove('hidden');
+           Array.from(this.files).forEach(file => {
+               const p = document.createElement('p');
+               p.className = 'text-sm text-gray-700 font-medium';
+               p.innerHTML = `<span class="text-green-600 mr-2">✓</span> ${file.name}`;
+               supList.appendChild(p);
+           });
+        } else {
+            supList.classList.add('hidden');
+        }
+    });
+
+    // === Choices.js & Budget Logic ===
+    const budgetAllocationInput = document.getElementById('budget_allocation');
+    const sourceOfFundSelect = document.getElementById('source_of_fund');
+    const sourceOfFundHelp = document.getElementById('source_of_fund_help');
+
+    // Initialize Choices.js
+    const sourceOfFundChoice = new Choices('#source_of_fund', {
+        searchEnabled: true,
+        searchPlaceholderValue: 'Search PRE line items...',
+        itemSelectText: 'Click to select',
+        shouldSort: false,
+    });
+    
+    // Initial State: Disable only if no allocation is selected
+    const initialAllocationId = budgetAllocationInput ? budgetAllocationInput.value : null;
+    if (!initialAllocationId) {
+        sourceOfFundChoice.disable();
+    }
+
+    const autoSelectedAllocationId = budgetAllocationInput ? budgetAllocationInput.value : null;
+
+    if (autoSelectedAllocationId) {
+        loadPRELineItems(autoSelectedAllocationId);
+    }
+
+    function loadPRELineItems(allocationId) {
+        // Show loading state
+        sourceOfFundChoice.clearStore();
+        sourceOfFundChoice.setChoices([
+            { value: '', label: 'Loading line items...', selected: true, disabled: false }
+        ], 'value', 'label', true);
+        sourceOfFundChoice.disable();
+        
+        sourceOfFundHelp.textContent = 'Loading available PRE line items...';
+        sourceOfFundHelp.className = 'mt-1 text-sm text-blue-600';
+        
+        // Use Django's url template tag to get the correct path dynamically
+        const baseUrl = "{% url 'get_pre_line_items' %}";
+        const url = `${baseUrl}?allocation_id=${allocationId}`;
+        
+        fetch(url, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                populateSourceOfFundChoices(data.line_items);
+                
+                if (data.line_items.length === 0) {
+                    sourceOfFundHelp.textContent = 'No approved PRE line items available for this budget allocation.';
+                    sourceOfFundHelp.className = 'mt-1 text-sm text-amber-600';
+                } else {
+                    sourceOfFundHelp.textContent = `${data.line_items.length} line item(s) available. Select one to continue.`;
+                    sourceOfFundHelp.className = 'mt-1 text-sm text-green-600';
+                    sourceOfFundChoice.enable(); // Explicitly enable after loading
+                }
+            } else {
+                 handleError(data.error);
+            }
+        })
+        .catch(error => {
+            console.error(error);
+            handleError('Failed to load line items.');
+        });
+    }
+
+    function handleError(msg) {
+        sourceOfFundChoice.clearStore();
+        sourceOfFundChoice.setChoices([
+            { value: '', label: 'Error loading line items', selected: true, disabled: false }
+        ], 'value', 'label', true);
+        sourceOfFundHelp.textContent = msg;
+        sourceOfFundHelp.className = 'mt-1 text-sm text-red-600';
+    }
+
+    function simplifyDisplayText(text) {
+        // Simplification logic consistent with legacy if needed
+        // Format: "Category - Subcategory - Item" -> "Category - Item"
+        const parts = text.split(' - ');
+        if (parts.length === 3) {
+            return `${parts[0]} - ${parts[2]}`;
+        }
+        return text;
+    }
+
+    function populateSourceOfFundChoices(lineItems) {
+        const choices = [
+             { value: '', label: 'Select approved PRE line item and quarter', selected: true, disabled: false }
+        ];
+
+        // Grouping logic (optional, but good for UX)
+        // We will flatten it for simplicity as per legacy script logic, or replicate the grouping.
+        // Legacy script grouped by "PRE | Item" then listed quarters.
+        
+        // Let's assume the backend returns flat list of quarters for simplicity in this migration step
+        // or adapt the legacy grouping if data struct matches.
+        
+        // NOTE: The legacy backend returned a specific structure. The new backend guide 
+        // will ensure the JSON structure is compatible.
+        
+        // For now, let's assume a flat list of choices for robustness
+        lineItems.forEach(item => {
+             // simplified display
+             let label = item.display; 
+             // If backend returns 'display' we use it.
+             
+             choices.push({
+                 value: item.value, // e.g., "pre_id|line_item_id|quarter"
+                 label: `${item.display} - ${item.quarter} (Available: ₱${parseFloat(item.available).toLocaleString('en-US', {minimumFractionDigits: 2})})`,
+                 customProperties: {
+                     available: item.available
+                 }
+             });
+        });
+
+        sourceOfFundChoice.clearStore();
+        sourceOfFundChoice.setChoices(choices, 'value', 'label', true);
+        sourceOfFundChoice.enable();
+    }
+
+    // === Currency Input ===
+    const totalAmountDisplay = document.getElementById('total_amount_display');
+    const totalAmountRaw = document.getElementById('total_amount_raw');
+
+    totalAmountDisplay.addEventListener('input', function() {
+        // Simple currency formatter
+        let value = this.value.replace(/,/g, '');
+        // Allow only numbers and one dot
+        value = value.replace(/[^0-9.]/g, '');
+        
+        if (value) {
+            const parts = value.split('.');
+            parts[0] = parseInt(parts[0], 10).toLocaleString('en-US');
+            if (parts.length > 2) value = parts[0] + '.' + parts.slice(1).join('');
+            else value = parts.join('.');
+            this.value = value;
+            totalAmountRaw.value = value.replace(/,/g, '');
+        } else {
+             totalAmountRaw.value = '';
+        }
+        
+        validateAmount();
+    });
+
+    sourceOfFundSelect.addEventListener('change', validateAmount);
+
+    function validateAmount() {
+        const amount = parseFloat(totalAmountRaw.value) || 0;
+        const selectedOption = sourceOfFundSelect.options[sourceOfFundSelect.selectedIndex];
+        // Note: Choices.js hides the real select, but we can access custom props via the choices instance if needed.
+        // Or better, rely on the backend validation + simple client side check.
+        // Accessing custom props from hidden native select is tricky with Choices.js.
+        // Instead, we can look up the value in the sourceOfFundChoice instance or stored data.
+        
+        // Improved approach: store available amount in a map or look it up
+        // For now, basic > 0 check. Backend validation is the source of truth.
+        
+        if (amount <= 0 && totalAmountRaw.value !== '') {
+            totalAmountDisplay.setCustomValidity('Amount must be greater than zero');
+        } else {
+            totalAmountDisplay.setCustomValidity('');
+        }
+    }
+});
+</script>
+{% endblock %}

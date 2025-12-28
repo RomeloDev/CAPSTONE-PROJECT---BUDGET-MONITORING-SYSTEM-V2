@@ -22,4 +22,6 @@ urlpatterns = [
     path('budget/history/', views.transaction_history, name='transaction_history'),
     path('budget/reports/', views.budget_reports, name='budget_reports'),
     path('pr-ad-requests/', views.pr_ad_list, name='pr_ad_list'),
+    path('pr-ad-request/purchase_request_upload/', views.purchase_request_upload, name='purchase_request_upload'),
+    path('get-pre-line-items/', views.get_pre_line_items, name='get_pre_line_items'),
 ]

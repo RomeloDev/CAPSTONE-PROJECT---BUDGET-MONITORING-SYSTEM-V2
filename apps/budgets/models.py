@@ -682,6 +682,7 @@ class PurchaseRequest(models.Model):
     
     # File Upload (for upload-based PR)
     uploaded_document = models.FileField(
+        storage=RawMediaCloudinaryStorage(),
         upload_to='pr_documents/%Y/%m/',
         null=True,
         blank=True,
@@ -1777,6 +1778,7 @@ class PRDraft(models.Model):
     
     # PR Document
     pr_file = models.FileField(
+        storage=RawMediaCloudinaryStorage(),
         upload_to='pr_drafts/%Y/%m/',
         null=True,
         blank=True,
@@ -1806,6 +1808,7 @@ class PRDraftSupportingDocument(models.Model):
         related_name='supporting_documents'
     )
     document = models.FileField(
+        storage=RawMediaCloudinaryStorage(),
         upload_to='pr_draft_supporting/%Y/%m/',
         help_text="Supporting document"
     )
@@ -1829,6 +1832,7 @@ class PurchaseRequestSupportingDocument(models.Model):
         related_name='supporting_documents'
     )
     document = models.FileField(
+        storage=RawMediaCloudinaryStorage(), 
         upload_to='pr_supporting_docs/%Y/%m/',
         help_text='Supporting document file'
     )
