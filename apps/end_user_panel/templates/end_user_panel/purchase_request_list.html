@@ -163,7 +163,7 @@
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <a href="#" class="text-blue-600 hover:text-blue-900 hover:underline">View</a>
+                            <a href="{% url 'view_pr_detail' pr_id=pr.id %}" class="text-blue-600 hover:text-blue-900 hover:underline">View</a>
                         </td>
                     </tr>
                     {% empty %}

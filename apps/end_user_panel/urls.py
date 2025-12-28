@@ -24,4 +24,6 @@ urlpatterns = [
     path('pr-ad-requests/', views.pr_ad_list, name='pr_ad_list'),
     path('pr-ad-request/purchase_request_upload/', views.purchase_request_upload, name='purchase_request_upload'),
     path('get-pre-line-items/', views.get_pre_line_items, name='get_pre_line_items'),
+    path('pr/view/<uuid:pr_id>/', views.ViewPRDetailView.as_view(), name='view_pr_detail'),
+    path('pr/<uuid:pr_id>/upload-signed-docs/', views.upload_signed_pr_docs, name='upload_signed_pr_docs'),
 ]

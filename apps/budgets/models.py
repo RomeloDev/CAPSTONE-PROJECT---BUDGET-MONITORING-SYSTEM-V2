@@ -1902,7 +1902,8 @@ class PurchaseRequestApprovedDocument(models.Model):
         help_text='Link to PR submission'
     )
     document = models.FileField(
-        upload_to='pr_approved_uploads/%Y/%m/',
+        storage=RawMediaCloudinaryStorage(),
+        upload_to='pr_signed_docs/',
         validators=[FileExtensionValidator(
             allowed_extensions=['pdf', 'jpg', 'jpeg', 'png']
         )],

@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.views.generic import TemplateView
+from django.views.generic import TemplateView, DetailView
 from django.db.models import Sum, Q, Exists, OuterRef, F, Value, DecimalField
 from django.db.models.functions import Coalesce
 from django.contrib import messages
@@ -38,6 +38,7 @@ import os
 from datetime import datetime
 from django.core.paginator import Paginator
 from django.http import JsonResponse
+from django.views.decorators.http import require_POST
 
 class EndUserDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     """Dashboard for regular staff/end users"""
@@ -1258,3 +1259,143 @@ def get_pre_line_items(request):
          return JsonResponse({'success': False, 'error': 'Allocation not found'})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
+    
+    
+class ViewPRDetailView(LoginRequiredMixin, DetailView):
+    model = PurchaseRequest
+    template_name = 'end_user_panel/view_pr_detail.html'
+    context_object_name = 'pr'
+    pk_url_kwarg = 'pr_id'
+    def get_queryset(self):
+        # Security: Users can only view their own PRs
+        return PurchaseRequest.objects.filter(submitted_by=self.request.user)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        pr = self.object
+        
+        # 1. Get the Primary Allocation (The specific PRE Line Item used)
+        # We assume 1 PR maps to 1 Allocation for this version
+        # You might need to adjust the related name 'pre_allocations' based on your exact model definition
+        # If PurchaseRequestAllocation model exists:
+        allocation = pr.pre_allocations.select_related(
+            'pre_line_item__category',
+            'pre_line_item__pre' 
+        ).first()
+        
+        context['allocation'] = allocation
+        
+        # 2. Budget Breakdown Calculation
+        # We need to show: Total Budget, Total Used (All PRs/ADs), Remaining
+        if pr.budget_allocation:
+            budget_alloc = pr.budget_allocation
+            
+            # Calculate Total Consumed by *ALL* PRs for this budget allocation
+            total_pr_consumed = budget_alloc.purchase_requests.exclude(
+                status__in=['Rejected', 'Draft']
+            ).aggregate(total=Coalesce(Sum('total_amount'), Decimal('0.00')))['total']
+            
+            # Calculate Total Consumed by *ALL* Activity Designs (if linked to same budget)
+            # Assuming ActivityDesign model exists and links to BudgetAllocation
+            # total_ad_consumed = budget_alloc.activity_designs.exclude(...).aggregate(...)
+            total_ad_consumed = Decimal('0.00') # Placeholder until AD is fully integrated
+            total_used = total_pr_consumed + total_ad_consumed
+            remaining = budget_alloc.allocated_amount - total_used
+            context['budget_summary'] = {
+                'allocated': budget_alloc.allocated_amount,
+                'total_used': total_used,
+                'remaining': remaining,
+                'pr_used': total_pr_consumed,
+                'ad_used': total_ad_consumed
+            }
+        # 3. Quarter-Specific Details (If allocation exists)
+        if allocation:
+            line_item = allocation.pre_line_item
+            quarter = allocation.quarter # e.g., 'Q1'
+            
+            # A. Get Original Budget for this specific Quarter
+            # PRELineItem has fields q1_amount, q2_amount...
+            quarter_field = f"{quarter.lower()}_amount"
+            original_amount = getattr(line_item, quarter_field, Decimal('0.00'))
+            
+            # B. Calculate "Consumed Before" (By OTHER PRs/ADs for this Item + Quarter)
+            # We filter for allocations linked to this Line Item + Quarter
+            # And exclude the current PR to see what was used *before* this request
+            from apps.budgets.models import PurchaseRequestAllocation
+            
+            consumed_others = PurchaseRequestAllocation.objects.filter(
+                pre_line_item=line_item,
+                quarter=quarter,
+                purchase_request__status__in=['Pending', 'Partially Approved', 'Awaiting Admin Verification', 'Approved']
+            ).exclude(
+                purchase_request=pr # Exclude this PR
+            ).aggregate(
+                total=Coalesce(Sum('allocated_amount'), Decimal('0.00'))
+            )['total']
+            
+            # Placeholder for AD consumption (Add this when AD model is ready)
+            # ad_consumed = ActivityDesignAllocation.objects.filter(...).aggregate(...)
+            ad_consumed = Decimal('0.00') 
+            
+            consumed_total_others = consumed_others + ad_consumed
+            
+            # C. This PR's Usage
+            this_pr_usage = allocation.allocated_amount
+            
+            # D. Remaining
+            remaining = original_amount - consumed_total_others - this_pr_usage
+            
+            context['quarter_details'] = {
+                'quarter': quarter,
+                'original': original_amount,
+                'consumed_before': consumed_total_others,
+                'this_pr': this_pr_usage,
+                'remaining': remaining
+            }
+        return context
+    
+    
+@login_required
+@require_POST
+def upload_signed_pr_docs(request, pr_id):
+    pr = get_object_or_404(PurchaseRequest, id=pr_id, submitted_by=request.user)
+    
+    # Validation: Only allow upload if Partially Approved
+    if pr.status != 'Partially Approved':
+        messages.error(request, "You can only upload signed documents when status is 'Partially Approved'.")
+        return redirect('view_pr_detail', pr_id=pr.id)
+        
+    uploaded_files = request.FILES.getlist('signed_documents')
+    
+    if not uploaded_files:
+        messages.error(request, "Please select at least one file.")
+        return redirect('view_pr_detail', pr_id=pr.id)
+    try:
+        # Save each file
+        # Note: You might want a specific model field or a 'type' field to distinguish these
+        # If reusing PurchaseRequestSupportingDocument, maybe add a description prefix
+        
+        # Checking if you have a specific 'SignedDocument' model or related name 'signed_approved_documents'
+        # based on the template {{ pre.signed_approved_documents.all }}
+        # If 'signed_approved_documents' is a related_name on PurchaseRequestApprovedDocument model:
+        
+        from apps.budgets.models import PurchaseRequestApprovedDocument # Import if exists
+        
+        for f in uploaded_files:
+            PurchaseRequestApprovedDocument.objects.create(
+                purchase_request=pr,
+                document=f,
+                file_name=f.name,
+                uploaded_by=request.user,
+                is_signed_copy=True # Flag if applicable
+            )
+            
+        # Update PR Status
+        pr.status = 'Awaiting Admin Verification'
+        pr.save() # Ensure 'end_user_uploaded_at' auto-updates or set it manually
+        
+        messages.success(request, "Signed documents uploaded successfully! Admin will verify them shortly.")
+        
+    except Exception as e:
+        messages.error(request, f"Error uploading files: {str(e)}")
+        
+    return redirect('view_pr_detail', pr_id=pr.id)
