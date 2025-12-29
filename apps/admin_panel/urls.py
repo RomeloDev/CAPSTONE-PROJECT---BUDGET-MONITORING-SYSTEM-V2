@@ -19,4 +19,8 @@ urlpatterns = [
     path('pre/<uuid:pre_id>/action/', views.admin_handle_pre_action, name='admin_handle_pre_action'),
     path('pre/<uuid:pre_id>/verify/', views.admin_verify_and_approve_pre, name='admin_verify_and_approve_pre'),
     path('pre/<uuid:pre_id>/upload-doc/', views.admin_upload_approved_document, name='admin_upload_approved_document'), 
+    path('pr-requests/', views.AdminPRListView.as_view(), name='admin_pr_list'),
+    path('pr-requests/<uuid:pr_id>/', views.AdminPRDetailView.as_view(), name='admin_pr_detail'),
+    path('pr-requests/<uuid:pr_id>/action/', views.handle_pr_action, name='admin_pr_action'),
+    path('pr-requests/<uuid:pr_id>/verify/', views.admin_verify_and_approve_pr, name='admin_verify_and_approve_pr'),
 ]

@@ -28,7 +28,6 @@ import json
 from django.views.decorators.http import require_POST
 from apps.admin_panel.utils import log_activity
 
-
 class AdminDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     """Dashboard for Budget Officers/Admins"""
     template_name = 'admin_panel/dashboard.html'
@@ -986,3 +985,251 @@ def admin_upload_approved_document(request, pre_id):
             messages.error(request, 'No file selected.')
             
     return render(request, 'admin_panel/upload_approved_doc.html', {'pre': pre})
+
+class AdminPRListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    model = PurchaseRequest
+    template_name = 'admin_panel/pr_list.html'
+    context_object_name = 'purchase_requests'
+    paginate_by = 20 # Optional but recommended
+    
+    def test_func(self):
+        return self.request.user.is_superuser or self.request.user.is_staff # Adjust permission logic
+    def get_queryset(self):
+        queryset = PurchaseRequest.objects.select_related('submitted_by', 'department').all().order_by('-created_at')
+        
+        # 1. Year Filter (Default to current year or 'all'?)
+        year = self.request.GET.get('summary_year')
+        if year and year != 'all':
+            queryset = queryset.filter(created_at__year=year)
+            
+        # 2. Department Filter
+        dept = self.request.GET.get('department')
+        if dept:
+            queryset = queryset.filter(department__name=dept) # Assuming dept name passed
+            
+        # 3. Status Filter
+        status = self.request.GET.get('status')
+        if status:
+            queryset = queryset.filter(status=status)
+            
+        return queryset
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Base Queryset for Stats (Separate from pagination, but usually respects Year filter)
+        stats_qs = PurchaseRequest.objects.all()
+        year = self.request.GET.get('summary_year')
+        if year and year != 'all':
+            stats_qs = stats_qs.filter(created_at__year=year)
+            
+        # Aggregation
+        stats = stats_qs.aggregate(
+            total=Count('id'),
+            pending=Count('id', filter=Q(status='Pending')),
+            partially_approved=Count('id', filter=Q(status='Partially Approved')),
+            approved=Count('id', filter=Q(status='Approved')),
+            rejected=Count('id', filter=Q(status='Rejected')),
+        )
+        context['status_counts'] = stats
+        
+        # Filters Data
+        context['available_years'] = PurchaseRequest.objects.dates('created_at', 'year').distinct()
+        
+        # If Department is a CharField, get distinct values:
+        context['departments'] = PurchaseRequest.objects.values_list('department', flat=True).distinct().order_by('department') 
+        # OR if you have a Department model, use Department.objects.all()
+        
+        context['selected_year'] = year if year else 'all'
+        context['current_year'] = timezone.now().year
+        context['status_choices'] = PurchaseRequest.STATUS_CHOICES # Ensure this exists in Model
+        
+        return context
+    
+@require_POST
+def handle_pr_action(request, pr_id):
+    pr = get_object_or_404(PurchaseRequest, id=pr_id)
+    action = request.POST.get('action')
+    
+    if action == 'approve':
+        # Logic for Approval
+        # 1. Check if status is valid for approval
+        if pr.status == 'Pending':
+            # Initial Approval -> Move to 'Partially Approved' to allow User to upload signed docs
+            pr.status = 'Partially Approved'
+            pr.save()
+            messages.success(request, f"PR {pr.pr_number} successfully approved! It is now 'Partially Approved' and awaiting user signature.")
+        
+        elif pr.status == 'Awaiting Admin Verification':
+             # Final Approval -> Move to 'Approved'
+            pr.status = 'Approved'
+            pr.save()
+            messages.success(request, f"PR {pr.pr_number} has been fully APPROVED.")
+            
+        else:
+             messages.warning(request, f"PR {pr.pr_number} cannot be approved from its current status: {pr.status}")
+    elif action == 'reject':
+        # Logic for Rejection
+        # Deduct/Release budget is handled automatically because 'Rejected' status 
+        # is excluded from the 'total_used' aggregation in reports/views.
+        pr.status = 'Rejected'
+        pr.save()
+        messages.error(request, f"PR {pr.pr_number} has been rejected.")
+        
+    return redirect('admin_pr_list')
+
+
+class AdminPRListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    model = PurchaseRequest
+    template_name = 'admin_panel/pr_list.html'
+    context_object_name = 'purchase_requests'
+    paginate_by = 20
+    
+    def test_func(self):
+        return self.request.user.is_superuser or self.request.user.is_staff
+
+    def get_queryset(self):
+        # FIX: Removed 'department' from select_related as it is a CharField
+        queryset = PurchaseRequest.objects.select_related('submitted_by').all().order_by('-created_at')
+        
+        # 1. Year Filter
+        year = self.request.GET.get('summary_year')
+        if year and year != 'all':
+            queryset = queryset.filter(created_at__year=year)
+            
+        # 2. Department Filter
+        dept = self.request.GET.get('department')
+        if dept:
+            queryset = queryset.filter(department=dept)
+            
+        # 3. Status Filter
+        status = self.request.GET.get('status')
+        if status:
+            queryset = queryset.filter(status=status)
+            
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Base Queryset for Stats
+        stats_qs = PurchaseRequest.objects.all()
+        year = self.request.GET.get('summary_year')
+        if year and year != 'all':
+            stats_qs = stats_qs.filter(created_at__year=year)
+            
+        # Aggregation
+        stats = stats_qs.aggregate(
+            total=Count('id'),
+            pending=Count('id', filter=Q(status='Pending')),
+            partially_approved=Count('id', filter=Q(status='Partially Approved')),
+            approved=Count('id', filter=Q(status='Approved')),
+            rejected=Count('id', filter=Q(status='Rejected')),
+        )
+        context['status_counts'] = stats
+        
+        # Filters Data
+        context['available_years'] = PurchaseRequest.objects.dates('created_at', 'year').distinct()
+        
+        # Get distinct department names
+        context['departments'] = PurchaseRequest.objects.values_list('department', flat=True).distinct().order_by('department') 
+        
+        context['selected_year'] = year if year else 'all'
+        context['current_year'] = timezone.now().year
+        context['status_choices'] = PurchaseRequest.STATUS_CHOICES
+        
+        return context
+
+@require_POST
+def handle_pr_action(request, pr_id):
+    pr = get_object_or_404(PurchaseRequest, id=pr_id)
+    action = request.POST.get('action')
+    
+    if action == 'approve':
+        if pr.status == 'Pending':
+            pr.status = 'Partially Approved'
+            pr.save()
+            messages.success(request, f"PR {pr.pr_number} successfully approved! It is now 'Partially Approved'.")
+        
+        elif pr.status == 'Awaiting Admin Verification':
+            pr.status = 'Approved'
+            pr.save()
+            messages.success(request, f"PR {pr.pr_number} has been fully APPROVED.")
+            
+        else:
+             messages.warning(request, f"PR {pr.pr_number} cannot be approved from its current status: {pr.status}")
+
+    elif action == 'reject':
+        pr.status = 'Rejected'
+        pr.save()
+        messages.error(request, f"PR {pr.pr_number} has been rejected.")
+        
+    return redirect('admin_pr_list')
+    
+class AdminPRDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+    model = PurchaseRequest
+    template_name = 'admin_panel/pr_detail.html'
+    context_object_name = 'pr'
+    pk_url_kwarg = 'pr_id'
+    
+    def test_func(self):
+        return self.request.user.is_superuser or self.request.user.is_staff
+        
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        pr = self.object
+        
+        # 1. Budget Allocation Info
+        # Retrieve the relevant allocation if it exists
+        if pr.budget_allocation:
+             context['allocation'] = pr.budget_allocation
+             # If you have PRE Line Item info, it might be accessible via the allocation or directly if linked
+             # context['pre_line_item'] = pr.source_line_item 
+        
+        return context
+    
+@require_POST
+@login_required
+def admin_verify_and_approve_pr(request, pr_id):
+    """
+    Handles the 'Verify & Approve' or 'Reject Verification' actions 
+    for PRs in the 'Awaiting Admin Verification' state.
+    """
+    pr = get_object_or_404(PurchaseRequest, id=pr_id)
+    
+    # Security Check
+    if not (request.user.is_superuser or request.user.is_staff):
+        messages.error(request, "Unauthorized access.")
+        return redirect('admin_pr_list')
+    action = request.POST.get('action')
+    comment = request.POST.get('comment', '')
+    
+    if action == 'approve':
+        # 1. Verify & Approve
+        # Transitions state from 'Awaiting Admin Verification' -> 'Approved'
+        pr.status = 'Approved'
+        pr.final_approved_at = timezone.now()
+        pr.admin_approved_by = request.user
+        
+        # Store optional notes if you have a field for it, e.g. 'admin_notes'
+        # pr.admin_notes = comment 
+        
+        pr.save()
+        
+        # Update Budget Allocation Usage
+        pr.update_budget_usage()
+        
+        messages.success(request, f"PR {pr.pr_number} has been verified and fully APPROVED.")
+        
+    elif action == 'reject':
+        # 2. Reject Verification
+        # Transitions state: 'Awaiting Admin Verification' -> 'Partially Approved'
+        # This sends it back to the user to fix/re-upload documents.
+        reason = request.POST.get('reason', 'Verification failed.')
+        
+        pr.status = 'Partially Approved' 
+        # pr.admin_notes = f"Verification Rejected: {reason}" # Optional
+        pr.save()
+        
+        messages.warning(request, f"Verification rejected. PR returned to user for correction. Reason: {reason}")
+        
+    return redirect('admin_pr_detail', pr_id=pr.id)

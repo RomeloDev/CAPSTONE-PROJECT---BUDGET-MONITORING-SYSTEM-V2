@@ -131,9 +131,9 @@
             </li>
 
             <li>
-              <a href="#"
+              <a href="{% url "admin_pr_list" %}"
                  class="flex items-center gap-2 px-3 py-2 rounded-md relative group
-                 {% if request.resolver_match.url_name == 'department_pr_request' %}
+                 {% if request.resolver_match.url_name == 'admin_pr_list' %}
                    bg-blue-600 text-white font-medium
                  {% else %}
                    text-gray-700 hover:bg-blue-600 hover:text-white
@@ -248,7 +248,11 @@
         <main class="p-6">
           {% block main-content %}{% endblock %}
         </main>
+        </main>
       </div>
     </div>
+    
+    {% block modals %}{% endblock %}
+    {% block scripts %}{% endblock %}
   </body>
 </html>

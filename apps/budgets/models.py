@@ -9,6 +9,7 @@ from django.conf import settings
 from .managers import ArchiveManager
 from django.db.models import Sum
 from cloudinary_storage.storage import RawMediaCloudinaryStorage
+from django.db.models.functions import Coalesce
 
 def approved_budget_upload_path(instance, filename):
     """
@@ -232,6 +233,34 @@ class BudgetAllocation(models.Model):
     def get_total_used(self):
         """Calculate total amount used (PR and AD only, excluding PRE)"""
         return self.pr_amount_used + self.ad_amount_used
+
+    def update_usage_from_prs(self):
+        """
+        Recalculate PR amount used from all Approved PRs.
+        Ensures budget monitoring stays in sync.
+        Uses PurchaseRequestAllocation for accuracy matching pre_budget_details.
+        """
+        from django.db.models import Sum
+        from django.db.models.functions import Coalesce
+        from django.apps import apps
+        
+        # Avoid circular import issues by getting model dynamically
+        PurchaseRequestAllocation = apps.get_model('budgets', 'PurchaseRequestAllocation')
+        
+        # Calculate total from allocations linked to Approved PRs under this budget
+        approved_prs_total = PurchaseRequestAllocation.objects.filter(
+            purchase_request__budget_allocation=self,
+            purchase_request__status='Approved'
+        ).aggregate(
+            total=Coalesce(Sum('allocated_amount'), Decimal('0.00'))
+        )['total']
+        
+        # Update usage field
+        self.pr_amount_used = approved_prs_total
+        self.save(update_fields=['pr_amount_used'])
+        
+        # Recalculate remaining balance
+        self.update_remaining_balance()
 
     def update_remaining_balance(self):
         """Update remaining balance based on approved requests"""
@@ -674,6 +703,14 @@ class PurchaseRequest(models.Model):
         default=Decimal('0.00')
     )
     
+    def save(self, *args, **kwargs):
+        # 1. Save the instance first
+        super().save(*args, **kwargs)
+        
+        # 2. Trigger Budget Update 
+        if self.budget_allocation:
+            self.budget_allocation.update_usage_from_prs()
+    
     # Optional Fields (for form-based PR)
     entity_name = models.CharField(max_length=255, blank=True)
     fund_cluster = models.CharField(max_length=100, blank=True)
@@ -832,7 +869,12 @@ class PurchaseRequest(models.Model):
             total=Sum('allocated_amount')
         )
         return result['total'] or Decimal('0.00')
-    
+
+    def update_budget_usage(self):
+        """Update parent budget allocation with current usage"""
+        if self.budget_allocation:
+            self.budget_allocation.update_usage_from_prs()
+            
     def validate_against_budget(self):
         """Validate PR total against allocated budget"""
         errors = []

@@ -250,6 +250,33 @@
                     </div>
                 </div>
                 {% endif %}
+
+                 <!-- Signed Documents (Newly Added) -->
+                 {% if pr.signed_approved_documents.exists %}
+                 <div class="mt-4 pt-4 border-t border-gray-100">
+                    <h3 class="text-sm font-medium text-gray-700 mb-2">Signed Documents</h3>
+                    <div class="space-y-2">
+                        {% for doc in pr.signed_approved_documents.all %}
+                        <div class="flex items-center justify-between p-3 bg-indigo-50 border border-indigo-100 rounded-lg">
+                            <div class="flex items-center gap-2 overflow-hidden">
+                                <svg class="w-5 h-5 text-indigo-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <span class="text-indigo-900 text-sm truncate" title="{{ doc.file_name }}">{{ doc.file_name }}</span>
+                            </div>
+                            <div class="flex items-center gap-3 flex-shrink-0">
+                                <button type="button" onclick="openGoogleDocsPreview('{{ doc.document.url }}', '{{ doc.file_name }}')" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium flex items-center gap-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                    Preview
+                                </button>
+                                <span class="text-indigo-300">|</span>
+                                <a href="{{ doc.document.url }}" target="_blank" class="text-indigo-500 hover:text-indigo-700 text-sm">Download</a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
             </div>
 
         </div>

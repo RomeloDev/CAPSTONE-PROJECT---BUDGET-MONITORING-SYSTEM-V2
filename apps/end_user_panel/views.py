@@ -1386,7 +1386,7 @@ def upload_signed_pr_docs(request, pr_id):
                 document=f,
                 file_name=f.name,
                 uploaded_by=request.user,
-                is_signed_copy=True # Flag if applicable
+                document_type='signed_pr'
             )
             
         # Update PR Status
