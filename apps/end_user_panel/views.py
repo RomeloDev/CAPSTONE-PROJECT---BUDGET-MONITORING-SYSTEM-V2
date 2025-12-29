@@ -575,18 +575,43 @@ def budget_overview(request):
     ad_count = ActivityDesign.objects.filter(
         budget_allocation__in=budget_allocations
     ).exclude(status__in=['Draft', 'Rejected', 'Cancelled']).count()
-    # 6. Quarterly Spending Trend (Mocked or Calculated)
-    # TODO: Refine this query based on your exact Quarter tracking model (e.g. Allocation tables)
-    # This is a simplified example aggregating based on assumed quarter fields or creating a mapping
+    # 6. Quarterly Spending Trend (Calculated)
+    from django.apps import apps
+    
+    # Get models dynamically
+    PurchaseRequestAllocation = apps.get_model('budgets', 'PurchaseRequestAllocation')
+    ActivityDesignAllocation = apps.get_model('budgets', 'ActivityDesignAllocation')
+    
     quarterly_spending = {
         'Q1': Decimal('0'), 'Q2': Decimal('0'), 
         'Q3': Decimal('0'), 'Q4': Decimal('0')
     }
     
-    # Example: If you have separate Allocation models with 'quarter' field:
-    # for q in ['Q1', 'Q2', 'Q3', 'Q4']:
-    #     pr_q = PurchaseRequestAllocation.objects.filter(quarter=q, ...).aggregate(Sum('amount'))
-    #     quarterly_spending[q] = pr_q or 0
+    # helper to process aggregations
+    def get_quarter_sum(model_class, allocation_field):
+        return model_class.objects.filter(
+            # Filter by allocations linked to the user's active budgets
+            **{f"{allocation_field}__budget_allocation__in": budget_allocations},
+            # Only count APPROVED requests
+            **{f"{allocation_field}__status": "Approved"}
+        ).values('quarter').annotate(
+            total=Sum('allocated_amount')
+        ).order_by('quarter')
+    # A. Calculate PR Spending per Quarter
+    pr_spending = get_quarter_sum(PurchaseRequestAllocation, 'purchase_request')
+    for item in pr_spending:
+        q = item['quarter']
+        if q in quarterly_spending:
+            quarterly_spending[q] += item['total'] or Decimal('0')
+    # B. Calculate AD Spending per Quarter
+    ad_spending = get_quarter_sum(ActivityDesignAllocation, 'activity_design')
+    for item in ad_spending:
+        q = item['quarter']
+        if q in quarterly_spending:
+            quarterly_spending[q] += item['total'] or Decimal('0')
+            
+    # Result: quarterly_spending now contains real totals like {'Q1': 5000.00, 'Q2': 0, ...}
+    
     # 7. Recent Activity (Consolidated)
     recent_activity = []
     # Get recent PREs
