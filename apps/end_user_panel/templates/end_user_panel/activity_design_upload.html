@@ -1,0 +1,486 @@
+{% extends "end_user_base_template/dashboard.html" %}
+{% load humanize %}
+
+{% block title %}Upload Activity Design{% endblock %}
+
+{% block main-content %}
+<main class="mx-auto max-w-4xl p-4 md:p-8">
+    <!-- Header -->
+    <header class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 mb-2">Upload Activity Design</h1>
+                <p class="text-gray-600">Upload your AD document and allocate funding sources</p>
+            </div>
+            <a href="{% url 'pr_ad_list' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                Back
+            </a>
+        </div>
+    </header>
+
+    {% if messages %}
+        <div class="mt-4 space-y-2 mb-6">
+            {% for message in messages %}
+                <div class="rounded-lg p-4 {% if message.tags == 'success' %}bg-green-50 border border-green-200 text-green-800{% else %}bg-red-50 border border-red-200 text-red-800{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" class="space-y-6" id="ad-form">
+        {% csrf_token %}
+        <input type="hidden" name="line_items_data" id="line_items_data">
+        
+        <!-- Step 1: Upload AD Document -->
+        <section class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center mb-4">
+                <div class="flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-full font-bold mr-3">1</div>
+                <h2 class="text-xl font-semibold text-gray-900">Upload AD Document</h2>
+            </div>
+            <p class="text-sm text-gray-600 mb-4">Upload your completed Activity Design document (.docx or .pdf)</p>
+
+            {% if draft and draft.uploaded_document %}
+                 <div class="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex justify-between items-center">
+                    <div class="flex items-center">
+                        <svg class="w-8 h-8 text-green-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <div>
+                             <p class="font-medium text-gray-900">Document Uploaded</p>
+                             <a href="{{ draft.uploaded_document.url }}" target="_blank" class="text-sm text-blue-600 hover:underline">View File</a>
+                        </div>
+                    </div>
+                    <button type="submit" name="action" value="remove_ad" formnovalidate class="text-red-600 hover:text-red-800 font-medium text-sm">Remove</button>
+                </div>
+            {% else %}
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors bg-gray-50">
+                    <input type="file" name="ad_document" id="ad_document" accept=".pdf,.doc,.docx" class="hidden">
+                    <label for="ad_document" class="cursor-pointer">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                        <p class="mt-2 text-sm text-gray-600"><span class="font-medium text-blue-600">Click to upload</span> or drag and drop</p>
+                        <p id="ad-filename-display" class="mt-2 text-sm font-semibold text-green-600 hidden"></p>
+                    </label>
+                    <button type="submit" name="action" value="upload_ad" formnovalidate class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700">Optional: Upload Now</button>
+                </div>
+            {% endif %}
+        </section>
+
+        <!-- Step 2: Upload Supporting Documents -->
+        <section class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center mb-4">
+                <div class="flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-full font-bold mr-3">2</div>
+                <h2 class="text-xl font-semibold text-gray-900">Upload Supporting Documents</h2>
+            </div>
+            
+            {% if draft and draft.supporting_documents.exists %}
+                <div class="mb-4 space-y-2">
+                    {% for doc in draft.supporting_documents.all %}
+                        <div class="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                            <div class="flex items-center">
+                                <svg class="w-6 h-6 text-blue-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                <span>{{ doc.file_name }}</span>
+                            </div>
+                            <button type="submit" name="action" value="remove_supporting" onclick="document.getElementById('remove-doc-id').value='{{ doc.id }}'" formnovalidate class="text-red-600 hover:text-red-800 text-sm font-medium">Remove</button>
+                        </div>
+                    {% endfor %}
+                    <input type="hidden" name="doc_id" id="remove-doc-id">
+                </div>
+            {% endif %}
+
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 bg-gray-50">
+                <input type="file" name="supporting_documents" id="supporting_documents" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" multiple class="hidden">
+                <label for="supporting_documents" class="cursor-pointer">
+                    <svg class="mx-auto h-10 w-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                    </svg>
+                    <span class="font-medium text-blue-600">Click to upload multiple files</span>
+                    <div id="sup-files-list" class="mt-2 text-left space-y-1 hidden"></div>
+                </label>
+                <button type="submit" name="action" value="upload_supporting" formnovalidate class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700">Optional: Upload Now</button>
+            </div>
+        </section>
+
+        <!-- Step 3: Funding Details -->
+        <section class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center mb-4">
+                <div class="flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-full font-bold mr-3">3</div>
+                <h2 class="text-xl font-semibold text-gray-900">Funding Details</h2>
+            </div>
+            
+             <!-- Budget Info -->
+            <div class="mb-6">
+                 <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Budget Allocation <span class="text-red-500">*</span>
+                </label>
+                {% if active_allocation %}
+                    <!-- Auto-selected allocation display -->
+                    <div class="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+                        <div class="flex items-center gap-2 mb-2">
+                            <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <h4 class="font-semibold text-blue-900">Current Fiscal Year {{ active_allocation.approved_budget.fiscal_year }}</h4>
+                        </div>
+                        <p class="text-gray-900 font-medium text-lg">{{ active_allocation.approved_budget.title }}</p>
+                        <div class="mt-3 pt-3 border-t border-blue-200">
+                            <p class="text-sm text-gray-700">
+                                <span class="font-medium">Approved PRE Grand Total:</span>
+                                <span class="font-bold text-green-600 text-lg ml-2">₱{{ active_allocation.get_pre_approved_total|floatformat:2|intcomma }}</span>
+                            </p>
+                        </div>
+                    </div>
+                    <input type="hidden" name="budget_allocation" id="budget_allocation" value="{{ active_allocation.id }}">
+                {% else %}
+                    <!-- No allocation found -->
+                     <div class="p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
+                        <div class="flex items-start gap-3">
+                            <svg class="w-6 h-6 text-yellow-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                            </svg>
+                            <div>
+                                <p class="font-semibold text-yellow-900">No Budget Allocation Found</p>
+                                <p class="text-sm text-yellow-800 mt-1">
+                                    No active budget allocation found. Please contact admin.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Dynamic Funding Builder -->
+            <div class="space-y-4 border-b border-gray-200 pb-6 mb-6">
+                <h3 class="font-medium text-gray-900">Add Funding Allocation</h3>
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                    <div class="md:col-span-8">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Source of Fund</label>
+                        <select id="line_item_select" class="w-full rounded-md border-gray-300">
+                             <option value="">Loading...</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+                        <div class="flex space-x-2">
+                             <input type="number" id="alloc_amount" class="w-full rounded-md border-gray-300" placeholder="0.00" step="0.01">
+                             <button type="button" id="add-alloc-btn" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Add</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Allocation List -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Allocated Funding Sources</label>
+                <div class="bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                                <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Quarter</th>
+                                <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
+                                <th class="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="allocation-table-body" class="bg-white divide-y divide-gray-200">
+                            <!-- Rows go here -->
+                            <tr id="empty-row">
+                                <td colspan="4" class="px-4 py-4 text-center text-sm text-gray-500 italic">No funding sources added yet.</td>
+                            </tr>
+                        </tbody>
+                        <tfoot class="bg-gray-50">
+                             <tr>
+                                <td colspan="2" class="px-4 py-3 text-right font-bold text-gray-900">Total Allocated:</td>
+                                <td class="px-4 py-3 text-right font-bold text-blue-600" id="total-display">₱0.00</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+             <!-- Header Info -->
+            <div class="grid grid-cols-1 gap-6">
+                <div>
+                     <label class="block text-sm font-medium text-gray-700 mb-2">Purpose</label>
+                    <textarea name="purpose" rows="3" class="w-full rounded-lg border-gray-300 bg-gray-50" required></textarea>
+                </div>
+            </div>
+        </section>
+
+        <!-- Submit -->
+        <div class="flex justify-end pt-4 pb-8 space-x-3">
+             <a href="{% url 'pr_ad_list' %}" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-white bg-gray-50">Cancel</a>
+            <button type="submit" name="action" value="submit_final" id="submit-btn" class="px-8 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold shadow-md disabled:opacity-50">
+                Submit Activity Design
+            </button>
+        </div>
+    </form>
+</main>
+
+<!-- Choices.js CSS/JS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // === AJAX Upload Logic (Prevent JSON Redirect) ===
+    const form = document.getElementById('ad-form');
+    
+    // Helper for AJAX Form Submission
+    async function handleAjaxUpload(event, actionName) {
+        event.preventDefault();
+        
+        const formData = new FormData(form);
+        formData.append('action', actionName);
+        
+        // Show loading state (optional UI enhancement)
+        const btn = event.target;
+        const originalText = btn.innerText;
+        btn.innerText = 'Uploading...';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch(window.location.href, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Reload to reflect changes (Draft state, uploaded files list)
+                window.location.reload();
+            } else {
+                alert('Upload failed: ' + (data.error || 'Unknown error'));
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('An error occurred during upload.');
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+    }
+
+    // Attach listeners to Upload Buttons
+    const uploadAdBtn = document.querySelector('button[value="upload_ad"]');
+    if (uploadAdBtn) {
+        uploadAdBtn.addEventListener('click', (e) => handleAjaxUpload(e, 'upload_ad'));
+    }
+
+    const uploadSupportBtn = document.querySelector('button[value="upload_supporting"]');
+    if (uploadSupportBtn) {
+        uploadSupportBtn.addEventListener('click', (e) => handleAjaxUpload(e, 'upload_supporting'));
+    }
+
+    // Attach listeners to Remove Buttons (Main AD)
+    const removeAdBtn = document.querySelector('button[value="remove_ad"]');
+    if (removeAdBtn) {
+        removeAdBtn.addEventListener('click', (e) => handleAjaxUpload(e, 'remove_ad'));
+    }
+
+    // Attach listeners to Remove Buttons (Supporting Docs)
+    // Note: Multiple remove buttons might exist, so we delegate or queryAll
+    document.querySelectorAll('button[value="remove_supporting"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            // The onclick in HTML sets the hidden input 'doc_id', so FormData will pick it up automatically
+            handleAjaxUpload(e, 'remove_supporting');
+        });
+    });
+    
+    // === File Feedback (Cloned from PR) ===
+    // === File Feedback (Cloned from PR) ===
+    const adInput = document.getElementById('ad_document');
+    if (adInput) {
+        adInput.addEventListener('change', function() {
+            if(this.files[0]) {
+                const el = document.getElementById('ad-filename-display');
+                el.textContent = 'Selected: ' + this.files[0].name;
+                el.classList.remove('hidden');
+            }
+        });
+    }
+
+    const supInput = document.getElementById('supporting_documents');
+    if (supInput) {
+        supInput.addEventListener('change', function() {
+            const list = document.getElementById('sup-files-list');
+            list.innerHTML = ''; // Clear previous
+            
+            if (this.files && this.files.length > 0) {
+                list.classList.remove('hidden');
+                Array.from(this.files).forEach(f => {
+                    const item = document.createElement('div');
+                    item.className = 'flex items-center text-sm text-gray-700 bg-white p-2 rounded mb-1 border border-gray-200 shadow-sm';
+                    item.innerHTML = `<span class="text-green-500 font-bold mr-2 text-lg">✓</span> ${f.name} <span class="ml-auto text-xs text-gray-400">(${(f.size/1024).toFixed(1)} KB)</span>`;
+                    list.appendChild(item);
+                });
+            } else {
+                list.classList.add('hidden');
+            }
+        });
+    }
+
+    // === Funding Logic (Multi-Source) ===
+    const allocationId = document.getElementById('budget_allocation').value;
+    const selectEl = document.getElementById('line_item_select');
+    let lineItemsMap = new Map();
+    // Initialize from Session Data (Server Persisted)
+    let allocations = {{ draft_allocations|default:"[]"|safe }};
+
+    const choices = new Choices(selectEl, {
+        searchEnabled: true,
+        itemSelectText: '',
+        placeholderValue: 'Search funding source...',
+    });
+
+    // Helper to refresh choices excluding already allocated ones
+    function updateChoices() {
+        const allocatedKeys = new Set(allocations.map(a => a.full_value));
+        const choicesData = [];
+        
+        lineItemsMap.forEach((item, key) => {
+            if (!allocatedKeys.has(key)) {
+                choicesData.push({
+                    value: item.value,
+                    label: `${item.display} (${item.quarter}) - Avail: ₱${parseFloat(item.available).toLocaleString()}`,
+                    customProperties: item
+                });
+            }
+        });
+        
+        choices.setChoices(choicesData, 'value', 'label', true); 
+    }
+
+    // Helper for Draft AJAX actions
+    async function handleDraftAction(action, data) {
+        const formData = new FormData();
+        formData.append('action', action);
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        
+        for (const key in data) {
+            formData.append(key, data[key]);
+        }
+        
+        try {
+            const resp = await fetch(window.location.href, {
+                method: 'POST',
+                body: formData,
+                headers: {'X-Requested-With': 'XMLHttpRequest'}
+            });
+            const res = await resp.json();
+            
+            if (res.success) {
+                allocations = res.allocations; // Update local state from server
+                renderTable();
+                updateChoices();
+                return true;
+            } else {
+                alert('Error: ' + res.error);
+                return false;
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Failed to save draft allocation.');
+            return false;
+        }
+    }
+
+    // Fetch Line Items
+    if (allocationId) {
+        fetch(`/user/get-pre-line-items/?allocation_id=${allocationId}`)
+            .then(r => r.json())
+            .then(data => {
+                const items = data.results || data.line_items || [];
+                items.forEach(item => {
+                    lineItemsMap.set(item.value, item);
+                });
+                updateChoices(); // Initial filter
+                renderTable(); // Initial render if session has data
+            });
+    }
+
+    // Add Allocation
+    document.getElementById('add-alloc-btn').addEventListener('click', async () => {
+        const itemId = selectEl.value;
+        const amount = parseFloat(document.getElementById('alloc_amount').value);
+        const btn = document.getElementById('add-alloc-btn');
+        
+        if (!itemId || !amount || amount <= 0) {
+            alert("Please select a valid source and enter an amount.");
+            return;
+        }
+
+        const item = lineItemsMap.get(itemId);
+        const max = parseFloat(item.available_balance || item.available);
+        if (amount > max) {
+            alert(`Amount exceeds available balance (₱${max.toLocaleString()})`);
+            return;
+        }
+
+        // Parse IDs from composed value "pre_id|line_item_id|quarter"
+        const [preId, lineItemId, quarter] = item.value.split('|');
+
+        btn.disabled = true;
+        btn.innerText = 'Adding...';
+
+        const success = await handleDraftAction('add_draft_allocation', {
+            line_item_id: lineItemId,
+            quarter: item.quarter,
+            amount: amount,
+            text: item.display,
+            full_value: item.value
+        });
+        
+        btn.disabled = false;
+        btn.innerText = 'Add';
+
+        if (success) {
+            choices.setChoiceByValue('');
+            document.getElementById('alloc_amount').value = '';
+        }
+    });
+
+    // Remove Allocation
+    window.removeAlloc = async (index) => {
+        if(confirm('Remove this allocation?')) {
+             await handleDraftAction('remove_draft_allocation', {index: index});
+        }
+    };
+
+    function renderTable() {
+        const tbody = document.getElementById('allocation-table-body');
+        
+        tbody.innerHTML = '';
+
+        if (allocations.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-4 text-center text-sm text-gray-500 italic">No funding sources added yet.</td></tr>`;
+            document.getElementById('total-display').innerText = '₱0.00';
+        } else {
+            let total = 0;
+            allocations.forEach((alloc, idx) => {
+                total += parseFloat(alloc.amount);
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-4 py-2 text-sm text-gray-900">${alloc.text}</td>
+                    <td class="px-4 py-2 text-sm text-gray-500 text-right">${alloc.quarter}</td>
+                    <td class="px-4 py-2 text-sm text-gray-900 text-right">₱${parseFloat(alloc.amount).toLocaleString(undefined, {minimumFractionDigits:2})}</td>
+                    <td class="px-4 py-2 text-center">
+                        <button type="button" onclick="removeAlloc(${idx})" class="text-red-600 hover:text-red-800 font-bold text-lg">&times;</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            document.getElementById('total-display').innerText = '₱' + total.toLocaleString(undefined, {minimumFractionDigits:2});
+        }
+        
+        // Update hidden field for final submit compatibility
+        document.getElementById('line_items_data').value = JSON.stringify(allocations);
+    }
+});
+</script>
+{% endblock %}

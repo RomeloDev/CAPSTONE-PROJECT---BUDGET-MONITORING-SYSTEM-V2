@@ -1028,8 +1028,10 @@ class ActivityDesign(models.Model):
     total_amount = models.DecimalField(max_digits=15, decimal_places=6)
 
     # File uploads
+    # File uploads
     uploaded_document = models.FileField(
         upload_to='ad_uploads/%Y/%m/',
+        storage=RawMediaCloudinaryStorage(),
         validators=[FileExtensionValidator(allowed_extensions=['docx', 'doc'])],
         help_text="Upload Activity Design document (.docx format)"
     )
@@ -2232,6 +2234,7 @@ class ActivityDesignSupportingDocument(models.Model):
     )
     document = models.FileField(
         upload_to='ad_supporting_docs/%Y/%m/',
+        storage=RawMediaCloudinaryStorage(),
         help_text='Supporting document file'
     )
     file_name = models.CharField(max_length=255)

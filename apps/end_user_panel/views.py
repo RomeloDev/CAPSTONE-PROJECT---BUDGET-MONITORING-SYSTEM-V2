@@ -28,13 +28,15 @@ from apps.budgets.models import (
     PurchaseRequestSupportingDocument,
     PRDraft,
     PRDraftSupportingDocument,
+    ActivityDesignSupportingDocument
 )
-from .forms import PurchaseRequestDetailsForm, PurchaseRequestSupportingDocForm, PurchaseRequestUploadForm
+from .forms import PurchaseRequestDetailsForm, PurchaseRequestSupportingDocForm, PurchaseRequestUploadForm, ActivityDesignUploadForm, ActivityDesignSupportingDocForm, ActivityDesignDetailsForm
 # Note: PREDraft and PREDraftSupportingDocument are used for draft management
 # DepartmentPRE is created only on final submission in PreviewPREView
 from apps.end_user_panel.utils.pre_parser_dynamic import parse_pre_excel_dynamic
 import json
 import os
+import uuid
 from datetime import datetime
 from django.core.paginator import Paginator
 from django.http import JsonResponse
@@ -1424,3 +1426,203 @@ def upload_signed_pr_docs(request, pr_id):
         messages.error(request, f"Error uploading files: {str(e)}")
         
     return redirect('view_pr_detail', pr_id=pr.id)
+
+
+@login_required
+def activity_design_upload(request):
+    current_year = str(timezone.now().year)
+    active_allocation = BudgetAllocation.objects.filter(
+        end_user=request.user, 
+        is_active=True,
+        approved_budget__fiscal_year=current_year
+    ).first()
+    # Draft Logic (Session based like PR)
+    draft_id = request.session.get('ad_draft_id')
+    draft = None
+    if draft_id:
+        draft = ActivityDesign.objects.filter(id=draft_id, status='Draft').first()
+    # Pre-populate Final Request Form if draft exists
+    if draft:
+        form = ActivityDesignDetailsForm(instance=draft)
+    else:
+        form = ActivityDesignDetailsForm()
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        # --- ACTION: UPLOAD AD (AJAX) ---
+        if action == 'upload_ad':
+            upload_form = ActivityDesignUploadForm(request.POST, request.FILES)
+            if upload_form.is_valid():
+                f = upload_form.cleaned_data['ad_document']
+                if not draft:
+                    draft = ActivityDesign.objects.create(
+                        submitted_by=request.user,
+                        budget_allocation=active_allocation, # Temporary bind
+                        status='Draft',
+                        ad_number=f"DRAFT-{uuid.uuid4().hex[:6].upper()}",
+                        total_amount=0
+                    )
+                    request.session['ad_draft_id'] = str(draft.id)
+                
+                draft.uploaded_document = f
+                draft.save()
+                return JsonResponse({'success': True, 'message': 'AD Document uploaded'})
+            else:
+                return JsonResponse({'success': False, 'error': upload_form.errors.as_text()})
+        # --- ACTION: UPLOAD SUPPORTING (AJAX) ---
+        elif action == 'upload_supporting':
+            # Note: We manually handle list of files because Form.cleaned_data only returns one if not handled carefully
+            # But relying on request.FILES.getlist is safer for multi-upload
+            if not draft:
+                 draft = ActivityDesign.objects.create(
+                    submitted_by=request.user,
+                    budget_allocation=active_allocation,
+                    status='Draft',
+                    ad_number=f"DRAFT-{uuid.uuid4().hex[:6].upper()}",
+                    total_amount=0
+                )
+                 request.session['ad_draft_id'] = str(draft.id)
+            files = request.FILES.getlist('supporting_documents')
+            if not files:
+                 return JsonResponse({'success': False, 'error': 'No files selected'})
+            for f in files:
+                ActivityDesignSupportingDocument.objects.create(
+                    activity_design=draft,
+                    document=f,
+                    file_name=f.name,
+                    file_size=f.size,
+                    uploaded_by=request.user
+                )
+            return JsonResponse({'success': True, 'message': f'{len(files)} files uploaded'})
+        # --- ACTION: REMOVE AD ---
+        elif action == 'remove_ad':
+            if draft and draft.uploaded_document:
+                draft.uploaded_document.delete() 
+                draft.uploaded_document = None
+                draft.save()
+            return JsonResponse({'success': True, 'message': 'File removed'})
+        # --- ACTION: REMOVE SUPPORTING ---
+        elif action == 'remove_supporting':
+            doc_id = request.POST.get('doc_id')
+            ActivityDesignSupportingDocument.objects.filter(id=doc_id, activity_design=draft).delete()
+            return JsonResponse({'success': True, 'message': 'File removed'})
+        
+        # --- ACTION: ADD DRAFT ALLOCATION (SESSION ONLY) ---
+        elif action == 'add_draft_allocation':
+            try:
+                allocations = request.session.get('ad_draft_allocations', [])
+                new_item = {
+                    'line_item_id': request.POST.get('line_item_id'),
+                    'quarter': request.POST.get('quarter'),
+                    'amount': float(request.POST.get('amount')),
+                    'text': request.POST.get('text'),
+                    'full_value': request.POST.get('full_value') # For filtering
+                }
+                allocations.append(new_item)
+                request.session['ad_draft_allocations'] = allocations
+                request.session.modified = True
+                
+                # Calculate total
+                total = sum(d['amount'] for d in allocations)
+                return JsonResponse({
+                    'success': True, 
+                    'allocations': allocations,
+                    'total': total
+                })
+            except Exception as e:
+                return JsonResponse({'success': False, 'error': str(e)})
+
+        # --- ACTION: REMOVE DRAFT ALLOCATION (SESSION ONLY) ---
+        elif action == 'remove_draft_allocation':
+            try:
+                index = int(request.POST.get('index'))
+                allocations = request.session.get('ad_draft_allocations', [])
+                if 0 <= index < len(allocations):
+                    allocations.pop(index)
+                    request.session['ad_draft_allocations'] = allocations
+                    request.session.modified = True
+                
+                total = sum(d['amount'] for d in allocations)
+                return JsonResponse({
+                    'success': True, 
+                    'allocations': allocations,
+                    'total': total
+                })
+            except Exception as e:
+                return JsonResponse({'success': False, 'error': str(e)})
+        # --- ACTION: SUBMIT FINAL ---
+        elif action == 'submit_final':
+            # Handle case where no draft logic existed yet
+            if not draft:
+                draft = ActivityDesign(
+                    submitted_by=request.user,
+                    status='Draft',
+                    ad_number=f"DRAFT-{uuid.uuid4().hex[:6].upper()}"
+                )
+            
+            # Use Details Form
+            details_form = ActivityDesignDetailsForm(request.POST, instance=draft)
+            
+            if details_form.is_valid():
+                with transaction.atomic():
+                    ad = details_form.save(commit=False)
+                    ad.status = 'Pending'
+                    # Ensure total_amount is not None for DB constraint (re-calculated below)
+                    if ad.total_amount is None:
+                        ad.total_amount = Decimal('0.00')
+                    
+                    # Ensure real AD Number
+                    if not ad.ad_number.startswith('AD-'):
+                         ad.ad_number = f"AD-{uuid.uuid4().hex[:8].upper()}"
+                    
+                    # Link Budget Allocation
+                    alloc_id = details_form.cleaned_data['budget_allocation']
+                    ad.budget_allocation_id = alloc_id
+                    
+                    # Handle main file if uploaded during final submit (fallback)
+                    if 'ad_document' in request.FILES:
+                         ad.uploaded_document = request.FILES['ad_document']
+                    
+                    ad.save()
+                    
+                    # Process Allocations JSON
+                    line_items_json = details_form.cleaned_data['line_items_data']
+                    items_data = json.loads(line_items_json)
+                    total_allocated = Decimal('0')
+                    
+                    # Clear old allocations to prevent duplicates
+                    ad.pre_allocations.all().delete()
+                    
+                    for item in items_data:
+                        line_item = PRELineItem.objects.get(id=item['line_item_id'])
+                        amount = Decimal(str(item['amount']))
+                        ActivityDesignAllocation.objects.create(
+                            activity_design=ad,
+                            pre_line_item=line_item,
+                            quarter=item['quarter'],
+                            allocated_amount=amount
+                        )
+                        total_allocated += amount
+                    
+                    # 3. Update Total Amount final check
+                    ad.total_amount = total_allocated
+                    ad.save()
+                    
+                    # Clear session
+                    if 'ad_draft_id' in request.session:
+                        del request.session['ad_draft_id']
+                    if 'ad_draft_allocations' in request.session:
+                        del request.session['ad_draft_allocations']
+                        
+                    messages.success(request, "Activity Design submitted successfully!")
+                    return redirect('pr_ad_list') 
+            else:
+                messages.error(request, f"Form Errors: {details_form.errors}")
+    
+    context = {
+        'form': form,
+        'draft': draft,
+        'active_allocation': active_allocation,
+        'draft_allocations': json.dumps(request.session.get('ad_draft_allocations', [])), # Pass as JSON for JS
+    }
+    return render(request, 'end_user_panel/activity_design_upload.html', context)
