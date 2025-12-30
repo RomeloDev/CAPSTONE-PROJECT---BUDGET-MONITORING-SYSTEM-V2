@@ -1,0 +1,233 @@
+{% extends "admin_base_template/dashboard.html" %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}Admin View: Activity Design {{ ad.ad_number }}{% endblock %}
+
+{% block main-content %}
+<div class="flex flex-col w-full min-h-screen bg-gray-100">
+
+    <!-- Header / Breadcrumb -->
+    <header class="bg-white shadow-sm px-6 py-4 mb-6 flex justify-between items-center">
+        <div>
+            <h1 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <span class="text-blue-600">AD Details:</span> {{ ad.ad_number }}
+                <span class="px-3 py-1 text-sm font-semibold rounded-full
+                    {% if ad.status == 'Pending' %}bg-yellow-100 text-yellow-800
+                    {% elif ad.status == 'Partially Approved' %}bg-blue-100 text-blue-800
+                    {% elif ad.status == 'Awaiting Admin Verification' %}bg-purple-100 text-purple-800
+                    {% elif ad.status == 'Approved' %}bg-green-100 text-green-800
+                    {% elif ad.status == 'Rejected' %}bg-red-100 text-red-800
+                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                    {{ ad.status }}
+                </span>
+            </h1>
+            <p class="text-sm text-gray-500 mt-1">
+                Submitted by <strong>{{ ad.submitted_by.get_full_name }}</strong> ({{ ad.department }}) on {{ ad.created_at|date:"F d, Y g:i A" }}
+            </p>
+        </div>
+        <div>
+            <a href="{% url 'department_ad_request' %}" class="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition flex items-center">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Back to Requests
+            </a>
+        </div>
+    </header>
+
+    <main class="flex-1 px-6 pb-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Left Column: Content & Docs -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Purpose Card -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Information & Purpose</h2>
+                     <div class="grid grid-cols-2 gap-4 mb-4 text-sm">
+                        <div>
+                            <span class="block text-gray-500">Activity Title</span>
+                            <span class="font-medium text-gray-900">{{ ad.activity_title|default:"N/A" }}</span>
+                        </div>
+                        <div>
+                            <span class="block text-gray-500">Total Requested Amount</span>
+                            <span class="font-bold text-blue-600 text-lg">₱{{ ad.total_amount|floatformat:2|intcomma }}</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <span class="block text-gray-500 text-sm mb-1">Make a case / Purpose:</span>
+                        <div class="p-4 bg-gray-50 rounded border border-gray-200 text-gray-800 whitespace-pre-wrap text-sm leading-relaxed">
+                            {{ ad.purpose }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Documents Section -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2 flex items-center justify-between">
+                        <span>Documents</span>
+                    </h2>
+
+                    <!-- Main AD Document -->
+                    <div class="mb-6">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Main Activity Design (Original)</h3>
+                        {% if ad.uploaded_document %}
+                        <div class="flex items-center justify-between p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                            <div class="flex items-center gap-3">
+                                <svg class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                <span class="text-sm font-medium text-blue-900">Original AD File</span>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="openAdminPreview('{{ ad.uploaded_document.url }}', 'Main AD')" class="text-xs bg-white border border-blue-200 text-blue-600 px-3 py-1 rounded hover:bg-blue-50 transition">Preview</button>
+                                <a href="{{ ad.uploaded_document.url }}" target="_blank" class="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition">Download</a>
+                            </div>
+                        </div>
+                        {% else %}
+                            <p class="text-sm text-gray-500 italic">No document uploaded.</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Supporting Documents -->
+                    {% if ad.supporting_documents.exists %}
+                    <div class="mb-6">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Supporting Documents</h3>
+                        <div class="space-y-2">
+                            {% for doc in ad.supporting_documents.all %}
+                            <div class="flex items-center justify-between p-2 bg-gray-50 border border-gray-200 rounded">
+                                <span class="text-sm text-gray-700 truncate ml-2">{{ doc.file_name }}</span>
+                                <div class="flex gap-2">
+                                    <button onclick="openAdminPreview('{{ doc.document.url }}', '{{ doc.file_name }}')" class="text-xs text-blue-600 hover:underline">Preview</button>
+                                    <span class="text-gray-300">|</span>
+                                    <a href="{{ doc.document.url }}" target="_blank" class="text-xs text-gray-600 hover:text-gray-900">Download</a>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Signed Documents (If Any) -->
+                    {% if ad.signed_approved_documents.exists %}
+                    <div class="mt-4 pt-4 border-t border-gray-100">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Signed & Approved Documents</h3>
+                        <div class="space-y-2">
+                            {% for doc in ad.signed_approved_documents.all %}
+                            <div class="flex items-center justify-between p-2 bg-green-50 border border-green-200 rounded">
+                                <div class="flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    <span class="text-sm text-green-900 truncate">{{ doc.file_name }}</span>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button onclick="openAdminPreview('{{ doc.document.url }}', '{{ doc.file_name }}')" class="text-xs text-green-700 hover:underline">Preview</button>
+                                     <span class="text-green-300">|</span>
+                                    <a href="{{ doc.document.url }}" target="_blank" class="text-xs text-green-700 hover:text-green-900">Download</a>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Right Column: Funding Sidebar -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-lg shadow p-6 sticky top-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Funding Breakdown</h2>
+                    
+                    <div class="mb-4">
+                        <p class="text-xs text-gray-500 uppercase tracking-wide">Budget Source</p>
+                        <p class="text-sm font-medium text-gray-900">{{ ad.budget_allocation.approved_budget.title }}</p>
+                         <p class="text-xs text-gray-500 mt-1">{{ ad.department }} Department Budget</p>
+                    </div>
+
+                    <div class="space-y-3">
+                        <p class="text-xs text-gray-500 uppercase tracking-wide">Allocated Line Items</p>
+                        {% for alloc in allocations %}
+                        <div class="bg-gray-50 p-3 rounded border border-gray-200">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-sm font-semibold text-gray-800 leading-tight">{{ alloc.pre_line_item.item_name }}</span>
+                                <span class="text-xs bg-blue-100 text-blue-800 px-1.5 rounded">{{ alloc.quarter }}</span>
+                            </div>
+                            <div class="flex justify-between items-center mt-2">
+                                <span class="text-xs text-gray-500 font-mono">{{ alloc.pre_line_item.pre_code }}</span>
+                                <span class="text-sm font-bold text-green-700">₱{{ alloc.allocated_amount|floatformat:2|intcomma }}</span>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <p class="text-sm text-gray-500 italic">No allocations found.</p>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mt-6 pt-4 border-t-2 border-dashed border-gray-200">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-bold text-gray-600">Total Allocated</span>
+                             <span class="text-xl font-bold text-blue-700">₱{{ ad.total_amount|floatformat:2|intcomma }}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Admin Actions (Quick Approve/Reject) -->
+                    {% if ad.status == 'Pending' %}
+                    <div class="mt-8 pt-6 border-t border-gray-200">
+                        <h3 class="text-sm font-semibold text-gray-800 mb-3">Admin Actions</h3>
+                        <form method="post" action="{% url 'handle_activity_design_request' ad.id %}">
+                            {% csrf_token %}
+                            <div class="grid grid-cols-2 gap-3">
+                                <button type="submit" name="action" value="approve" class="bg-green-600 text-white py-2 rounded text-sm font-medium hover:bg-green-700 transition">Partial Approve</button>
+                                <button type="submit" name="action" value="reject" class="bg-red-600 text-white py-2 rounded text-sm font-medium hover:bg-red-700 transition" onclick="return confirm('Reject this AD?');">Reject</button>
+                            </div>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+    </main>
+</div>
+
+<!-- Preview Modal -->
+<div id="previewModal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closeAdminPreview()"></div>
+        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-6xl sm:w-full h-[85vh] flex flex-col">
+            <div class="bg-gray-100 px-4 py-3 border-b flex justify-between items-center shrink-0">
+                <h3 class="text-lg font-medium text-gray-900" id="previewModalTitle">Preview</h3>
+                <button type="button" class="text-gray-500 hover:text-gray-700" onclick="closeAdminPreview()">
+                    <span class="sr-only">Close</span>
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div class="flex-1 relative bg-gray-200">
+                <iframe id="previewFrame" src="" class="w-full h-full border-0"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openAdminPreview(url, title) {
+        const modal = document.getElementById('previewModal');
+        const frame = document.getElementById('previewFrame');
+        document.getElementById('previewModalTitle').textContent = title;
+        
+        // Use Google Docs Viewer for consistency
+        const encodedUrl = encodeURIComponent(url);
+        frame.src = `https://docs.google.com/gview?url=${encodedUrl}&embedded=true`;
+        
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeAdminPreview() {
+        const modal = document.getElementById('previewModal');
+        modal.classList.add('hidden');
+        document.getElementById('previewFrame').src = '';
+        document.body.style.overflow = 'auto';
+    }
+</script>
+{% endblock %}

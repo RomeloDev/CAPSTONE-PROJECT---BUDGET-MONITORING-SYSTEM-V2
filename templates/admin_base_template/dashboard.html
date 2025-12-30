@@ -146,9 +146,9 @@
             </li>
 
             <li>
-              <a href="#"
+              <a href="{% url "department_ad_request" %}"
                  class="flex items-center gap-2 px-3 py-2 rounded-md relative group
-                 {% if request.resolver_match.url_name == 'department_activity_design' %}
+                 {% if request.resolver_match.url_name == 'department_ad_request' %}
                    bg-blue-600 text-white font-medium
                  {% else %}
                    text-gray-700 hover:bg-blue-600 hover:text-white

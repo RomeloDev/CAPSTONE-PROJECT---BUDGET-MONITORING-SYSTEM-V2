@@ -23,4 +23,8 @@ urlpatterns = [
     path('pr-requests/<uuid:pr_id>/', views.AdminPRDetailView.as_view(), name='admin_pr_detail'),
     path('pr-requests/<uuid:pr_id>/action/', views.handle_pr_action, name='admin_pr_action'),
     path('pr-requests/<uuid:pr_id>/verify/', views.admin_verify_and_approve_pr, name='admin_verify_and_approve_pr'),
+    path('department/ad-requests/', views.DepartmentADRequestView.as_view(), name='department_ad_request'),
+    path('department/ad-requests/<uuid:pk>/handle/', views.HandleADRequestView.as_view(), name='handle_activity_design_request'),
+    # Add detail view path if you implement AdminADDetailView
+    path('department/ad-requests/<uuid:pk>/details/', views.AdminADDetailView.as_view(), name='admin_preview_ad'),
 ]

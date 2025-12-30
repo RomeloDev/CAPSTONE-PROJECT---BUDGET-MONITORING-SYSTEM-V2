@@ -1676,3 +1676,52 @@ class ActivityDesignDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailVi
             
         # Allow if owner
         return ad.submitted_by == self.request.user
+
+
+@login_required
+@require_POST
+def upload_signed_ad_docs(request, ad_id):
+    """
+    Handle the upload of signed Activity Design documents.
+    Updates status from 'Partially Approved' -> 'Awaiting Admin Verification'.
+    """
+    # 1. Fetch AD and verify ownership
+    ad = get_object_or_404(ActivityDesign, id=ad_id, submitted_by=request.user)
+    
+    # 2. Status Validation
+    if ad.status != 'Partially Approved':
+        messages.error(request, "You can only upload signed documents when status is 'Partially Approved'.")
+        return redirect('view_ad_detail', ad_id=ad.id)
+        
+    uploaded_files = request.FILES.getlist('signed_documents')
+    
+    if not uploaded_files:
+        messages.error(request, "Please select at least one file.")
+        return redirect('view_ad_detail', ad_id=ad.id)
+
+    try:
+        from apps.budgets.models import ActivityDesignApprovedDocument
+
+        # 3. Save each file
+        for f in uploaded_files:
+            ActivityDesignApprovedDocument.objects.create(
+                activity_design=ad,
+                document=f,
+                file_name=f.name,
+                uploaded_by=request.user,
+                document_type='signed_ad',  # Default type
+                file_size=f.size
+            )
+            
+        # 4. Update AD Status & Timestamps
+        ad.status = 'Awaiting Admin Verification'
+        ad.end_user_uploaded_at = timezone.now()
+        ad.awaiting_verification = True
+        ad.save() 
+        
+        messages.success(request, "Signed documents uploaded successfully! Admin will verify them shortly.")
+        
+    except Exception as e:
+        messages.error(request, f"Error uploading files: {str(e)}")
+        
+    return redirect('view_ad_detail', ad_id=ad.id)

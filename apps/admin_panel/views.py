@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.views.generic import TemplateView, ListView, DetailView
+from django.views.generic import TemplateView, ListView, DetailView, View
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
 from django.utils.decorators import method_decorator
@@ -14,7 +14,7 @@ from apps.budgets.models import (
     ActivityDesign,
     RequestApproval,
     SystemNotification,
-    DepartmentPREApprovedDocument
+    DepartmentPREApprovedDocument,
 )
 from django.contrib import messages
 from apps.admin_panel.models import AuditTrail
@@ -27,6 +27,7 @@ from .forms import BudgetAllocationForm, CustomUserCreationForm, CustomUserEditF
 import json
 from django.views.decorators.http import require_POST
 from apps.admin_panel.utils import log_activity
+from django.db import transaction
 
 class AdminDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     """Dashboard for Budget Officers/Admins"""
@@ -1233,3 +1234,150 @@ def admin_verify_and_approve_pr(request, pr_id):
         messages.warning(request, f"Verification rejected. PR returned to user for correction. Reason: {reason}")
         
     return redirect('admin_pr_detail', pr_id=pr.id)
+
+class DepartmentADRequestView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    model = ActivityDesign
+    template_name = 'admin_panel/departments_ad_request.html'
+    context_object_name = 'ads'
+    ordering = ['-created_at']
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        
+        # Filter by Year (via related Budget Allocation -> ApprovedBudget)
+        year = self.request.GET.get('summary_year', 'all')
+        if year != 'all':
+            queryset = queryset.filter(budget_allocation__approved_budget__fiscal_year=year)
+            
+        # Filter by Department
+        dept = self.request.GET.get('department')
+        if dept:
+            queryset = queryset.filter(department=dept)
+            
+        # Filter by Status
+        status = self.request.GET.get('status')
+        if status:
+            queryset = queryset.filter(status=status)
+            
+        return queryset
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # 1. Year Filter Data
+        context['available_years'] = ApprovedBudget.objects.values_list('fiscal_year', flat=True).distinct().order_by('-fiscal_year')
+        context['selected_year'] = self.request.GET.get('summary_year', 'all')
+        context['current_year'] = timezone.now().year
+        
+        # 2. Status Counts (for Dashboard Cards)
+        # We calculate this based on the *filtered* queryset or *all* for the year? 
+        # Usually dashboard cards show global stats for the year, so let's use a separate query for year-scope
+        year = context['selected_year']
+        stats_query = ActivityDesign.objects.all()
+        if year != 'all':
+            stats_query = stats_query.filter(budget_allocation__approved_budget__fiscal_year=year)
+            
+        context['status_counts'] = stats_query.aggregate(
+            total=Count('id'),
+            pending=Count('id', filter=Q(status='Pending')),
+            partially_approved=Count('id', filter=Q(status='Partially Approved')),
+            approved=Count('id', filter=Q(status='Approved')),
+            rejected=Count('id', filter=Q(status='Rejected'))
+        )
+        
+        # 3. Filter Options
+        context['departments'] = ActivityDesign.objects.values_list('department', flat=True).distinct()
+        context['status_choices'] = ActivityDesign.STATUS_CHOICES
+        
+        return context
+    def test_func(self):
+        return self.request.user.is_superuser or self.request.user.is_staff
+    
+class HandleADRequestView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """
+    Handles Approve (Partial/Final) and Reject actions for Activity Designs.
+    POST Only.
+    """
+    def post(self, request, pk):
+        ad = get_object_or_404(ActivityDesign, pk=pk)
+        action = request.POST.get('action')
+        
+        try:
+            with transaction.atomic():
+                if action == 'approve':
+                    # First Step: Partial Approval (Pending -> Partially Approved)
+                    ad.status = 'Partially Approved'
+                    ad.partially_approved_at = timezone.now()
+                    ad.save()
+                    
+                    # Logic: Budget is already "Allocated" inside AD ? 
+                    # If you deduct budget ONLY on final approval, do it then.
+                    # If you deduct on partial, do it here.
+                    # Assuming deduction happens on Final Approval.
+                    
+                    messages.success(request, f"AD-{ad.ad_number} Partially Approved. Waiting for signed docs.")
+                elif action == 'approve_final':
+                    # Second Step: Final Approval (Awaiting Verification -> Approved)
+                    ad.status = 'Approved'
+                    ad.final_approved_at = timezone.now()
+                    ad.admin_approved_by = request.user
+                    ad.save()
+                    
+                    # --- DEDUCT BUDGET HERE IF NEEDED ---
+                    allocation = ad.budget_allocation
+                    # Recalculate usage
+                    allocation.ad_amount_used += ad.total_amount
+                    allocation.save()
+                    
+                    messages.success(request, f"AD-{ad.ad_number} Fully Approved!")
+                elif action == 'reject':
+                    ad.status = 'Rejected'
+                    ad.rejection_reason = request.POST.get('rejection_reason', 'Admin Rejected')
+                    ad.save()
+                    # If budget was reserved, clear it? 
+                    # AD allocations usually sum up dynamically, so changing status to Rejected might be enough
+                    # if your Budget Allocation logic excludes Rejected ads.
+                    messages.warning(request, f"AD-{ad.ad_number} Rejected.")
+                    
+        except Exception as e:
+            messages.error(request, f"Error processing AD: {str(e)}")
+            
+        return redirect('department_ad_request')
+    def test_func(self):
+        return self.request.user.is_superuser or self.request.user.is_staff
+    
+class AdminADDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+    """
+    Admin View to see full details of an Activity Design (AD).
+    Displays:
+    - AD Information (Number, Purpose, etc.)
+    - Uploaded Documents (Preview/Download)
+    - Multi-source Funding Breakdown
+    """
+    model = ActivityDesign
+    template_name = 'admin_panel/view_ad_detail.html'
+    context_object_name = 'ad'
+    pk_url_kwarg = 'pk' # Matches the <uuid:pk> in urls.py
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        ad = self.object
+        
+        # 1. Get all funding allocations for this AD
+        # This allows the admin to see exactly which lines are funding this activity
+        context['allocations'] = ad.pre_allocations.select_related(
+            'pre_line_item', 
+            'pre_line_item__category'
+        ).all()
+        
+        # 2. Add Budget Summaries (Optional context for Admin to check specific budget health)
+        if ad.budget_allocation:
+            allocation = ad.budget_allocation
+            context['budget_summary'] = {
+                'title': allocation.approved_budget.title,
+                'department': allocation.department,
+                'total_budget': allocation.allocated_amount,
+                'remaining': allocation.remaining_balance
+            }
+            
+        return context
+    def test_func(self):
+        # Strictly for Superusers and Staff (Admins)
+        return self.request.user.is_superuser or self.request.user.is_staff
