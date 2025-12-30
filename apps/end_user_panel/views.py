@@ -1626,3 +1626,53 @@ def activity_design_upload(request):
         'draft_allocations': json.dumps(request.session.get('ad_draft_allocations', [])), # Pass as JSON for JS
     }
     return render(request, 'end_user_panel/activity_design_upload.html', context)
+
+
+class ActivityDesignDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+    """
+    View to display details of a specific Activity Design.
+    Shows status, uploaded documents, and multi-source funding allocations.
+    """
+    model = ActivityDesign
+    template_name = 'end_user_panel/view_ad_detail.html'
+    context_object_name = 'ad'
+    pk_url_kwarg = 'ad_id' # We will use 'ad_id' in the URL
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        ad = self.object
+        
+        # 1. Get all funding allocations for this AD
+        # rel 'pre_allocations' fetches related ActivityDesignAllocation objects
+        context['allocations'] = ad.pre_allocations.select_related(
+            'pre_line_item', 
+            'pre_line_item__category'
+        ).all()
+        
+        # 2. Add Budget Summary of the Parent Allocation (Optional but helpful)
+        # This shows the user how much is left in the main pot
+        if ad.budget_allocation:
+            allocation = ad.budget_allocation
+            context['budget_summary'] = {
+                'title': allocation.approved_budget.title,
+                'total_budget': allocation.allocated_amount,
+                'total_used': allocation.pr_amount_used + allocation.ad_amount_used,
+                # Simple calculation for context display
+                'remaining': allocation.allocated_amount - (allocation.pr_amount_used + allocation.ad_amount_used)
+            }
+        
+        return context
+    def test_func(self):
+        """
+        Security Check:
+        Only allow access if the user is:
+        1. Wait, Staff/Admins usually have their own panel, but if they use this view: ALLOW.
+        2. The Creator of the AD (submitted_by == user).
+        """
+        ad = self.get_object()
+        
+        # Allow ifsuperuser or staff
+        if self.request.user.is_superuser or self.request.user.is_staff:
+            return True
+            
+        # Allow if owner
+        return ad.submitted_by == self.request.user

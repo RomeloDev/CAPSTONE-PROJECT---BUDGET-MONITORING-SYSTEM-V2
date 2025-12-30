@@ -27,4 +27,5 @@ urlpatterns = [
     path('pr/view/<uuid:pr_id>/', views.ViewPRDetailView.as_view(), name='view_pr_detail'),
     path('pr/<uuid:pr_id>/upload-signed-docs/', views.upload_signed_pr_docs, name='upload_signed_pr_docs'),
     path('ad/upload/', views.activity_design_upload, name='activity_design_upload'),
+    path('ad/view/<uuid:ad_id>/', views.ActivityDesignDetailView.as_view(), name='view_ad_detail'),
 ]
