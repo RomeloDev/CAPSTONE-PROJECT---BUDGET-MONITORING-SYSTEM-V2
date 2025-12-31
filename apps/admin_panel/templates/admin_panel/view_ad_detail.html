@@ -182,6 +182,27 @@
                             </div>
                         </form>
                     </div>
+                    {% elif ad.status == 'Awaiting Admin Verification' %}
+                    <div class="mt-8 pt-6 border-t border-gray-200">
+                        <h3 class="text-sm font-semibold text-gray-800 mb-3">Final Verification</h3>
+                        <p class="text-xs text-gray-500 mb-3">Review signed documents before final approval.</p>
+                        <form method="post" action="{% url 'handle_activity_design_request' ad.id %}">
+                            {% csrf_token %}
+                            <div class="space-y-3">
+                                <button type="submit" name="action" value="approve_final" 
+                                    class="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-2.5 rounded shadow hover:from-green-700 hover:to-emerald-700 transition text-sm font-bold flex items-center justify-center gap-2"
+                                    onclick="return confirm('Confirm Final Approval? This will deduct the amount from the budget.');">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                    Verify & Final Approve
+                                </button>
+                                <button type="submit" name="action" value="reject" 
+                                    class="w-full bg-white border border-red-300 text-red-600 py-2 rounded text-sm font-medium hover:bg-red-50 transition" 
+                                    onclick="return confirm('Are you sure you want to REJECT this AD?');">
+                                    Reject / Return
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                     {% endif %}
                 </div>
             </div>
