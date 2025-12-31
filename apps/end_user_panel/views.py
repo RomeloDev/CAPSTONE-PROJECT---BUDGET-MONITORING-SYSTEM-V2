@@ -65,11 +65,15 @@ class EndUserDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView
         
         total_allocated = stats['total_allocated'] or 0
         total_used = (stats['total_pr_used'] or 0) + (stats['total_ad_used'] or 0)
-        total_remaining = stats['total_remaining'] or 0
+        total_remaining = total_allocated - total_used or 0
+        total_pr_used = stats['total_pr_used'] or 0
+        total_ad_used = stats['total_ad_used'] or 0
         
         context['total_allocated'] = total_allocated
         context['total_used'] = total_used
         context['total_remaining'] = total_remaining
+        context['total_pr_used'] = total_pr_used
+        context['total_ad_used'] = total_ad_used
         
         # Calculate Percentages
         if total_allocated > 0:
@@ -130,14 +134,58 @@ class EndUserDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView
         recent_activity.sort(key=lambda x: x['date'], reverse=True)
         context['recent_activity'] = recent_activity[:5] # Limit to top 5 overall
 
-        # --- 4. Quarterly Data (Mocked for UI consistency for now) ---
-        # TODO: Implement actual quarterly aggregation logic
-        context['quarterly_data'] = [
-            {'quarter': 'Q1', 'allocated': total_allocated / 4, 'consumed': total_used / 4, 'utilization': context['utilization_percentage']},
-            {'quarter': 'Q2', 'allocated': total_allocated / 4, 'consumed': 0, 'utilization': 0},
-            {'quarter': 'Q3', 'allocated': total_allocated / 4, 'consumed': 0, 'utilization': 0},
-            {'quarter': 'Q4', 'allocated': total_allocated / 4, 'consumed': 0, 'utilization': 0},
-        ]
+        # --- 4. Quarterly Data (Actual Aggregation) ---
+        from django.db.models.functions import Coalesce
+        from apps.budgets.models import PRELineItem, PurchaseRequestAllocation, ActivityDesignAllocation
+        from decimal import Decimal
+
+        quarterly_data = []
+        quarters = ['Q1', 'Q2', 'Q3', 'Q4']
+        
+        for q in quarters:
+            # 1. Allocated (From PRE Line Items for this user's budget allocations)
+            # Filter line items belonging to Approved PREs under the user's allocations
+            # We explicitly check for 'Approved' PREs so we only count verified budgets
+            allocated_q = PRELineItem.objects.filter(
+                pre__budget_allocation__in=allocations,
+                pre__status='Approved'
+            ).aggregate(
+                total=Coalesce(Sum(f'{q.lower()}_amount'), Decimal('0.00'))
+            )['total']
+
+            # 2. Consumed (From Approved PRs and ADs)
+            
+            # PR Consumption for this Quarter
+            pr_consumed_q = PurchaseRequestAllocation.objects.filter(
+                pre_line_item__pre__budget_allocation__in=allocations,
+                quarter=q,
+                purchase_request__status='Approved'
+            ).aggregate(
+                total=Coalesce(Sum('allocated_amount'), Decimal('0.00'))
+            )['total']
+            
+            # AD Consumption for this Quarter
+            ad_consumed_q = ActivityDesignAllocation.objects.filter(
+                pre_line_item__pre__budget_allocation__in=allocations,
+                quarter=q,
+                activity_design__status='Approved'
+            ).aggregate(
+                total=Coalesce(Sum('allocated_amount'), Decimal('0.00'))
+            )['total']
+            
+            consumed_q = pr_consumed_q + ad_consumed_q
+            
+            # 3. Utilization Calculation
+            utilization_q = (consumed_q / allocated_q * 100) if allocated_q > 0 else 0
+            
+            quarterly_data.append({
+                'quarter': q,
+                'allocated': allocated_q,
+                'consumed': consumed_q,
+                'utilization': utilization_q
+            })
+
+        context['quarterly_data'] = quarterly_data
 
         return context
 

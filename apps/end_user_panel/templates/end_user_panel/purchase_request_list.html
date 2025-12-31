@@ -220,6 +220,7 @@
                                 {% if ad.status == 'Approved' %}bg-green-100 text-green-800
                                 {% elif ad.status == 'Pending' %}bg-amber-100 text-amber-800
                                 {% elif ad.status == 'Partially Approved' %}bg-indigo-100 text-indigo-800
+                                {% elif ad.status == 'Awaiting Admin Verification' %}bg-indigo-100 text-indigo-800
                                 {% else %}bg-red-100 text-red-800{% endif %}">
                                 {{ ad.status }}
                             </span>

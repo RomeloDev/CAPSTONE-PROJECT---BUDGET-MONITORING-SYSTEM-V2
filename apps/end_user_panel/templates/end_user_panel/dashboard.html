@@ -111,24 +111,20 @@
     <!-- Quick Actions -->
     <section class="bg-white rounded-xl p-6 shadow-md">
         <h2 class="text-lg font-semibold text-gray-800 mb-4">Quick Actions</h2>
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <a href="#" class="flex flex-col items-center justify-center p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition text-center">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <a href="{% url "department_pre_page" %}" class="flex flex-col items-center justify-center p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition text-center">
                 <span class="text-3xl mb-2">📝</span>
                 <span class="text-sm font-medium text-gray-700">Submit PRE</span>
             </a>
-            <a href="#" class="flex flex-col items-center justify-center p-4 bg-green-50 hover:bg-green-100 rounded-lg transition text-center">
+            <a href="{% url "purchase_request_upload" %}" class="flex flex-col items-center justify-center p-4 bg-green-50 hover:bg-green-100 rounded-lg transition text-center">
                 <span class="text-3xl mb-2">🛒</span>
                 <span class="text-sm font-medium text-gray-700">Create PR</span>
             </a>
-            <a href="#" class="flex flex-col items-center justify-center p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition text-center">
+            <a href="{% url "activity_design_upload" %}" class="flex flex-col items-center justify-center p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition text-center">
                 <span class="text-3xl mb-2">🎯</span>
                 <span class="text-sm font-medium text-gray-700">Create AD</span>
             </a>
-            <a href="#" class="flex flex-col items-center justify-center p-4 bg-yellow-50 hover:bg-yellow-100 rounded-lg transition text-center">
-                <span class="text-3xl mb-2">📊</span>
-                <span class="text-sm font-medium text-gray-700">View Details</span>
-            </a>
-            <a href="#" class="flex flex-col items-center justify-center p-4 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition text-center">
+            <a href="{% url "transaction_history" %}" class="flex flex-col items-center justify-center p-4 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition text-center">
                 <span class="text-3xl mb-2">📈</span>
                 <span class="text-sm font-medium text-gray-700">Reports</span>
             </a>
@@ -141,7 +137,7 @@
         <section class="bg-white rounded-xl p-6 shadow-md">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-semibold text-gray-800">Quarterly Overview</h2>
-                <a href="#" class="text-sm text-blue-600 hover:text-blue-800">View Details →</a>
+                <a href="{% url "quarterly_analysis" %}" class="text-sm text-blue-600 hover:text-blue-800">View Details →</a>
             </div>
             <div class="space-y-3">
                 {% for quarter_info in quarterly_data %}
