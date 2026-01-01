@@ -1,0 +1,117 @@
+{% extends "end_user_base_template/dashboard.html" %}
+{% load humanize %}
+
+{% block title %}Preview Realignment Docs{% endblock title %}
+
+{% block main-content %}
+<div class="max-w-6xl mx-auto py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold">Realignment Request #{{ realignment.id }}</h1>
+        <span class="px-3 py-1 rounded-full text-sm font-semibold 
+            {% if realignment.status == 'Approved' %}bg-green-100 text-green-800
+            {% elif realignment.status == 'Rejected' %}bg-red-100 text-red-800
+            {% else %}bg-yellow-100 text-yellow-800{% endif %}">
+            {{ realignment.status }}
+        </span>
+    </div>
+
+    <!-- Details -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <div class="grid grid-cols-2 gap-4 text-sm">
+            <div>
+                <p class="text-gray-500">Source Line Item</p>
+                <p class="font-medium">{{ realignment.source_item_display }}</p>
+            </div>
+            <div>
+                <p class="text-gray-500">Target Line Item</p>
+                <p class="font-medium">{{ realignment.target_item_display }}</p>
+            </div>
+            <div class="col-span-2">
+                <p class="text-gray-500 mb-1">Quarterly Transfer Breakdown</p>
+                <div class="flex gap-4">
+                    {% for q, label, amt in quarters %}
+                    <div class="bg-gray-50 px-3 py-1 rounded border">
+                        <span class="font-bold">{{ label }}:</span> ₱{{ amt|intcomma }}
+                    </div>
+                    {% endfor %}
+                    <div class="ml-auto font-bold text-blue-600">
+                        Total: ₱{{ realignment.amount|intcomma }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Documents Preview -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-bold mb-4">Supporting Documents</h2>
+        
+        {% if supporting_documents %}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {% for doc in supporting_documents %}
+                <div class="border rounded-lg overflow-hidden">
+                    <div class="bg-gray-50 px-3 py-2 border-b text-sm font-medium flex justify-between">
+                        <span>{{ doc.file_name }}</span>
+                        <a href="{{ doc.document.url }}" target="_blank" class="text-blue-600 hover:text-blue-800">Download</a>
+                    </div>
+                    <div class="h-96 bg-gray-100">
+                        <!-- Google Docs Viewer -->
+                        <iframe 
+                            src="https://docs.google.com/gview?url={{ doc.document.url|urlencode }}&embedded=true" 
+                            class="w-full h-full border-none"
+                            title="Document Preview">
+                        </iframe>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-gray-500 italic">No supporting documents found.</p>
+        {% endif %}
+    </div>
+
+    <!-- Signed Document Upload (If Partially Approved) -->
+    {% if realignment.status == 'Partially Approved' %}
+    <div class="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
+        <h2 class="text-lg font-bold text-blue-900 mb-2">Partial Approval Action Required</h2>
+        <p class="text-sm text-blue-800 mb-4">
+            Your request has been partially approved. Please download the generated PDF (if available), sign it, and upload the signed copy here to proceed.
+        </p>
+
+        <form action="{% url 'upload_signed_realignment' realignment.pk %}" method="POST" enctype="multipart/form-data" class="flex gap-4 items-end">
+            {% csrf_token %}
+            <div class="flex-1">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Upload Signed Copy</label>
+                <input type="file" name="signed_document" required class="w-full border border-gray-300 rounded p-2 bg-white">
+            </div>
+            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-medium h-10">
+                Upload & Submit
+            </button>
+        </form>
+    </div>
+    {% endif %}
+
+     <!-- Signed Docs Display -->
+     {% if signed_documents %}
+     <div class="mt-8 bg-white rounded-lg shadow p-6">
+         <h2 class="text-lg font-bold mb-4">Signed Documents</h2>
+         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+             {% for doc in signed_documents %}
+             <div class="border rounded-lg overflow-hidden">
+                 <div class="bg-green-50 px-3 py-2 border-b text-sm font-medium flex justify-between">
+                     <span>{{ doc.file_name }} (Signed)</span>
+                     <a href="{{ doc.document.url }}" target="_blank" class="text-blue-600 hover:text-blue-800">Download</a>
+                 </div>
+                 <div class="h-96 bg-gray-100">
+                     <iframe 
+                         src="https://docs.google.com/gview?url={{ doc.document.url|urlencode }}&embedded=true" 
+                         class="w-full h-full border-none">
+                     </iframe>
+                 </div>
+             </div>
+             {% endfor %}
+         </div>
+     </div>
+     {% endif %}
+</div>
+{% endblock %}

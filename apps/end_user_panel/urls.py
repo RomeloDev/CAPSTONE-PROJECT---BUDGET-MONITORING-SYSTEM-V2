@@ -29,4 +29,11 @@ urlpatterns = [
     path('ad/upload/', views.activity_design_upload, name='activity_design_upload'),
     path('ad/view/<uuid:ad_id>/', views.ActivityDesignDetailView.as_view(), name='view_ad_detail'),
     path('ad/<uuid:ad_id>/upload-signed-docs/', views.upload_signed_ad_docs, name='upload_signed_ad_docs'),
+    
+    # PRE Budget Realignment
+    path('realignment/create/', views.PREBudgetRealignmentView.as_view(), name='create_budget_realignment'),
+    path('api/get-realtime-amounts/', views.get_realtime_line_item_amounts, name='get_realtime_line_item_amounts'),
+    # Use <int:pk> because PREBudgetRealignment usually uses AutoField ID, unlike PR/PRE UUIDs
+    path('realignment/<int:pk>/preview/', views.PreviewRealignmentView.as_view(), name='preview_realignment_documents'),
+    path('realignment/<int:pk>/upload-signed/', views.UploadSignedRealignmentDocView.as_view(), name='upload_signed_realignment'),
 ]

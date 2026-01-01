@@ -86,3 +86,64 @@ class ActivityDesignDetailsForm(forms.ModelForm):
     # Extra field for the raw JSON data
     line_items_data = forms.CharField(widget=forms.HiddenInput(), required=True)
     budget_allocation = forms.IntegerField(widget=forms.HiddenInput(), required=True)
+
+
+class PREBudgetRealignmentForm(forms.Form):
+    """
+    Form for Creating PRE Budget Realignment Request.
+    """
+    source_category = forms.ChoiceField(
+        label="Source Line Item (Transfer FROM)",
+        choices=[],
+        required=True
+    )
+    target_category = forms.ChoiceField(
+        label="Target Line Item (Transfer TO)",
+        choices=[],
+        required=True
+    )
+    reason = forms.CharField(
+        label="Reason for Realignment",
+        widget=forms.Textarea(attrs={'rows': 3, 'placeholder': 'Optional reason...'}),
+        required=False
+    )
+    
+    # Quarterly Amounts
+    q1_amount = forms.DecimalField(min_value=0, decimal_places=2, initial=0, required=False)
+    q2_amount = forms.DecimalField(min_value=0, decimal_places=2, initial=0, required=False)
+    q3_amount = forms.DecimalField(min_value=0, decimal_places=2, initial=0, required=False)
+    q4_amount = forms.DecimalField(min_value=0, decimal_places=2, initial=0, required=False)
+    
+    documents = forms.FileField(
+        label="Supporting Documents",
+        required=True,
+        widget=forms.FileInput()
+    )
+
+    def __init__(self, *args, **kwargs):
+        source_choices = kwargs.pop('source_choices', [])
+        target_choices = kwargs.pop('target_choices', [])
+        super().__init__(*args, **kwargs)
+        self.fields['source_category'].choices = [('', '-- Select source line item --')] + source_choices
+        self.fields['target_category'].choices = [('', '-- Select target line item --')] + target_choices
+        # Enable multiple file selection
+        self.fields['documents'].widget.attrs.update({'multiple': True})
+
+    def clean(self):
+        cleaned_data = super().clean()
+        source = cleaned_data.get('source_category')
+        target = cleaned_data.get('target_category')
+        
+        if source and target and source == target:
+            self.add_error('target_category', "Source and target categories cannot be the same.")
+            
+        # Validate total amount > 0
+        q1 = cleaned_data.get('q1_amount') or 0
+        q2 = cleaned_data.get('q2_amount') or 0
+        q3 = cleaned_data.get('q3_amount') or 0
+        q4 = cleaned_data.get('q4_amount') or 0
+        
+        if (q1 + q2 + q3 + q4) <= 0:
+            raise ValidationError("Total amount must be greater than zero. Please enter at least one quarterly amount.")
+            
+        return cleaned_data

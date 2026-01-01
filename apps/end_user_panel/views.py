@@ -28,9 +28,23 @@ from apps.budgets.models import (
     PurchaseRequestSupportingDocument,
     PRDraft,
     PRDraftSupportingDocument,
-    ActivityDesignSupportingDocument
+    ActivityDesignSupportingDocument,
+    PREBudgetRealignment,
+    BudgetRealignmentSupportingDocument
 )
-from .forms import PurchaseRequestDetailsForm, PurchaseRequestSupportingDocForm, PurchaseRequestUploadForm, ActivityDesignUploadForm, ActivityDesignSupportingDocForm, ActivityDesignDetailsForm
+from .forms import (
+    PurchaseRequestDetailsForm, 
+    PurchaseRequestSupportingDocForm, 
+    PurchaseRequestUploadForm, 
+    ActivityDesignUploadForm, 
+    ActivityDesignSupportingDocForm, 
+    ActivityDesignDetailsForm,
+    PREBudgetRealignmentForm
+)
+from io import BytesIO
+from PIL import Image
+from django.core.files.base import ContentFile
+from django.views.generic import FormView
 # Note: PREDraft and PREDraftSupportingDocument are used for draft management
 # DepartmentPRE is created only on final submission in PreviewPREView
 from apps.end_user_panel.utils.pre_parser_dynamic import parse_pre_excel_dynamic
@@ -1773,3 +1787,251 @@ def upload_signed_ad_docs(request, ad_id):
         messages.error(request, f"Error uploading files: {str(e)}")
         
     return redirect('view_ad_detail', ad_id=ad.id)
+
+
+class PREBudgetRealignmentView(LoginRequiredMixin, UserPassesTestMixin, FormView):
+    template_name = 'end_user_panel/pre_budget_realignment.html'
+    form_class = PREBudgetRealignmentForm
+    success_url = '/end_user/department-pre/' # Redirect to PRE Dashboard
+
+    def test_func(self):
+        return not self.request.user.is_staff and not self.request.user.is_superuser
+
+    def get_initial(self):
+        # We don't need initial data for empty form, dynamic data is loaded in form_kwargs or frontend
+        return super().get_initial()
+
+    def get_available_lines(self):
+        """Helper to get available source line items"""
+        approved_pres = DepartmentPRE.objects.filter(
+            submitted_by=self.request.user,
+            status='Approved'  # Only fully approved PREs
+        )
+        
+        choices = []
+        for pre in approved_pres:
+            for item in pre.line_items.all():
+                # Get remaining budgets using the same logic as API
+                # But here we just need keys for the dropdown, maybe some label info
+                # Real checking happens in Javascript API or cleaning
+                
+                # Simplified label: "Category - Item Name"
+                label = f"{item.category.name} - {item.item_name}"
+                
+                # Check actual availability (sum of Q1-Q4 remaining)
+                total_remaining = Decimal('0')
+                for q in ['Q1', 'Q2', 'Q3', 'Q4']:
+                    allocated = item.get_quarter_amount(q)
+                    consumed = item.get_quarter_consumed(q) # PR/AD Approved
+                    reserved = item.get_quarter_reserved(q) # Pending PR/AD
+                    
+                    # Also check Pending Realignments (Source)
+                    pending_realign = PREBudgetRealignment.objects.filter(
+                        source_item_key=str(item.id),
+                        source_pre=pre,
+                        status__in=['Pending', 'Partially Approved', 'Awaiting Admin Verification']
+                    ).aggregate(
+                        total=Coalesce(Sum(f'{q.lower()}_amount'), Decimal('0'))
+                    )['total']
+                    
+                    remaining = allocated - consumed - reserved - pending_realign
+                    if remaining > 0:
+                        total_remaining += remaining
+
+                if total_remaining > 0:
+                    # Value format: pre_id|item_id
+                    value = f"{pre.id}|{item.id}"
+                    choices.append((value, f"{label} (₱{total_remaining:,.2f} Avail)"))
+        
+        return choices
+
+    def get_target_lines(self):
+        """Helper to get all possible target line items"""
+        approved_pres = DepartmentPRE.objects.filter(
+            submitted_by=self.request.user,
+            status='Approved'
+        )
+        choices = []
+        for pre in approved_pres:
+            for item in pre.line_items.all():
+                label = f"{item.category.name} - {item.item_name}"
+                value = f"{pre.id}|{item.id}"
+                choices.append((value, label))
+        return choices
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['source_choices'] = self.get_available_lines()
+        kwargs['target_choices'] = self.get_target_lines()
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Check if user has any approved PREs
+        context['approved_pres_count'] = DepartmentPRE.objects.filter(
+            submitted_by=self.request.user, 
+            status='Approved'
+        ).count()
+        return context
+
+    def form_valid(self, form):
+        data = form.cleaned_data
+        user = self.request.user
+        
+        # Parse Source and Target
+        source_pre_id, source_item_id = data['source_category'].split('|')
+        target_pre_id, target_item_id = data['target_category'].split('|')
+        
+        try:
+            source_pre = DepartmentPRE.objects.get(id=source_pre_id, submitted_by=user)
+            target_pre = DepartmentPRE.objects.get(id=target_pre_id, submitted_by=user)
+            
+            # Create Realignment Record
+            realignment = PREBudgetRealignment.objects.create(
+                requested_by=user,
+                source_pre=source_pre,
+                source_item_key=source_item_id,
+                target_pre=target_pre,
+                target_item_key=target_item_id,
+                reason=data['reason'],
+                q1_amount=data['q1_amount'] or 0,
+                q2_amount=data['q2_amount'] or 0,
+                q3_amount=data['q3_amount'] or 0,
+                q4_amount=data['q4_amount'] or 0,
+                status='Pending',
+                # Populate display names for easier history viewing
+                source_item_display=dict(form.fields['source_category'].choices).get(data['source_category']),
+                target_item_display=dict(form.fields['target_category'].choices).get(data['target_category']),
+                updated_at=timezone.now()
+            )
+            
+            # Handle File Uploads (Supports Multiple)
+            files = self.request.FILES.getlist('documents')
+            
+            for f in files:
+                # Convert Image to PDF if needed
+                file_name = f.name
+                file_content = f
+                
+                if file_name.lower().endswith(('.jpg', '.jpeg', '.png')):
+                    try:
+                        image = Image.open(f)
+                        if image.mode != 'RGB':
+                            image = image.convert('RGB')
+                        
+                        pdf_io = BytesIO()
+                        image.save(pdf_io, format='PDF')
+                        file_content = ContentFile(pdf_io.getvalue(), name=f"{os.path.splitext(file_name)[0]}.pdf")
+                        file_name = f"{os.path.splitext(file_name)[0]}.pdf"
+                    except Exception:
+                        pass
+                
+                # Save Document
+                BudgetRealignmentSupportingDocument.objects.create(
+                    budget_realignment=realignment,
+                    document=file_content,
+                    file_name=file_name,
+                    file_size=f.size,
+                    uploaded_by=user
+                )
+
+            messages.success(self.request, "Budget Realignment request submitted successfully.")
+            return redirect('create_budget_realignment')
+
+        except DepartmentPRE.DoesNotExist:
+            messages.error(self.request, "Invalid PRE selection.")
+            return self.form_invalid(form)
+
+
+@login_required
+def get_realtime_line_item_amounts(request):
+    """
+    AJAX Endpoint to get quarterly breakdown for a selected line item.
+    """
+    pre_id = request.GET.get('pre_id')
+    item_key = request.GET.get('item_key')
+    
+    if not pre_id or not item_key:
+        return JsonResponse({'success': False, 'error': 'Missing params'})
+        
+    try:
+        item = PRELineItem.objects.get(id=item_key, pre_id=pre_id)
+        
+        # Validate User Ownership
+        if item.pre.submitted_by != request.user:
+            return JsonResponse({'success': False, 'error': 'Unauthorized'})
+            
+        data = {}
+        for q in ['Q1', 'Q2', 'Q3', 'Q4']:
+            allocated = item.get_quarter_amount(q)
+            consumed = item.get_quarter_consumed(q)
+            reserved = item.get_quarter_reserved(q)
+            
+            # Pending Realignments
+            pending_realign = PREBudgetRealignment.objects.filter(
+                source_item_key=str(item.id),
+                source_pre=item.pre,
+                status__in=['Pending', 'Partially Approved', 'Awaiting Admin Verification']
+            ).aggregate(
+                total=Coalesce(Sum(f'{q.lower()}_amount'), Decimal('0'))
+            )['total']
+            
+            remaining = allocated - consumed - reserved - pending_realign
+            
+            data[q.lower()] = {
+                'allocated': float(allocated),
+                'consumed': float(consumed),
+                'reserved': float(reserved),
+                'pending': float(pending_realign),
+                'remaining': float(max(remaining, 0))
+            }
+            
+        return JsonResponse({'success': True, 'quarters': data})
+        
+    except PRELineItem.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Item not found'})
+
+
+class PreviewRealignmentView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+    model = PREBudgetRealignment
+    template_name = 'end_user_panel/preview_realignment_documents.html'
+    context_object_name = 'realignment'
+    
+    def test_func(self):
+        obj = self.get_object()
+        return obj.requested_by == self.request.user or self.request.user.is_staff
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        realignment = self.object
+        
+        context['quarters'] = realignment.get_selected_quarters()
+        context['supporting_documents'] = realignment.supporting_documents.filter(is_signed_copy=False)
+        context['signed_documents'] = realignment.supporting_documents.filter(is_signed_copy=True)
+        return context
+
+
+class UploadSignedRealignmentDocView(LoginRequiredMixin, UserPassesTestMixin, View):
+    def test_func(self):
+        return not self.request.user.is_staff
+
+    def post(self, request, pk):
+        realignment = get_object_or_404(PREBudgetRealignment, pk=pk, requested_by=request.user)
+        
+        if realignment.status != 'Partially Approved':
+             messages.error(request, "Realignment is not in Partially Approved state.")
+             return redirect('preview_realignment_documents', pk=pk)
+
+        if 'signed_document' in request.FILES:
+            f = request.FILES['signed_document']
+            
+            realignment.end_user_uploaded_document = f
+            realignment.end_user_uploaded_at = timezone.now()
+            realignment.status = 'Awaiting Admin Verification'
+            realignment.save()
+            
+            messages.success(request, "Signed document uploaded successfully.")
+        else:
+            messages.error(request, "No file selected.")
+            
+        return redirect('preview_realignment_documents', pk=pk)

@@ -1,0 +1,215 @@
+{% extends "end_user_base_template/dashboard.html" %}
+{% load humanize %}
+
+{% block title %}PRE Budget Realignment{% endblock title %}
+
+{% block main-content %}
+<main class="content">
+    <header class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">PRE Budget Realignment</h1>
+        <p class="text-gray-600">
+            Realign budget between expense categories within your approved PREs.
+        </p>
+    </header>
+
+    <div class="max-w-6xl mx-auto">
+        <!-- Messages -->
+        {% if messages %}
+        <div class="mb-6">
+            {% for message in messages %}
+            <div class="p-4 rounded-lg mb-4 {% if message.tags == 'success' %}bg-green-50 text-green-800 border border-green-200{% elif message.tags == 'error' %}bg-red-50 text-red-800 border border-red-200{% else %}bg-blue-50 text-blue-800 border border-blue-200{% endif %}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            {% if approved_pres_count == 0 %}
+            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+                <p class="text-sm text-yellow-700">
+                    <strong>No Approved PREs Found:</strong> You don't have any approved PREs yet.
+                </p>
+            </div>
+            {% endif %}
+
+            <form method="POST" enctype="multipart/form-data" class="space-y-6" id="realignmentForm">
+                {% csrf_token %}
+                
+                <!-- Errors -->
+                {% if form.errors %}
+                <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative" role="alert">
+                    <strong class="font-bold">Please correct the errors below:</strong>
+                    <ul class="mt-1 list-disc list-inside">
+                    {% for field, errors in form.errors.items %}
+                        {% for error in errors %}
+                            <li>{{ field|title }}: {{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                <!-- Source & Target -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="{{ form.source_category.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Source Line Item (FROM)
+                        </label>
+                        {{ form.source_category }}
+                        <script>
+                            // Add Tailwind classes to the select widget manually rendered or updated via script if simpler
+                            document.getElementById('{{ form.source_category.id_for_label }}').className = "w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
+                        </script>
+                    </div>
+                    <div>
+                        <label for="{{ form.target_category.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Target Line Item (TO)
+                        </label>
+                        {{ form.target_category }}
+                        <script>
+                            document.getElementById('{{ form.target_category.id_for_label }}').className = "w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
+                        </script>
+                    </div>
+                </div>
+
+                <!-- Source Available Info -->
+                <div id="source_quarterly_info" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h3 class="font-medium text-gray-900 mb-3">Available Budget by Quarter</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="source_quarters_display"></div>
+                </div>
+
+                <!-- Quarterly Amounts Inputs -->
+                <div id="quarterly_amounts_section" class="hidden bg-gray-50 border border-gray-200 rounded-lg p-6">
+                    <h3 class="font-medium text-gray-900 mb-4">Enter Amount to Transfer</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {% for field in form %}
+                            {% if 'q' in field.name and 'amount' in field.name %}
+                            <div class="bg-white p-3 rounded border border-gray-300">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">{{ field.label|upper }}</label>
+                                <div class="text-xs text-green-600 font-semibold mb-2">
+                                    Avail: <span id="avail_{{ field.name }}">₱0.00</span>
+                                </div>
+                                {{ field }}
+                                <script>
+                                    document.getElementById('{{ field.id_for_label }}').className = "w-full border border-gray-300 rounded px-2 py-1 text-sm amount-input";
+                                    // Initially disabled until source loaded? Or JS handles validation
+                                </script>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    <div class="mt-4 text-right">
+                        <span class="text-lg font-medium">Total: </span>
+                        <span id="total_amount_display" class="text-xl font-bold text-blue-600">₱0.00</span>
+                    </div>
+                </div>
+
+                <!-- Reason & Documents -->
+                <div>
+                     <label class="block text-sm font-medium text-gray-700 mb-2">Reason</label>
+                     {{ form.reason }}
+                     <script>
+                         document.getElementById('{{ form.reason.id_for_label }}').className = "w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500";
+                     </script>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Supporting Documents</label>
+                    {{ form.documents }}
+                    <p class="text-xs text-gray-500 mt-1">Upload PDF or Images.</p>
+                     <script>
+                         document.getElementById('{{ form.documents.id_for_label }}').className = "w-full border border-gray-300 rounded-lg px-4 py-2";
+                     </script>
+                </div>
+
+                <div class="flex justify-end pt-4">
+                    <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-medium">
+                        Submit Request
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</main>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const sourceSelect = document.getElementById('{{ form.source_category.id_for_label }}');
+    const displayDiv = document.getElementById('source_quarters_display');
+    const infoDiv = document.getElementById('source_quarterly_info');
+    const amountSection = document.getElementById('quarterly_amounts_section');
+    const totalDisplay = document.getElementById('total_amount_display');
+    
+    // Limits store
+    let quarterLimits = { q1: 0, q2: 0, q3: 0, q4: 0 };
+
+    sourceSelect.addEventListener('change', async function() {
+        const val = this.value;
+        if(!val) {
+            infoDiv.classList.add('hidden');
+            amountSection.classList.add('hidden');
+            return;
+        }
+
+        const [preId, itemKey] = val.split('|');
+        
+        // Show loading
+        displayDiv.innerHTML = 'Loading...';
+        infoDiv.classList.remove('hidden');
+
+        try {
+            const res = await fetch(`/user/api/get-realtime-amounts/?pre_id=${preId}&item_key=${itemKey}`);
+            const data = await res.json();
+            
+            if(data.success) {
+                displayDiv.innerHTML = '';
+                amountSection.classList.remove('hidden');
+                
+                ['q1', 'q2', 'q3', 'q4'].forEach(q => {
+                    const qData = data.quarters[q];
+                    const remaining = qData.remaining;
+                    quarterLimits[q] = remaining;
+
+                    // Update Info Display
+                    const span = document.createElement('div');
+                    span.className = 'text-sm';
+                    span.innerHTML = `<span class="font-bold">${q.toUpperCase()}:</span> ₱${remaining.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+                    displayDiv.appendChild(span);
+
+                    // Update Input Limits Text
+                    const availSpan = document.getElementById(`avail_` + q + `_amount`);
+                    if(availSpan) availSpan.textContent = `₱${remaining.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+                });
+            }
+        } catch(e) {
+            console.error(e);
+            displayDiv.innerHTML = 'Error loading data.';
+        }
+    });
+
+    // Validations on Amount Inputs
+    const inputs = document.querySelectorAll('.amount-input');
+    inputs.forEach(input => {
+        input.addEventListener('input', function() {
+            // Get quarter from name 'q1_amount' -> 'q1'
+            const q = this.name.split('_')[0]; 
+            const val = parseFloat(this.value) || 0;
+            const max = quarterLimits[q] || 0;
+
+            if(val > max) {
+                this.classList.add('border-red-500');
+                // You could add a helper text error here
+            } else {
+                this.classList.remove('border-red-500');
+            }
+            
+            // Calc Total
+            let total = 0;
+            inputs.forEach(i => total += (parseFloat(i.value) || 0));
+            totalDisplay.textContent = `₱${total.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        });
+    });
+});
+</script>
+{% endblock %}
