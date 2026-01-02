@@ -36,4 +36,5 @@ urlpatterns = [
     # Use <int:pk> because PREBudgetRealignment usually uses AutoField ID, unlike PR/PRE UUIDs
     path('realignment/<int:pk>/preview/', views.PreviewRealignmentView.as_view(), name='preview_realignment_documents'),
     path('realignment/<int:pk>/upload-signed/', views.UploadSignedRealignmentDocView.as_view(), name='upload_signed_realignment'),
+    path('realignment/history/', views.PREBudgetRealignmentHistoryView.as_view(), name='realignment_history'),
 ]

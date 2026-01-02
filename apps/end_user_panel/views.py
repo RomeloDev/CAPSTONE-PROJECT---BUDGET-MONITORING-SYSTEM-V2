@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.views.generic import TemplateView, DetailView
+from django.views.generic import TemplateView, DetailView, ListView
 from django.db.models import Sum, Q, Exists, OuterRef, F, Value, DecimalField
 from django.db.models.functions import Coalesce
 from django.contrib import messages
@@ -69,7 +69,7 @@ class EndUserDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView
         context['user'] = user
         
         # --- 1. Budget Stats ---
-        allocations = BudgetAllocation.objects.filter(end_user=user)
+        allocations = BudgetAllocation.objects.filter(end_user=user, approved_budget__fiscal_year=str(timezone.now().year)).select_related('approved_budget')
         stats = allocations.aggregate(
             total_allocated=Sum('allocated_amount'),
             total_pr_used=Sum('pr_amount_used'),
@@ -2035,3 +2035,40 @@ class UploadSignedRealignmentDocView(LoginRequiredMixin, UserPassesTestMixin, Vi
             messages.error(request, "No file selected.")
             
         return redirect('preview_realignment_documents', pk=pk)
+
+
+class PREBudgetRealignmentHistoryView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    model = PREBudgetRealignment
+    template_name = 'end_user_panel/realignment_history.html'
+    context_object_name = 'requests'
+    paginate_by = 10
+    ordering = ['-created_at']
+    def test_func(self):
+        return not self.request.user.is_staff
+    
+    def get_queryset(self):
+        qs = super().get_queryset().filter(requested_by=self.request.user)
+        
+        status_param = self.request.GET.get('status')
+        if status_param:
+            qs = qs.filter(status=status_param)
+            
+        return qs
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Base Queryset for this user (ignoring the current page filter)
+        user_requests = PREBudgetRealignment.objects.filter(requested_by=self.request.user)
+        
+        context['total_requests'] = user_requests.count()
+        context['pending_count'] = user_requests.filter(
+            status__in=['Pending', 'Partially Approved', 'Awaiting Admin Verification']
+        ).count()
+        context['approved_count'] = user_requests.filter(status='Approved').count()
+        context['rejected_count'] = user_requests.filter(status='Rejected').count()
+        
+        context['status_choices'] = PREBudgetRealignment.STATUS_CHOICES
+        context['status_filter'] = self.request.GET.get('status', '')
+        
+        return context
