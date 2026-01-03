@@ -11,6 +11,25 @@
         <span class="mx-2 text-gray-500">/</span>
         <span class="text-gray-700">Request #{{ realignment.id }}</span>
     </nav>
+
+    <!-- MESSAGES -->
+        {% if messages %}
+        <div class="space-y-2">
+            {% for message in messages %}
+                <div class="p-4 rounded-lg border flex items-center gap-3
+                    {% if message.tags == 'success' %} bg-green-50 border-green-200 text-green-700
+                    {% elif message.tags == 'error' %} bg-red-50 border-red-200 text-red-700
+                    {% else %} bg-blue-50 border-blue-200 text-blue-700 {% endif %}">
+                    {% if message.tags == 'success' %}
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    {% elif message.tags == 'error' %}
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    {% endif %}
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+        {% endif %}
     
     <div class="bg-white shadow-md rounded-lg overflow-hidden">
         <!-- Header -->
@@ -111,17 +130,25 @@
                     {% if signed_documents %}
                     <div>
                         <h4 class="text-xs font-bold text-gray-500 uppercase mb-2">Signed Copies</h4>
-                        <ul class="space-y-2">
+                        <div class="space-y-4">
                             {% for doc in signed_documents %}
-                            <li class="flex items-center justify-between bg-green-50 p-2 rounded border border-green-200 hover:bg-green-100 transition">
-                                <div class="flex items-center truncate">
-                                    <svg class="w-5 h-5 text-green-600 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-                                    <span class="text-sm text-gray-700 truncate max-w-[200px]" title="{{ doc.file_name }}">{{ doc.file_name }}</span>
+                            <div class="border rounded-lg overflow-hidden bg-white">
+                                <div class="bg-green-50 px-3 py-2 border-b text-sm font-medium flex justify-between items-center bg-green-50">
+                                    <div class="flex items-center truncate">
+                                        <svg class="w-4 h-4 text-green-600 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                                        <span class="truncate max-w-[150px]" title="{{ doc.file_name }}">{{ doc.file_name }}</span>
+                                    </div>
+                                    <a href="{{ doc.document.url }}" target="_blank" class="text-blue-600 text-xs hover:underline">Download</a>
                                 </div>
-                                <a href="{{ doc.document.url }}" target="_blank" class="text-blue-600 text-xs hover:underline">View</a>
-                            </li>
+                                <div class="h-64 bg-gray-100">
+                                    <iframe 
+                                        src="https://docs.google.com/gview?url={{ doc.document.url|urlencode }}&embedded=true" 
+                                        class="w-full h-full border-none">
+                                    </iframe>
+                                </div>
+                            </div>
                             {% endfor %}
-                        </ul>
+                        </div>
                     </div>
                     {% endif %}
                 </div>
@@ -157,7 +184,15 @@
                         <div class="bg-yellow-50 border border-yellow-200 p-3 rounded mb-3">
                             <p class="text-sm text-yellow-800 font-medium mb-1">User has uploaded signed document.</p>
                             {% if realignment.end_user_uploaded_document %}
-                                <a href="{{ realignment.end_user_uploaded_document.url }}" target="_blank" class="text-blue-600 underline text-xs">View Uploaded Document</a>
+                                <div class="mt-2 h-96 bg-white border rounded overflow-hidden">
+                                    <iframe 
+                                        src="https://docs.google.com/gview?url={{ realignment.end_user_uploaded_document.url|urlencode }}&embedded=true" 
+                                        class="w-full h-full border-none">
+                                    </iframe>
+                                </div>
+                                <div class="mt-2 text-right">
+                                    <a href="{{ realignment.end_user_uploaded_document.url }}" target="_blank" class="text-blue-600 underline text-xs">Download/Open in New Tab</a>
+                                </div>
                             {% else %}
                                 <span class="text-red-600 text-xs">Error: No document found.</span>
                             {% endif %}

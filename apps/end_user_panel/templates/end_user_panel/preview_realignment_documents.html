@@ -17,6 +17,26 @@
 
     <!-- Details -->
     <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <!-- Messages -->
+        {% if messages %}
+            <div class="space-y-2">
+                {% for message in messages %}
+                    <div class="px-4 py-3 rounded-lg border {% if message.tags == 'error' %}bg-red-50 border-red-200 text-red-700
+                        {% elif message.tags == 'success' %}bg-green-50 border-green-200 text-green-700
+                        {% elif message.tags == 'warning' %}bg-yellow-50 border-yellow-200 text-yellow-700
+                        {% else %}bg-blue-50 border-blue-200 text-blue-700{% endif %} flex items-center shadow-sm">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            {% if message.tags == 'success' %}
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            {% else %}
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            {% endif %}
+                        </svg>
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
         <div class="grid grid-cols-2 gap-4 text-sm">
             <div>
                 <p class="text-gray-500">Source Line Item</p>
@@ -82,7 +102,7 @@
             {% csrf_token %}
             <div class="flex-1">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Upload Signed Copy</label>
-                <input type="file" name="signed_document" required class="w-full border border-gray-300 rounded p-2 bg-white">
+                <input type="file" name="signed_document" multiple required class="w-full border border-gray-300 rounded p-2 bg-white">
             </div>
             <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 font-medium h-10">
                 Upload & Submit
@@ -91,10 +111,29 @@
     </div>
     {% endif %}
 
-     <!-- Signed Docs Display -->
+     <!-- User Uploaded Signed Document Display -->
+     {% if realignment.end_user_uploaded_document %}
+     <div class="mt-8 bg-white rounded-lg shadow p-6 border-l-4 border-yellow-400">
+         <h2 class="text-lg font-bold mb-4">Your Uploaded Signed Copy</h2>
+         <div class="border rounded-lg overflow-hidden">
+             <div class="bg-yellow-50 px-3 py-2 border-b text-sm font-medium flex justify-between">
+                 <span>Uploaded Signed Document</span>
+                 <a href="{{ realignment.end_user_uploaded_document.url }}" target="_blank" class="text-blue-600 hover:text-blue-800">Download</a>
+             </div>
+             <div class="h-96 bg-gray-100">
+                 <iframe 
+                     src="https://docs.google.com/gview?url={{ realignment.end_user_uploaded_document.url|urlencode }}&embedded=true" 
+                     class="w-full h-full border-none">
+                 </iframe>
+             </div>
+         </div>
+     </div>
+     {% endif %}
+
+     <!-- Admin Signed Docs / History Display -->
      {% if signed_documents %}
      <div class="mt-8 bg-white rounded-lg shadow p-6">
-         <h2 class="text-lg font-bold mb-4">Signed Documents</h2>
+         <h2 class="text-lg font-bold mb-4">Approved/Signed Documents (History)</h2>
          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
              {% for doc in signed_documents %}
              <div class="border rounded-lg overflow-hidden">
