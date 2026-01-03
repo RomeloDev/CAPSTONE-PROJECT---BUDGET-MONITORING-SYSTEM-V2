@@ -176,9 +176,9 @@
             </li>
 
             <li>
-              <a href="#"
+              <a href="{% url "admin_realignment_list" %}"
                  class="flex items-center gap-2 px-3 py-2 rounded-md relative group
-                 {% if request.resolver_match.url_name == 'pre_budget_realignment_admin' %}
+                 {% if request.resolver_match.url_name == 'admin_realignment_list' %}
                    bg-blue-600 text-white font-medium
                  {% else %}
                    text-gray-700 hover:bg-blue-600 hover:text-white

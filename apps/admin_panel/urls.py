@@ -27,4 +27,7 @@ urlpatterns = [
     path('department/ad-requests/<uuid:pk>/handle/', views.HandleADRequestView.as_view(), name='handle_activity_design_request'),
     # Add detail view path if you implement AdminADDetailView
     path('department/ad-requests/<uuid:pk>/details/', views.AdminADDetailView.as_view(), name='admin_preview_ad'),
+    path('realignment/', views.AdminPREBudgetRealignmentListView.as_view(), name='admin_realignment_list'),
+    path('realignment/<int:pk>/', views.AdminPREBudgetRealignmentDetailView.as_view(), name='admin_realignment_detail'),
+    path('realignment/<int:pk>/action/', views.handle_admin_realignment_action, name='handle_admin_realignment_action'),
 ]

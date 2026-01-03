@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.generic import TemplateView, ListView, DetailView, View
-from django.db.models import Sum, Count, Q
+from django.db.models import Sum, Count, Q, F
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from datetime import datetime
@@ -15,6 +15,9 @@ from apps.budgets.models import (
     RequestApproval,
     SystemNotification,
     DepartmentPREApprovedDocument,
+    PREBudgetRealignment,
+    PRELineItem,
+    BudgetRealignmentSupportingDocument
 )
 from django.contrib import messages
 from apps.admin_panel.models import AuditTrail
@@ -1297,34 +1300,48 @@ class HandleADRequestView(LoginRequiredMixin, UserPassesTestMixin, View):
     POST Only.
     """
     def post(self, request, pk):
-        ad = get_object_or_404(ActivityDesign, pk=pk)
+        # ad = get_object_or_404(ActivityDesign, pk=pk)
         action = request.POST.get('action')
         
         try:
             with transaction.atomic():
+                # Fetch and lock the AD record immediately
+                ad = ActivityDesign.objects.select_for_update().get(pk=pk)
+                
+                # Check status validity
+                if ad.status == 'Partially Approved' and action == 'approve':
+                    messages.error(request, "This AD is already approved.")
+                    return redirect('department_ad_request')
+                
+                if ad.status == 'Approved' and action == 'approve_final':
+                    messages.error(request, "This AD is already fully approved.")
+                    return redirect('department_ad_request')
+                
+                # Action Handling
                 if action == 'approve':
                     # First Step: Partial Approval (Pending -> Partially Approved)
                     ad.status = 'Partially Approved'
                     ad.partially_approved_at = timezone.now()
                     ad.save()
                     
-                    # Logic: Budget is already "Allocated" inside AD ? 
-                    # If you deduct budget ONLY on final approval, do it then.
-                    # If you deduct on partial, do it here.
-                    # Assuming deduction happens on Final Approval.
-                    
                     messages.success(request, f"AD-{ad.ad_number} Partially Approved. Waiting for signed docs.")
                 elif action == 'approve_final':
-                    # Second Step: Final Approval (Awaiting Verification -> Approved)
+                    # 1. Lock the allocation row so no other request can touch it yet (Isolation)
+                    allocation = (
+                        ad.budget_allocation.__class__.objects
+                        .select_for_update()
+                        .get(id=ad.budget_allocation.id)
+                    )
+                    
+                    # 2. Update AD status to Approved
                     ad.status = 'Approved'
                     ad.final_approved_at = timezone.now()
                     ad.admin_approved_by = request.user
                     ad.save()
                     
-                    # --- DEDUCT BUDGET HERE IF NEEDED ---
-                    allocation = ad.budget_allocation
-                    # Recalculate usage
-                    allocation.ad_amount_used += ad.total_amount
+                    # 3. Atomic Budget Deduction (Consistency + Atomicity)
+                    # Using F() ensures the math happens in SQL: "SET amount = amount + X"
+                    allocation.ad_amount_used = F('ad_amount_used') + ad.total_amount
                     allocation.save()
                     
                     messages.success(request, f"AD-{ad.ad_number} Fully Approved!")
@@ -1381,3 +1398,152 @@ class AdminADDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
     def test_func(self):
         # Strictly for Superusers and Staff (Admins)
         return self.request.user.is_superuser or self.request.user.is_staff
+    
+    
+class AdminPREBudgetRealignmentListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    model = PREBudgetRealignment
+    template_name = 'admin_panel/pre_budget_realignment_list.html'
+    context_object_name = 'requests'
+    paginate_by = 10
+    ordering = ['-created_at']
+    def test_func(self):
+        return self.request.user.is_superuser or self.request.user.is_staff
+    def get_queryset(self):
+        qs = super().get_queryset().select_related('requested_by', 'source_pre', 'target_pre')
+        status = self.request.GET.get('status')
+        if status:
+            qs = qs.filter(status=status)
+        return qs
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        all_requests = PREBudgetRealignment.objects.all()
+        context['status_counts'] = {
+            'total': all_requests.count(),
+            'pending': all_requests.filter(status='Pending').count(),
+            'approved': all_requests.filter(status='Approved').count(),
+            'partially_approved': all_requests.filter(status='Partially Approved').count(),
+            'rejected': all_requests.filter(status='Rejected').count(),
+        }
+        context['status_choices'] = PREBudgetRealignment.STATUS_CHOICES
+        context['status_filter'] = self.request.GET.get('status', '')
+        return context
+    
+class AdminPREBudgetRealignmentDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+    model = PREBudgetRealignment
+    template_name = 'admin_panel/pre_budget_realignment_detail.html'
+    context_object_name = 'realignment'
+    def test_func(self):
+        return self.request.user.is_superuser or self.request.user.is_staff
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        realignment = self.object
+        
+        # Helper methods usually on the model
+        if hasattr(realignment, 'get_selected_quarters'):
+            context['quarters'] = realignment.get_selected_quarters()
+        
+        # Retrieve documents
+        context['original_documents'] = realignment.supporting_documents.filter(is_signed_copy=False)
+        context['signed_documents'] = realignment.supporting_documents.filter(is_signed_copy=True)
+        
+        return context
+    
+@login_required
+@user_passes_test(lambda u: u.is_superuser or u.is_staff)
+def handle_admin_realignment_action(request, pk):
+    realignment = get_object_or_404(PREBudgetRealignment, pk=pk)
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        try:
+            with transaction.atomic():
+                if action == 'partial_approve':
+                    realignment.status = 'Partially Approved'
+                    realignment.partial_approved_by = request.user
+                    realignment.partially_approved_at = timezone.now()
+                    realignment.save()
+                    messages.success(request, f"Request #{pk} Partially Approved.")
+                elif action == 'final_approve':
+                    # 1. Fetch Source and Target Lines
+                    source_item = PRELineItem.objects.get(
+                        id=realignment.source_item_key,
+                        pre=realignment.source_pre
+                    )
+                    target_item = PRELineItem.objects.get(
+                        id=realignment.target_item_key,
+                        pre=realignment.target_pre
+                    )
+                    # 2. Critical Fund Validation
+                    # Re-calculate availability to ensure funds haven't been consumed since request
+                    validation_errors = []
+                    for q in range(1, 5):
+                        amount = getattr(realignment, f'q{q}_amount')
+                        if amount > 0:
+                            q_code = f'q{q}_amount' # e.g. q1_amount
+                            q_upper = f'Q{q}'       # e.g. Q1
+                            
+                            allocated = getattr(source_item, q_code, 0)
+                            consumed = source_item.get_quarter_consumed(q_upper)
+                            reserved = source_item.get_quarter_reserved(q_upper)
+                            
+                            # Calculate pending realignments (excluding this one)
+                            other_pending = PREBudgetRealignment.objects.filter(
+                                source_item_key=realignment.source_item_key,
+                                source_pre=realignment.source_pre,
+                                status__in=['Pending', 'Partially Approved', 'Awaiting Admin Verification']
+                            ).exclude(id=realignment.id)
+                            
+                            pending_val = sum(getattr(r, q_code) for r in other_pending)
+                            
+                            available = allocated - consumed - reserved - pending_val
+                            
+                            if available < amount:
+                                validation_errors.append(f"Insufficient funds in {q_upper}. Available: {available}, Requested: {amount}")
+                    if validation_errors:
+                        raise ValueError("\n".join(validation_errors))
+                    # 3. Handle Uploaded Approved Documents
+                    uploaded_docs = request.FILES.getlist('approved_documents')
+                    for doc in uploaded_docs:
+                        BudgetRealignmentSupportingDocument.objects.create(
+                            budget_realignment=realignment,
+                            document=doc,
+                            file_name=doc.name,
+                            file_size=doc.size,
+                            uploaded_by=request.user,
+                            is_signed_copy=True
+                        )
+                    # 4. Execute Budget Transfer
+                    # Deduct from Source
+                    if realignment.q1_amount: source_item.q1_amount -= realignment.q1_amount
+                    if realignment.q2_amount: source_item.q2_amount -= realignment.q2_amount
+                    if realignment.q3_amount: source_item.q3_amount -= realignment.q3_amount
+                    if realignment.q4_amount: source_item.q4_amount -= realignment.q4_amount
+                    source_item.save()
+                    # Add to Target
+                    if realignment.q1_amount: target_item.q1_amount += realignment.q1_amount
+                    if realignment.q2_amount: target_item.q2_amount += realignment.q2_amount
+                    if realignment.q3_amount: target_item.q3_amount += realignment.q3_amount
+                    if realignment.q4_amount: target_item.q4_amount += realignment.q4_amount
+                    target_item.save()
+                    # 5. Log Transaction (Optional but recommended)
+                    # BudgetTransactionLog.objects.create(...) for source (negative)
+                    # BudgetTransactionLog.objects.create(...) for target (positive)
+                    # 6. Update Realignment Status
+                    realignment.status = 'Approved'
+                    realignment.approved_by = request.user
+                    realignment.final_approved_at = timezone.now()
+                    realignment.save()
+                    
+                    messages.success(request, f"Request #{pk} Fully Approved and Budget Transferred.")
+                    
+                elif action == 'reject':
+                    reason = request.POST.get('rejection_reason', '')
+                    realignment.status = 'Rejected'
+                    realignment.rejection_reason = reason
+                    realignment.save()
+                    messages.warning(request, f"Request #{pk} Rejected.")
+        except Exception as e:
+            messages.error(request, f"Error: {str(e)}")
+            
+    return redirect('admin_realignment_detail', pk=pk)

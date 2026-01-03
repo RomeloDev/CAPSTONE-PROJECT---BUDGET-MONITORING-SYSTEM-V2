@@ -1,0 +1,233 @@
+{% extends "admin_base_template/dashboard.html" %}
+{% load humanize %}
+
+{% block title %}Realignment Request Details{% endblock title %}
+
+{% block main-content %}
+<div class="flex flex-col w-full">
+    <!-- Breadcrumb -->
+    <nav class="text-sm mb-4">
+        <a href="{% url 'admin_realignment_list' %}" class="text-blue-600 hover:underline">Realignment Requests</a>
+        <span class="mx-2 text-gray-500">/</span>
+        <span class="text-gray-700">Request #{{ realignment.id }}</span>
+    </nav>
+    
+    <div class="bg-white shadow-md rounded-lg overflow-hidden">
+        <!-- Header -->
+        <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold text-gray-900">Realignment Request #{{ realignment.id }}</h1>
+                <p class="text-sm text-gray-500">Submitted by <span class="font-medium text-gray-900">{{ realignment.requested_by.get_full_name }}</span> on {{ realignment.created_at|date:"F d, Y at h:i A" }}</p>
+            </div>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+                {% if realignment.status == 'Approved' %}bg-green-100 text-green-800
+                {% elif realignment.status == 'Rejected' %}bg-red-100 text-red-800
+                {% elif realignment.status == 'Partially Approved' %}bg-blue-100 text-blue-800
+                {% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                {{ realignment.status }}
+            </span>
+        </div>
+
+        <div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Left Column: Details -->
+            <div class="space-y-6">
+                <!-- Source / Target Info -->
+                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <h3 class="font-semibold text-gray-800 mb-2">Realignment Flow</h3>
+                    <div class="grid grid-cols-1 gap-4">
+                        <div class="flex items-start">
+                            <span class="bg-red-100 text-red-800 text-xs font-bold px-2 py-1 rounded mr-2 mt-0.5">SOURCE</span>
+                            <div class="text-sm text-gray-700">{{ realignment.source_item_display }}</div>
+                        </div>
+                        <div class="flex justify-center text-gray-400">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                        <div class="flex items-start">
+                            <span class="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded mr-2 mt-0.5">TARGET</span>
+                            <div class="text-sm text-gray-700">{{ realignment.target_item_display }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quarterly Breakdown Table -->
+                <div>
+                    <h3 class="font-semibold text-gray-800 mb-2">Realignment Amount</h3>
+                    <div class="overflow-hidden border rounded-lg">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Quarter</th>
+                                    <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                {% for q_key, q_label, amount in quarters %}
+                                <tr>
+                                    <td class="px-4 py-2 text-sm text-gray-900">{{ q_label }}</td>
+                                    <td class="px-4 py-2 text-sm text-gray-900 text-right font-medium">₱{{ amount|intcomma }}</td>
+                                </tr>
+                                {% endfor %}
+                                <tr class="bg-gray-50">
+                                    <td class="px-4 py-2 text-sm font-bold text-gray-900">Total</td>
+                                    <td class="px-4 py-2 text-sm font-bold text-gray-900 text-right">₱{{ realignment.amount|intcomma }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Reason -->
+                <div>
+                    <h3 class="font-semibold text-gray-800 mb-2">Reason for Realignment</h3>
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-sm text-gray-700 italic">
+                        "{{ realignment.reason }}"
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Documents & Actions -->
+            <div class="space-y-6">
+                <!-- Documents View -->
+                <div>
+                    <h3 class="font-semibold text-gray-800 mb-2">Supporting Documents</h3>
+                    
+                    {% if original_documents %}
+                    <div class="mb-4">
+                        <h4 class="text-xs font-bold text-gray-500 uppercase mb-2">Original Uploads</h4>
+                        <ul class="space-y-2">
+                            {% for doc in original_documents %}
+                            <li class="flex items-center justify-between bg-white p-2 rounded border hover:bg-blue-50 transition">
+                                <div class="flex items-center truncate">
+                                    <svg class="w-5 h-5 text-red-500 mr-2" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a2 2 0 00-2 2v8a2 2 0 002 2h6a2 2 0 002-2V6.414A2 2 0 0016.414 5L14 2.586A2 2 0 0012.586 2H9z"/></svg>
+                                    <span class="text-sm text-gray-700 truncate max-w-[200px]" title="{{ doc.file_name }}">{{ doc.file_name }}</span>
+                                </div>
+                                <a href="{{ doc.document.url }}" target="_blank" class="text-blue-600 text-xs hover:underline">View</a>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    {% if signed_documents %}
+                    <div>
+                        <h4 class="text-xs font-bold text-gray-500 uppercase mb-2">Signed Copies</h4>
+                        <ul class="space-y-2">
+                            {% for doc in signed_documents %}
+                            <li class="flex items-center justify-between bg-green-50 p-2 rounded border border-green-200 hover:bg-green-100 transition">
+                                <div class="flex items-center truncate">
+                                    <svg class="w-5 h-5 text-green-600 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                                    <span class="text-sm text-gray-700 truncate max-w-[200px]" title="{{ doc.file_name }}">{{ doc.file_name }}</span>
+                                </div>
+                                <a href="{{ doc.document.url }}" target="_blank" class="text-blue-600 text-xs hover:underline">View</a>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Action Panel -->
+                <div class="bg-white border rounded-lg shadow-sm p-4 sticky top-4">
+                    <h3 class="font-semibold text-gray-800 mb-4">Admin Actions</h3>
+                    
+                    {% if realignment.status == 'Pending' %}
+                        <!-- Step 1: Initial Actions -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <button onclick="openModal('rejectModal')" class="w-full py-2 px-4 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition font-medium">Reject</button>
+                            <form method="POST" action="{% url 'handle_admin_realignment_action' realignment.id %}" class="w-full">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="partial_approve">
+                                <button type="submit" class="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium">Partial Approve</button>
+                            </form>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2 text-center">Partial approval generates a PDF for the user to print and sign.</p>
+
+                    {% elif realignment.status == 'Partially Approved' %}
+                        <!-- Step 2: Final Approval -->
+                        <button onclick="openModal('finalApproveModal')" class="w-full py-2 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium mb-3">
+                            Confirm Final Approval
+                        </button>
+                        <button onclick="openModal('rejectModal')" class="w-full py-2 px-4 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition font-medium">
+                            Reject
+                        </button>
+                        <p class="text-xs text-gray-500 mt-2 text-center">Verify signed documents before final approval. This action will transfer the budget.</p>
+
+                    {% elif realignment.status == 'Awaiting Admin Verification' %}
+                        <!-- Step 2b: Verify User Upload -->
+                        <div class="bg-yellow-50 border border-yellow-200 p-3 rounded mb-3">
+                            <p class="text-sm text-yellow-800 font-medium mb-1">User has uploaded signed document.</p>
+                            {% if realignment.end_user_uploaded_document %}
+                                <a href="{{ realignment.end_user_uploaded_document.url }}" target="_blank" class="text-blue-600 underline text-xs">View Uploaded Document</a>
+                            {% else %}
+                                <span class="text-red-600 text-xs">Error: No document found.</span>
+                            {% endif %}
+                        </div>
+                        <button onclick="openModal('finalApproveModal')" class="w-full py-2 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium mb-3">
+                            Verify & Approve
+                        </button>
+                        <button onclick="openModal('rejectModal')" class="w-full py-2 px-4 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition font-medium">
+                            Reject
+                        </button>
+
+                    {% else %}
+                        <div class="text-center p-4 bg-gray-50 rounded text-gray-500 text-sm">
+                            No actions available for status: {{ realignment.status }}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Rejection Modal -->
+<div id="rejectModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+        <h3 class="text-lg font-bold text-gray-900 mb-4">Reject Realignment</h3>
+        <form method="POST" action="{% url 'handle_admin_realignment_action' realignment.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="reject">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Reason for Rejection <span class="text-red-500">*</span></label>
+            <textarea name="rejection_reason" rows="3" required class="w-full border border-gray-300 rounded-lg px-3 py-2 mb-4 focus:ring-2 focus:ring-red-500 focus:outline-none"></textarea>
+            <div class="flex justify-end gap-3">
+                <button type="button" onclick="closeModal('rejectModal')" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Reject Request</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Final Approval Modal -->
+<div id="finalApproveModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+        <h3 class="text-lg font-bold text-gray-900 mb-4">Final Approval</h3>
+        <p class="text-sm text-gray-600 mb-4">
+            You are about to approve this Realignment Request. This will <strong>deduct funds</strong> from the Source line item and <strong>add funds</strong> to the Target line item immediately.
+        </p>
+        
+        <form method="POST" action="{% url 'handle_admin_realignment_action' realignment.id %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="final_approve">
+            
+            {% if realignment.status == 'Partially Approved' %}
+            <label class="block text-sm font-medium text-gray-700 mb-2">Upload Signed Documents <span class="text-red-500">*</span></label>
+            <input type="file" name="approved_documents" multiple class="w-full border border-gray-300 rounded-lg px-3 py-2 mb-4 focus:ring-2 focus:ring-green-500" required>
+            {% endif %}
+
+            <div class="flex justify-end gap-3">
+                <button type="button" onclick="closeModal('finalApproveModal')" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Confirm & Transfer Budget</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openModal(modalId) {
+    document.getElementById(modalId).classList.remove('hidden');
+}
+function closeModal(modalId) {
+    document.getElementById(modalId).classList.add('hidden');
+}
+</script>
+{% endblock main-content %}
