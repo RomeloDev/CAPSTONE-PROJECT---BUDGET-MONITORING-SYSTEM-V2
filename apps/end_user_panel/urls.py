@@ -18,6 +18,7 @@ urlpatterns = [
     path('pre/<uuid:pre_id>/upload-signed-docs/', views.upload_approved_pre_documents, name='upload_approved_pre_documents'),
     path('budget/overview/', views.budget_overview, name='budget_overview'),
     path('budget/pre-details/', views.pre_budget_details, name='pre_budget_details'),
+    path('budget/pre-details/pdf/', views.export_pre_budget_details_pdf, name='export_pre_budget_details_pdf'),
     path('budget/quarterly/', views.quarterly_analysis, name='quarterly_analysis'),
     path('budget/history/', views.transaction_history, name='transaction_history'),
     path('budget/reports/', views.budget_reports, name='budget_reports'),

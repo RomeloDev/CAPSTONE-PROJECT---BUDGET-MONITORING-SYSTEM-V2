@@ -2254,3 +2254,117 @@ def export_quarterly_report_pdf(request):
         return response
         
     return HttpResponse("Error Rendering PDF", status=400)
+
+
+@xframe_options_exempt
+@login_required
+def export_pre_budget_details_pdf(request):
+    """
+    Generate PDF for PRE Budget Details (Download Only)
+    """
+    from .pdf_utils import render_to_pdf
+    from apps.budgets.models import DepartmentPRE, BudgetAllocation
+    from datetime import datetime
+    from decimal import Decimal
+    
+    # 1. Get Filters
+    current_year = str(datetime.now().year)
+    selected_year = request.GET.get('year', current_year)
+    
+    # 2. Base Query: User's Active Budget Allocations
+    base_allocations = BudgetAllocation.objects.filter(
+        end_user=request.user,
+        is_active=True
+    ).select_related('approved_budget')
+    
+    # 3. Filter Allocations by Selected Year
+    if selected_year and selected_year != 'all':
+        budget_allocations = base_allocations.filter(
+            approved_budget__fiscal_year=selected_year
+        )
+    else:
+        budget_allocations = base_allocations
+        
+    # 4. Fetch Approved PREs
+    approved_pres = DepartmentPRE.objects.filter(
+        budget_allocation__in=budget_allocations,
+        status__in=['Approved', 'Partially Approved']
+    ).prefetch_related(
+        'line_items__category',
+        'line_items__subcategory'
+    ).order_by('department', 'created_at') # Group by Department then date
+    
+    # 5. Build Data Structure
+    pre_data = []
+    
+    for pre in approved_pres:
+        line_items_data = []
+        
+        pre_total_consumed = Decimal('0')
+        
+        for line_item in pre.line_items.all():
+            category_name = line_item.category.name if line_item.category else 'Other'
+            
+            # Quarters Data
+            quarters_data = {}
+            item_total_budgeted = Decimal('0')
+            item_total_consumed = Decimal('0')
+            item_total_available = Decimal('0')
+            
+            for quarter in ['Q1', 'Q2', 'Q3', 'Q4']:
+                q_amount = line_item.get_quarter_amount(quarter)
+                q_consumed = line_item.get_quarter_consumed(quarter)
+                q_reserved = line_item.get_quarter_reserved(quarter)
+                q_available = line_item.get_quarter_available(quarter)
+                
+                quarters_data[quarter] = {
+                    'budgeted': q_amount,
+                    'consumed': q_consumed + q_reserved, # Treat reserved as consumed/utilized for simplified report
+                    'available': q_available
+                }
+                
+                item_total_budgeted += q_amount
+                item_total_consumed += (q_consumed + q_reserved)
+                item_total_available += q_available
+            
+            pre_total_consumed += item_total_consumed
+            
+            line_items_data.append({
+                'item_name': line_item.item_name,
+                'category': category_name,
+                'quarters': quarters_data,
+                'total_budgeted': item_total_budgeted,
+                'total_consumed': item_total_consumed,
+                'total_available': item_total_available
+            })
+            
+        pre_data.append({
+            'department': pre.department,
+            'fiscal_year': pre.fiscal_year,
+            'status': pre.status,
+            'line_items': line_items_data,
+            'total_amount': pre.total_amount,
+            'total_consumed': pre_total_consumed,
+            'total_remaining': pre.total_amount - pre_total_consumed
+        })
+        
+    # 6. Context
+    context = {
+        'office_name': f"{request.user.department}" if request.user.department else "Office of the User",
+        'report_title': "PROJECT PROCUREMENT MANAGEMENT PLAN (PRE) DETAILS",
+        'selected_year': selected_year if selected_year != 'all' else "All Years",
+        'generated_by': f"{request.user.fullname}",
+        'date_generated': datetime.now().strftime("%B %d, %Y"),
+        'pre_data': pre_data
+    }
+    
+    # 7. Render PDF
+    pdf = render_to_pdf('reports/pre_budget_details_pdf.html', context)
+    if pdf:
+        response = HttpResponse(pdf, content_type='application/pdf')
+        filename = f"PRE_Details_Report_{selected_year}_{datetime.now().strftime('%Y%m%d')}.pdf"
+        # ATTACHMENT = Download Only
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+        
+    return HttpResponse("Error Rendering PDF", status=400)
