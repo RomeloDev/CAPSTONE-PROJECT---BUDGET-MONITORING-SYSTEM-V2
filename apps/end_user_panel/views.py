@@ -2169,3 +2169,88 @@ def export_budget_summary_pdf(request):
         return response
         
     return HttpResponse("Error Rendering PDF", status=400)
+
+
+@xframe_options_exempt
+@login_required
+def export_quarterly_report_pdf(request):
+    """
+    Generate Quarterly Utilization Report PDF
+    """
+    from .pdf_utils import render_to_pdf
+    from apps.budgets.models import DepartmentPRE, BudgetAllocation
+    from datetime import datetime
+    from decimal import Decimal
+    
+    quarter = request.GET.get('quarter', 'Q1')
+    current_year = str(datetime.now().year)
+    
+    # 1. Fetch Approved PREs for the user
+    # We want PREs that are active for this fiscal year
+    pres = DepartmentPRE.objects.filter(
+        submitted_by=request.user,
+        status='Approved',
+        fiscal_year=current_year
+    ).prefetch_related('line_items', 'line_items__category')
+    
+    # 2. Prepare Data
+    report_data = []
+    
+    total_allocated_q = Decimal('0')
+    total_utilized_q = Decimal('0')
+    
+    for pre in pres:
+        # Group by Category? Or just list line items?
+        # Usually reports are grouped by PRE or Category. 
+        # Let's list by PRE for clarity, or flat list if preferred.
+        # "Budget Line Item" implies flat list of items.
+        
+        for item in pre.line_items.all():
+            allocated = item.get_quarter_amount(quarter)
+            consumed = item.get_quarter_consumed(quarter)
+            
+            # key = (item.id, quarter) # Not needed for display
+            
+            # Calculate Balance for this quarter
+            # Note: "Balance" implies (Allocated - Utilized) for this quarter specifically?
+            # Or (Total Accumulated Balance)?
+            # Usually "Quarterly Report" focuses on that quarter's movement.
+            balance = allocated - consumed
+            
+            if allocated > 0 or consumed > 0:
+                report_data.append({
+                    'item_name': item.item_name,
+                    'category': item.category.name,
+                    'allocated': allocated,
+                    'utilized': consumed,
+                    'balance': balance
+                })
+                
+                total_allocated_q += allocated
+                total_utilized_q += consumed
+                
+    total_balance_q = total_allocated_q - total_utilized_q
+
+    # 3. Context
+    context = {
+        'office_name': f"{request.user.department}" if request.user.department else "Office of the User",
+        'report_title': "QUARTERLY UTILIZATION REPORT",
+        'quarter': quarter,
+        'fiscal_year': current_year,
+        'generated_by': f"{request.user.fullname}",
+        'date_generated': datetime.now().strftime("%B %d, %Y"),
+        'report_data': report_data,
+        'total_allocated': total_allocated_q,
+        'total_utilized': total_utilized_q,
+        'total_balance': total_balance_q
+    }
+    
+    # 4. Render PDF
+    pdf = render_to_pdf('reports/quarterly_report_pdf.html', context)
+    if pdf:
+        response = HttpResponse(pdf, content_type='application/pdf')
+        filename = f"Quarterly_Report_{quarter}_{current_year}.pdf"
+        response['Content-Disposition'] = f'inline; filename="{filename}"'
+        return response
+        
+    return HttpResponse("Error Rendering PDF", status=400)
