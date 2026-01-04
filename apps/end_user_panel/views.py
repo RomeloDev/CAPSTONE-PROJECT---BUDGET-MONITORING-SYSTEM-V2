@@ -53,7 +53,7 @@ import os
 import uuid
 from datetime import datetime
 from django.core.paginator import Paginator
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST
 
 class EndUserDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
@@ -2095,3 +2095,75 @@ class PREBudgetRealignmentHistoryView(LoginRequiredMixin, UserPassesTestMixin, L
         context['status_filter'] = self.request.GET.get('status', '')
         
         return context
+
+
+@login_required
+def export_budget_summary_pdf(request):
+    """
+    Generate PDF for Budget Summary Report
+    """
+    from .pdf_utils import render_to_pdf
+    from apps.budgets.models import BudgetAllocation
+    from datetime import datetime
+    
+    # 1. Fetch Data
+    current_year = str(datetime.now().year)
+    allocations = BudgetAllocation.objects.filter(
+        end_user=request.user,
+        is_active=True,
+        approved_budget__fiscal_year=current_year
+    ).select_related('approved_budget')
+    
+    # 2. Calculate Totals for Context
+    budget_data = []
+    total_allocated = Decimal('0')
+    total_pr_used = Decimal('0')
+    total_ad_used = Decimal('0')
+    
+    for alloc in allocations:
+        # Assuming model has these fields or property methods
+        # If not, we might need to aggregate manually here
+        total_used_alloc = alloc.pr_amount_used + alloc.ad_amount_used
+        
+        budget_data.append({
+            'approved_budget': alloc.approved_budget,
+            'department': alloc.department,
+            'allocated_amount': alloc.allocated_amount,
+            'pr_amount_used': alloc.pr_amount_used,
+            'ad_amount_used': alloc.ad_amount_used,
+            'total_used': total_used_alloc,
+            'remaining_balance': alloc.remaining_balance
+        })
+        
+        total_allocated += alloc.allocated_amount
+        total_pr_used += alloc.pr_amount_used
+        total_ad_used += alloc.ad_amount_used
+        
+    grand_total_used = total_pr_used + total_ad_used
+    total_remaining = total_allocated - grand_total_used
+    
+    # 3. Context
+    context = {
+        'office_name': f"{request.user.department}" if request.user.department else "Office of the User",
+        'report_title': "BUDGET SUMMARY REPORT",
+        'fiscal_year': current_year,
+        'generated_by': f"{request.user.fullname}",
+        'date_generated': datetime.now().strftime("%B %d, %Y"),
+        'budget_data': budget_data,
+        'total_allocated': total_allocated,
+        'total_pr_used': total_pr_used,
+        'total_ad_used': total_ad_used,
+        'grand_total_used': grand_total_used,
+        'total_remaining': total_remaining
+    }
+    
+    # 4. Render PDF
+    pdf = render_to_pdf('reports/budget_summary_pdf.html', context)
+    if pdf:
+        response = HttpResponse(pdf, content_type='application/pdf')
+        filename = f"Budget_Summary_{current_year}_{request.user.username}.pdf"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        # response['Content-Disposition'] = f'inline; filename="{filename}"' # Use inline to preview in browser
+        return response
+        
+    return HttpResponse("Error Rendering PDF", status=400)
