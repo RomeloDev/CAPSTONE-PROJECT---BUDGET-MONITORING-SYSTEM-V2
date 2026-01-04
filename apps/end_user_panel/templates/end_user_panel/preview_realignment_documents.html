@@ -15,9 +15,7 @@
         </span>
     </div>
 
-    <!-- Details -->
-    <div class="bg-white rounded-lg shadow p-6 mb-6">
-        <!-- Messages -->
+    <!-- Messages -->
         {% if messages %}
             <div class="space-y-2">
                 {% for message in messages %}
@@ -37,6 +35,9 @@
                 {% endfor %}
             </div>
         {% endif %}
+
+    <!-- Details -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
         <div class="grid grid-cols-2 gap-4 text-sm">
             <div>
                 <p class="text-gray-500">Source Line Item</p>
@@ -112,21 +113,42 @@
     {% endif %}
 
      <!-- User Uploaded Signed Document Display -->
-     {% if realignment.end_user_uploaded_document %}
+     {% if user_signed_documents or realignment.end_user_uploaded_document %}
      <div class="mt-8 bg-white rounded-lg shadow p-6 border-l-4 border-yellow-400">
-         <h2 class="text-lg font-bold mb-4">Your Uploaded Signed Copy</h2>
-         <div class="border rounded-lg overflow-hidden">
-             <div class="bg-yellow-50 px-3 py-2 border-b text-sm font-medium flex justify-between">
-                 <span>Uploaded Signed Document</span>
-                 <a href="{{ realignment.end_user_uploaded_document.url }}" target="_blank" class="text-blue-600 hover:text-blue-800">Download</a>
+         <h2 class="text-lg font-bold mb-4">Your Uploaded Signed Copies</h2>
+         
+         {% if user_signed_documents %}
+             <div class="space-y-6">
+                 {% for doc in user_signed_documents %}
+                 <div class="border rounded-lg overflow-hidden">
+                     <div class="bg-yellow-50 px-3 py-2 border-b text-sm font-medium flex justify-between">
+                         <span>{{ doc.file_name }}</span>
+                         <a href="{{ doc.document.url }}" target="_blank" class="text-blue-600 hover:text-blue-800">Download</a>
+                     </div>
+                     <div class="h-96 bg-gray-100">
+                         <iframe 
+                             src="https://docs.google.com/gview?url={{ doc.document.url|urlencode }}&embedded=true" 
+                             class="w-full h-full border-none">
+                         </iframe>
+                     </div>
+                 </div>
+                 {% endfor %}
              </div>
-             <div class="h-96 bg-gray-100">
-                 <iframe 
-                     src="https://docs.google.com/gview?url={{ realignment.end_user_uploaded_document.url|urlencode }}&embedded=true" 
-                     class="w-full h-full border-none">
-                 </iframe>
-             </div>
-         </div>
+         {% elif realignment.end_user_uploaded_document %}
+            <!-- Legacy Fallback for single file field -->
+            <div class="border rounded-lg overflow-hidden">
+                <div class="bg-yellow-50 px-3 py-2 border-b text-sm font-medium flex justify-between">
+                    <span>Uploaded Document</span>
+                    <a href="{{ realignment.end_user_uploaded_document.url }}" target="_blank" class="text-blue-600 hover:text-blue-800">Download</a>
+                </div>
+                <div class="h-96 bg-gray-100">
+                    <iframe 
+                        src="https://docs.google.com/gview?url={{ realignment.end_user_uploaded_document.url|urlencode }}&embedded=true" 
+                        class="w-full h-full border-none">
+                    </iframe>
+                </div>
+            </div>
+         {% endif %}
      </div>
      {% endif %}
 

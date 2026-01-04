@@ -1850,7 +1850,8 @@ class PREBudgetRealignmentView(LoginRequiredMixin, UserPassesTestMixin, FormView
         """Helper to get all possible target line items"""
         approved_pres = DepartmentPRE.objects.filter(
             submitted_by=self.request.user,
-            status='Approved'
+            status='Approved',
+            fiscal_year=str(timezone.now().year)    
         )
         choices = []
         for pre in approved_pres:
@@ -2008,7 +2009,13 @@ class PreviewRealignmentView(LoginRequiredMixin, UserPassesTestMixin, DetailView
         
         context['quarters'] = realignment.get_selected_quarters()
         context['supporting_documents'] = realignment.supporting_documents.filter(is_signed_copy=False)
+        # All signed docs (User + Admin)
         context['signed_documents'] = realignment.supporting_documents.filter(is_signed_copy=True)
+        # Specific User Uploaded Signed Docs (for the yellow User box)
+        context['user_signed_documents'] = realignment.supporting_documents.filter(
+            is_signed_copy=True, 
+            uploaded_by=realignment.requested_by
+        )
         return context
 
 
@@ -2023,15 +2030,30 @@ class UploadSignedRealignmentDocView(LoginRequiredMixin, UserPassesTestMixin, Vi
              messages.error(request, "Realignment is not in Partially Approved state.")
              return redirect('preview_realignment_documents', pk=pk)
 
-        if 'signed_document' in request.FILES:
-            f = request.FILES['signed_document']
-            
-            realignment.end_user_uploaded_document = f
+        files = request.FILES.getlist('signed_document')
+        if files:
+            realignment.end_user_uploaded_document = files[0]
             realignment.end_user_uploaded_at = timezone.now()
             realignment.status = 'Awaiting Admin Verification'
             realignment.save()
             
-            messages.success(request, "Signed document uploaded successfully.")
+            # Rewind the first file as it was read during the save above
+            files[0].seek(0)
+            
+            # 2. Save ALL files as Supporting Documents
+            count = 0
+            for f in files:
+                BudgetRealignmentSupportingDocument.objects.create(
+                    budget_realignment=realignment,
+                    document=f,
+                    file_name=f.name,
+                    file_size=f.size,
+                    uploaded_by=request.user,
+                    is_signed_copy=True
+                )
+                count += 1
+            
+            messages.success(request, f"Successfully uploaded {count} signed document(s).")
         else:
             messages.error(request, "No file selected.")
             
