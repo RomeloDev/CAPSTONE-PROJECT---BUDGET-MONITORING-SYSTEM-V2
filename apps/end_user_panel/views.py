@@ -2097,6 +2097,9 @@ class PREBudgetRealignmentHistoryView(LoginRequiredMixin, UserPassesTestMixin, L
         return context
 
 
+from django.views.decorators.clickjacking import xframe_options_exempt
+
+@xframe_options_exempt
 @login_required
 def export_budget_summary_pdf(request):
     """
@@ -2162,8 +2165,7 @@ def export_budget_summary_pdf(request):
     if pdf:
         response = HttpResponse(pdf, content_type='application/pdf')
         filename = f"Budget_Summary_{current_year}_{request.user.username}.pdf"
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        # response['Content-Disposition'] = f'inline; filename="{filename}"' # Use inline to preview in browser
+        response['Content-Disposition'] = f'inline; filename="{filename}"'
         return response
         
     return HttpResponse("Error Rendering PDF", status=400)
