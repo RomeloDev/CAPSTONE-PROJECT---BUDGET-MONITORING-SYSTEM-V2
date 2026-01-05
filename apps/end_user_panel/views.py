@@ -645,6 +645,7 @@ def budget_overview(request):
     # Get models dynamically
     PurchaseRequestAllocation = apps.get_model('budgets', 'PurchaseRequestAllocation')
     ActivityDesignAllocation = apps.get_model('budgets', 'ActivityDesignAllocation')
+    PREBudgetRealignment = apps.get_model('budgets', 'PREBudgetRealignment')
     
     quarterly_spending = {
         'Q1': Decimal('0'), 'Q2': Decimal('0'), 
@@ -718,6 +719,22 @@ def budget_overview(request):
             'amount': item.total_amount,
             'status': item.status
         })
+
+    # Get recent Realignments
+    recent_realignments = PREBudgetRealignment.objects.filter(
+        requested_by=request.user
+    ).exclude(status='Draft').order_by('-created_at')[:5]
+    
+    for item in recent_realignments:
+        recent_activity.append({
+            'date': item.created_at,
+            'type': 'Realignment',
+            'number': f"REALIGN-{item.id}", # Or a proper number if exists
+            'purpose': item.reason,
+            'amount': item.amount,
+            'status': item.status
+        })
+
     # Sort consolidated list
     recent_activity.sort(key=lambda x: x['date'], reverse=True)
     recent_activity = recent_activity[:10]
@@ -993,6 +1010,8 @@ def transaction_history(request):
     quarter_filter = request.GET.get('quarter', 'all')
     date_from = request.GET.get('date_from', '')
     date_to = request.GET.get('date_to', '')
+
+    from apps.budgets.models import PREBudgetRealignment
     # 2. Get user's active budget allocations
     budget_allocations = BudgetAllocation.objects.filter(
         end_user=request.user,
@@ -1082,7 +1101,37 @@ def transaction_history(request):
                     'amount': ad.total_amount,
                     'status': ad.status
                 })
-    # 6. Apply Date Filters (In Memory)
+    # 6. Get Realignment Transactions
+    if transaction_type in ['all', 'realignment']:
+        # Realignment logic
+        realignments = PREBudgetRealignment.objects.filter(
+            requested_by=request.user
+        ).exclude(status='Draft')
+        
+        if status_filter != 'all':
+            realignments = realignments.filter(status=status_filter)
+            
+        for real in realignments:
+            if quarter_filter != 'all':
+                continue # Skip realignments if filtering by quarter
+                
+            quarters = real.get_selected_quarters()
+            quarter = []
+            
+            for q, label, amt in quarters:
+                quarter.append(label)
+            
+            transactions.append({
+                'date': real.created_at,
+                'type': 'Realignment',
+                'number': f"REALIGN-{real.id}",
+                'line_item': f"From: {real.source_item_display} -> To: {real.target_item_display}",
+                'quarter': quarter,
+                'amount': real.amount,
+                'status': real.status
+            })
+
+    # 7. Apply Date Filters (In Memory)
     if date_from:
         try:
             date_from_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
@@ -1095,9 +1144,9 @@ def transaction_history(request):
             transactions = [t for t in transactions if t['date'] and t['date'].date() <= date_to_obj]
         except ValueError:
             pass
-    # 7. Sort by Date Descending
+    # 8. Sort by Date Descending
     transactions.sort(key=lambda x: x['date'] if x['date'] else timezone.now(), reverse=True)
-    # 8. Pagination
+    # 9. Pagination
     paginator = Paginator(transactions, 20)  # Show 20 per page
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
@@ -2096,7 +2145,7 @@ class PREBudgetRealignmentHistoryView(LoginRequiredMixin, UserPassesTestMixin, L
         
         return context
 
-
+# Reportings
 from django.views.decorators.clickjacking import xframe_options_exempt
 
 @xframe_options_exempt
