@@ -25,6 +25,7 @@ urlpatterns = [
     path('budget/reports/summary/pdf/', views.export_budget_summary_pdf, name='export_budget_summary_pdf'),
     path('budget/reports/quarterly/pdf/', views.export_quarterly_report_pdf, name='export_quarterly_report_pdf'),
     path('budget/reports/category/pdf/', views.export_category_report_pdf, name='export_category_report_pdf'),
+    path('budget/reports/transaction/pdf/', views.export_transaction_report_pdf, name='export_transaction_report_pdf'),
     path('pr-ad-requests/', views.pr_ad_list, name='pr_ad_list'),
     path('pr-ad-request/purchase_request_upload/', views.purchase_request_upload, name='purchase_request_upload'),
     path('get-pre-line-items/', views.get_pre_line_items, name='get_pre_line_items'),

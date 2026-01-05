@@ -214,7 +214,7 @@
     <section class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
             <h3 class="text-lg font-semibold text-gray-800">Recent Transactions</h3>
-            <a href="#" class="text-sm text-blue-600 hover:text-blue-800 font-medium hover:underline">View All History →</a>
+            <a href="{% url "transaction_history" %}" class="text-sm text-blue-600 hover:text-blue-800 font-medium hover:underline">View All History →</a>
         </div>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-100">

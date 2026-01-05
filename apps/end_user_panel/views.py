@@ -1126,7 +1126,7 @@ def transaction_history(request):
                 'type': 'Realignment',
                 'number': f"REALIGN-{real.id}",
                 'line_item': f"From: {real.source_item_display} -> To: {real.target_item_display}",
-                'quarter': quarter,
+                'quarter': ', '.join(quarter),
                 'amount': real.amount,
                 'status': real.status
             })
@@ -2518,6 +2518,161 @@ def export_category_report_pdf(request):
     if pdf:
         response = HttpResponse(pdf, content_type='application/pdf')
         filename = f"Category_Report_{current_year}.pdf"
+        response['Content-Disposition'] = f'inline; filename="{filename}"'
+        return response
+        
+    return HttpResponse("Error Rendering PDF", status=400)
+
+
+@xframe_options_exempt
+@login_required
+def export_transaction_report_pdf(request):
+    """
+    Generate Transaction History Report PDF
+    Shows all transactions within date range
+    """
+    from .pdf_utils import render_to_pdf
+    from apps.budgets.models import DepartmentPRE, BudgetAllocation, PurchaseRequest, ActivityDesign, PREBudgetRealignment
+    from datetime import datetime
+    
+    # 1. Get Parameters
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    
+    # 2. Get User's Active Budget Allocations
+    budget_allocations = BudgetAllocation.objects.filter(
+        end_user=request.user,
+        is_active=True
+    )
+    
+    transactions = []
+    
+    # 3. Fetch Data (Identical Logic to transaction_history view)
+    
+    # PREs
+    pres = DepartmentPRE.objects.filter(
+        budget_allocation__in=budget_allocations
+    ).exclude(status='Draft')
+    
+    for pre in pres:
+        quarters_used = []
+        for q in ['Q1', 'Q2', 'Q3', 'Q4']:
+            if pre.line_items.filter(**{f'{q.lower()}_amount__gt': 0}).exists():
+                quarters_used.append(q)
+                
+        transactions.append({
+            'date': pre.submitted_at or pre.created_at,
+            'type': 'PRE',
+            'number': f"{pre.department} - FY {pre.fiscal_year}",
+            'line_item': f"{pre.line_items.count()} Line Items",
+            'quarter': ', '.join(quarters_used) if quarters_used else 'All',
+            'amount': pre.total_amount,
+            'status': pre.status
+        })
+
+    # PRs
+    prs = PurchaseRequest.objects.filter(
+        budget_allocation__in=budget_allocations
+    ).exclude(status='Draft').prefetch_related('pre_allocations__pre_line_item')
+    
+    for pr in prs:
+        allocations = pr.pre_allocations.all()
+        if allocations:
+            quarters = set(alloc.quarter for alloc in allocations)
+            line_items = set(alloc.pre_line_item.item_name for alloc in allocations)
+            
+            line_item_str = ', '.join(list(line_items)[:2])
+            if len(line_items) > 2:
+                line_item_str += '...'
+                
+            transactions.append({
+                'date': pr.submitted_at or pr.created_at,
+                'type': 'PR',
+                'number': pr.pr_number,
+                'line_item': line_item_str,
+                'quarter': ', '.join(sorted(quarters)),
+                'amount': pr.total_amount,
+                'status': pr.status
+            })
+
+    # ADs
+    ads = ActivityDesign.objects.filter(
+        budget_allocation__in=budget_allocations
+    ).exclude(status='Draft').prefetch_related('pre_allocations__pre_line_item')
+    
+    for ad in ads:
+        allocations = ad.pre_allocations.all()
+        if allocations:
+            quarters = set(alloc.quarter for alloc in allocations)
+            line_items = set(alloc.pre_line_item.item_name for alloc in allocations)
+            
+            line_item_str = ', '.join(list(line_items)[:2])
+            if len(line_items) > 2:
+                line_item_str += '...'
+                
+            transactions.append({
+                'date': ad.submitted_at or ad.created_at,
+                'type': 'AD',
+                'number': ad.ad_number if hasattr(ad, 'ad_number') else 'AD',
+                'line_item': line_item_str,
+                'quarter': ', '.join(sorted(quarters)),
+                'amount': ad.total_amount,
+                'status': ad.status
+            })
+
+    # Realignments
+    realignments = PREBudgetRealignment.objects.filter(
+        requested_by=request.user
+    ).exclude(status='Draft')
+    
+    for real in realignments:
+        quarters = real.get_selected_quarters()
+        quarter_labels = [label for q, label, amt in quarters]
+        
+        transactions.append({
+            'date': real.created_at,
+            'type': 'Realignment',
+            'number': f"REALIGN-{real.id}",
+            'line_item': f"From: {real.source_item_display} -> To: {real.target_item_display}",
+            'quarter': ', '.join(quarter_labels),
+            'amount': real.amount,
+            'status': real.status
+        })
+
+    # 4. Apply Date Filters (Strict)
+    if date_from:
+        try:
+            date_from_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
+            transactions = [t for t in transactions if t['date'] and t['date'].date() >= date_from_obj]
+        except ValueError:
+            pass
+            
+    if date_to:
+        try:
+            date_to_obj = datetime.strptime(date_to, '%Y-%m-%d').date()
+            transactions = [t for t in transactions if t['date'] and t['date'].date() <= date_to_obj]
+        except ValueError:
+            pass
+
+    # 5. Sort by Date Descending
+    transactions.sort(key=lambda x: x['date'] if x['date'] else datetime.now(), reverse=True)
+
+    # 6. Context
+    context = {
+        'office_name': f"Office of the {request.user.department}",
+        'report_title': "Transaction History Report",
+        'generated_by': request.user.get_full_name(),
+        'date_generated': datetime.now(),
+        'date_from': date_from,
+        'date_to': date_to,
+        'transactions': transactions,
+        'total_records': len(transactions)
+    }
+
+    pdf = render_to_pdf('reports/transaction_report_pdf.html', context)
+    if pdf:
+        response = HttpResponse(pdf, content_type='application/pdf')
+        filename = f"Transaction_Report_{datetime.now().strftime('%Y%m%d')}.pdf"
         response['Content-Disposition'] = f'inline; filename="{filename}"'
         return response
         
