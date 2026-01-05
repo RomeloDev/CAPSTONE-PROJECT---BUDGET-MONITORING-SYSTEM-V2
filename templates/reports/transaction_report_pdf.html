@@ -41,8 +41,8 @@
                     {{ trans.type }}
                 </span>
             </td>
-            <td>{{ trans.number|truncatechars:15 }}</td>
-            <td>{{ trans.line_item|truncatechars:50 }}</td>
+            <td>{{ trans.number }}</td>
+            <td>{{ trans.line_item }}</td>
             <td style="text-align: center;">{{ trans.quarter }}</td>
             <td style="text-align: center;">{{ trans.status }}</td>
             <td style="text-align: right;">Php {{ trans.amount|floatformat:2|intcomma }}</td>
