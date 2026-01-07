@@ -1083,6 +1083,68 @@ def admin_upload_approved_document(request, pre_id):
 #     return redirect('admin_pr_list')
 
 
+class BudgetAllocationListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    model = BudgetAllocation
+    template_name = 'admin_panel/budget_allocation.html'
+    context_object_name = 'allocations'
+    paginate_by = 10
+
+    def test_func(self):
+        return self.request.user.is_superuser or self.request.user.is_staff
+
+    def get_queryset(self):
+        queryset = BudgetAllocation.objects.select_related('approved_budget', 'end_user').order_by('-allocated_at')
+        
+        # Filter by Fiscal Year
+        fiscal_year = self.request.GET.get('fiscal_year')
+        if fiscal_year and fiscal_year != 'all':
+            queryset = queryset.filter(approved_budget__fiscal_year=fiscal_year)
+            
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Fiscal Year Logic
+        selected_year = self.request.GET.get('fiscal_year', 'all')
+        # Get all unique fiscal years from ApprovedBudget
+        fiscal_years = ApprovedBudget.objects.values_list('fiscal_year', flat=True).distinct().order_by('-fiscal_year')
+        
+        # Calculate Totals based on filtered queryset (or base if no filter)
+        # Note: self.object_list contains the filtered queryset
+        allocations = self.object_list
+        
+        total_allocated = allocations.aggregate(total=Sum('allocated_amount'))['total'] or 0
+        
+        # Total Remaining (sum of remaining balances of allocations)
+        total_remaining = allocations.aggregate(total=Sum('remaining_balance'))['total'] or 0
+        
+        # Utilization Rate (Total Used / Total Allocated)
+        total_used = sum(a.get_total_used() for a in allocations)
+        utilization_rate = 0
+        if total_allocated > 0:
+            utilization_rate = (total_used / total_allocated) * 100
+            
+        context['approved_budgets'] = ApprovedBudget.objects.filter(is_active=True, remaining_budget__gt=0)
+        context['mfos'] = User.objects.values_list('mfo', flat=True).distinct()
+        
+        context['total_allocated'] = total_allocated
+        context['total_remaining'] = total_remaining
+        context['total_departments'] = allocations.values('department').distinct().count()
+        context['utilization_rate'] = utilization_rate
+        context['fiscal_years'] = fiscal_years
+        context['selected_year'] = selected_year
+        
+        return context
+
+    def post(self, request, *args, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Base Queryset for Stats
+        stats_qs = PurchaseRequest.objects.all()
+        year = self.request.GET.get('summary_year')
+
+
 class AdminPRListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     model = PurchaseRequest
     template_name = 'admin_panel/pr_list.html'
@@ -1602,6 +1664,69 @@ def export_approved_budget_report_pdf(request):
         response = HttpResponse(pdf, content_type='application/pdf')
         filename = f"Approved_Budget_Report_{datetime.now().strftime('%Y%m%d')}.pdf"
         response['Content-Disposition'] = f'inline; filename="{filename}"'
+        return response
+        
+    return HttpResponse("Error Rendering PDF", status=400)
+
+@xframe_options_exempt
+@require_http_methods(["GET"])
+@login_required
+@user_passes_test(lambda u: u.is_superuser or u.is_staff)
+def export_budget_allocation_report_pdf(request):
+    """
+    Generate Budget Allocation Report PDF for Admin
+    """
+    from apps.end_user_panel.pdf_utils import render_to_pdf
+    from apps.budgets.models import BudgetAllocation
+    from datetime import datetime
+    from django.db.models import Sum
+    from decimal import Decimal
+    
+    # 1. Get Filter Parameters
+    selected_year = request.GET.get('year', 'all')
+    
+    # 2. Base Query
+    allocations = BudgetAllocation.objects.select_related('approved_budget', 'end_user').filter(is_active=True).order_by('department', '-allocated_at')
+    
+    if selected_year and selected_year != 'all':
+        allocations = allocations.filter(approved_budget__fiscal_year=selected_year)
+        
+    # 3. Calculate Summaries
+    total_allocated = allocations.aggregate(total=Sum('allocated_amount'))['total'] or Decimal('0')
+    total_remaining = allocations.aggregate(total=Sum('remaining_balance'))['total'] or Decimal('0')
+    
+    # Calculate Total Used (iterating since it includes PR + AD logic inside model method)
+    # Using sum() on queryset for method calculation might be slow for huge datasets but fine for report
+    total_used = sum(a.get_total_used() for a in allocations)
+    total_entries = allocations.count()
+    
+    utilization_rate = Decimal('0')
+    if total_allocated > 0:
+        utilization_rate = (Decimal(total_used) / total_allocated) * 100
+        
+    # 4. Context
+    context = {
+        'office_name': "Budget Office", 
+        'report_title': "Budget Allocation Report",
+        'generated_by': request.user.get_full_name(),
+        'date_generated': datetime.now(),
+        'fiscal_year': selected_year,
+        'allocations': allocations,
+        'total_allocated': total_allocated,
+        'total_used': total_used,
+        'total_remaining': total_remaining,
+        'utilization_rate': utilization_rate,
+        'total_entries': total_entries
+    }
+    
+    # 5. Render PDF
+    pdf = render_to_pdf('reports/admin_budget_allocation_pdf.html', context)
+    if pdf:
+        response = HttpResponse(pdf, content_type='application/pdf')
+        filename = f"Budget_Allocation_Report_{datetime.now().strftime('%Y%m%d')}.pdf"
+        response['Content-Disposition'] = f'inline; filename="{filename}"'
+        # Explicitly allow framing on same origin to fix "Firefox Can't Open This Page"
+        response['X-Frame-Options'] = 'SAMEORIGIN'
         return response
         
     return HttpResponse("Error Rendering PDF", status=400)

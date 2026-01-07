@@ -1,0 +1,157 @@
+{% extends "reports/report_template.html" %}
+{% load humanize %}
+
+{% block report_content %}
+<style>
+    /* Force specific styles for this report's summary table */
+    table.summary-table-override {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+        border: none;
+    }
+    table.summary-table-override td {
+        width: 25%;
+        border: 1px solid #ddd; 
+        padding: 5px;
+        text-align: center; 
+        vertical-align: middle;
+        background-color: #f9fafb;
+    }
+    .summary-title {
+        font-size: 9pt;
+        color: #6b7280;
+        margin-bottom: 2px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .summary-value {
+        font-size: 11pt;
+        font-weight: bold;
+    }
+    
+    /* Data table override */
+    .data-table {
+        font-size: 8pt; /* Smaller font for more columns */
+    }
+    .data-table td, .data-table th {
+        padding: 4px;
+        vertical-align: middle;
+    }
+    
+    .source-text {
+        font-size: 7pt;
+        color: #666;
+        font-style: italic;
+    }
+    
+    .status-pill {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-size: 7pt;
+        font-weight: bold;
+        text-align: center;
+    }
+</style>
+
+<!-- Date/Year Subheader -->
+<div style="text-align: center; margin-bottom: 20px; font-style: italic; font-size: 11pt;">
+    {% if fiscal_year and fiscal_year != 'all' %}
+        Fiscal Year: {{ fiscal_year }}
+    {% else %}
+        Fiscal Year: All Time History
+    {% endif %}
+</div>
+
+<!-- Summary Section Table -->
+<table class="summary-table-override" pdf:keep-together="true">
+    <tr>
+        <td>
+            <div class="summary-title">Total Allocated</div>
+            <div class="summary-value" style="color: #2563eb;">Php {{ total_allocated|floatformat:0|intcomma }}</div>
+        </td>
+        <td>
+            <div class="summary-title">Total Used</div>
+            <div class="summary-value" style="color: #d97706;">Php {{ total_used|floatformat:0|intcomma }}</div>
+        </td>
+        <td>
+            <div class="summary-title">Total Remaining</div>
+            <div class="summary-value" style="color: #059669;">Php {{ total_remaining|floatformat:0|intcomma }}</div>
+        </td>
+        <td>
+            <div class="summary-title">Utilization Rate</div>
+            <div class="summary-value" style="color: #7c3aed;">{{ utilization_rate|floatformat:1 }}%</div>
+        </td>
+    </tr>
+</table>
+
+<!-- Data Table -->
+<table class="data-table" repeat="1">
+    <!-- Optimized Columns: Dept(25%), MFO(10%), Source(15%), Alloc(15%), Used(15%), Rem(12%), %(8%) -->
+    <col width="25%">
+    <col width="10%">
+    <col width="15%">
+    <col width="15%">
+    <col width="15%">
+    <col width="12%">
+    <col width="8%">
+    
+    <thead>
+        <tr>
+            <th style="text-align: left;">Department / End User</th>
+            <th style="text-align: center;">MFO</th>
+            <th style="text-align: left;">Budget Source</th>
+            <th style="text-align: right;">Allocated</th>
+            <th style="text-align: right;">Used</th>
+            <th style="text-align: right;">Remaining</th>
+            <th style="text-align: center;">Utilization Rate</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for allocation in allocations %}
+        <tr>
+            <td style="text-align: left;">
+                <div style="font-weight: bold;">{{ allocation.department }}</div>
+                <div style="font-size: 7pt; color: #555;">{{ allocation.end_user.get_full_name }}</div>
+            </td>
+            <td style="text-align: center;">{{ allocation.end_user.mfo|default:"-" }}</td>
+            <td style="text-align: left;">
+                <div class="source-text">{{ allocation.approved_budget.title }}</div>
+                <div style="font-size: 7pt;">FY {{ allocation.approved_budget.fiscal_year }}</div>
+            </td>
+            <td style="text-align: right;">{{ allocation.allocated_amount|floatformat:2|intcomma }}</td>
+            <td style="text-align: right;">{{ allocation.get_total_used|floatformat:2|intcomma }}</td>
+            <td style="text-align: right;">{{ allocation.remaining_balance|floatformat:2|intcomma }}</td>
+            <td style="text-align: center;">
+                {% with used=allocation.get_total_used total=allocation.allocated_amount %}
+                    {% if total > 0 %}
+                        {% widthratio used total 100 as percent %}
+                        <div style="font-size: 8pt;">{{ percent }}%</div>
+                    {% else %}
+                        -
+                    {% endif %}
+                {% endwith %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="7" style="text-align: center; padding: 20px; font-style: italic;">No budget allocations found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    <tfoot>
+        <tr class="total-row">
+            <td colspan="3" style="text-align: right; padding-right: 10px;">TOTAL:</td>
+            <td style="text-align: right;">{{ total_allocated|floatformat:2|intcomma }}</td>
+            <td style="text-align: right;">{{ total_used|floatformat:2|intcomma }}</td>
+            <td style="text-align: right;">{{ total_remaining|floatformat:2|intcomma }}</td>
+            <td></td>
+        </tr>
+    </tfoot>
+</table>
+
+<div class="notes" style="margin-top: 30px; font-size: 8pt; color: #666;">
+    <p><strong>Note:</strong> This report reflects the budget allocations distributed to departments and their current utilization status as of {{ date_generated|date:"M d, Y H:i" }}.</p>
+</div>
+{% endblock %}
