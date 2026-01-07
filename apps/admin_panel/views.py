@@ -1730,3 +1730,82 @@ def export_budget_allocation_report_pdf(request):
         return response
         
     return HttpResponse("Error Rendering PDF", status=400)
+
+@xframe_options_exempt
+@require_http_methods(["GET"])
+@login_required
+@user_passes_test(lambda u: u.is_superuser or u.is_staff)
+def export_admin_pr_report_pdf(request):
+    """
+    Generate Admin Purchase Request Report PDF
+    """
+    from apps.end_user_panel.pdf_utils import render_to_pdf
+    from apps.budgets.models import PurchaseRequest
+    from datetime import datetime
+    from django.db.models import Sum, Q, Count
+    from decimal import Decimal
+    
+    # 1. Get Filters
+    year = request.GET.get('year', 'all')
+    status = request.GET.get('status')
+    department = request.GET.get('department')
+    
+    # 2. Base Query
+    # Using 'submitted_by' instead of 'end_user' based on PR model definition
+    requests_qs = PurchaseRequest.objects.select_related('submitted_by', 'budget_allocation').order_by('-created_at')
+    
+    # 3. Apply Filters
+    if year and year != 'all':
+        requests_qs = requests_qs.filter(created_at__year=year)
+        
+    if status:
+        requests_qs = requests_qs.filter(status=status)
+        
+    if department:
+        requests_qs = requests_qs.filter(department=department)
+        
+    # 4. Calculate Summaries
+    total_requests = requests_qs.count()
+    
+    # Aggregates
+    aggs = requests_qs.aggregate(
+        total_pending=Sum('total_amount', filter=Q(status='Pending')),
+        total_approved=Sum('total_amount', filter=Q(status='Approved')),
+        total_rejected=Sum('total_amount', filter=Q(status='Rejected')),
+        total_all=Sum('total_amount')
+    )
+    
+    total_pending_amount = aggs['total_pending'] or Decimal('0')
+    total_approved_amount = aggs['total_approved'] or Decimal('0')
+    total_rejected_amount = aggs['total_rejected'] or Decimal('0')
+    total_amount_all = aggs['total_all'] or Decimal('0')
+
+    # 5. Context
+    context = {
+        'office_name': "Budget Office", 
+        'report_title': "Purchase Request Report",
+        'generated_by': request.user.get_full_name(),
+        'date_generated': datetime.now(),
+        'filters': {
+            'year': year,
+            'status': status,
+            'department': department
+        },
+        'purchase_requests': requests_qs,
+        'total_requests': total_requests,
+        'total_pending_amount': total_pending_amount,
+        'total_approved_amount': total_approved_amount,
+        'total_rejected_amount': total_rejected_amount,
+        'total_amount_all': total_amount_all,
+    }
+    
+    # 6. Render PDF
+    pdf = render_to_pdf('reports/admin_pr_report_pdf.html', context)
+    if pdf:
+        response = HttpResponse(pdf, content_type='application/pdf')
+        filename = f"PR_Report_{datetime.now().strftime('%Y%m%d')}.pdf"
+        response['Content-Disposition'] = f'inline; filename="{filename}"'
+        response['X-Frame-Options'] = 'SAMEORIGIN'
+        return response
+        
+    return HttpResponse("Error Rendering PDF", status=400)
