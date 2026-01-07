@@ -1352,7 +1352,7 @@ class DepartmentADRequestView(LoginRequiredMixin, UserPassesTestMixin, ListView)
         )
         
         # 3. Filter Options
-        context['departments'] = ActivityDesign.objects.values_list('department', flat=True).distinct()
+        context['departments'] = ActivityDesign.objects.values_list('department', flat=True).distinct().order_by('department')
         context['status_choices'] = ActivityDesign.STATUS_CHOICES
         
         return context
@@ -1804,6 +1804,84 @@ def export_admin_pr_report_pdf(request):
     if pdf:
         response = HttpResponse(pdf, content_type='application/pdf')
         filename = f"PR_Report_{datetime.now().strftime('%Y%m%d')}.pdf"
+        response['Content-Disposition'] = f'inline; filename="{filename}"'
+        response['X-Frame-Options'] = 'SAMEORIGIN'
+        return response
+        
+    return HttpResponse("Error Rendering PDF", status=400)
+
+@xframe_options_exempt
+@require_http_methods(["GET"])
+@login_required
+@user_passes_test(lambda u: u.is_superuser or u.is_staff)
+def export_admin_ad_report_pdf(request):
+    """
+    Generate Admin Activity Design Report PDF
+    """
+    from apps.end_user_panel.pdf_utils import render_to_pdf
+    from apps.budgets.models import ActivityDesign
+    from datetime import datetime
+    from django.db.models import Sum, Q
+    from decimal import Decimal
+    
+    # 1. Get Filters
+    year = request.GET.get('year', 'all')
+    status = request.GET.get('status')
+    department = request.GET.get('department')
+    
+    # 2. Base Query
+    ads_qs = ActivityDesign.objects.select_related('submitted_by', 'budget_allocation').order_by('-created_at')
+    
+    # 3. Apply Filters
+    if year and year != 'all':
+        ads_qs = ads_qs.filter(created_at__year=year)
+        
+    if status:
+        ads_qs = ads_qs.filter(status=status)
+        
+    if department:
+        ads_qs = ads_qs.filter(department=department)
+        
+    # 4. Calculate Summaries
+    total_requests = ads_qs.count()
+    
+    # Aggregates
+    aggs = ads_qs.aggregate(
+        total_pending=Sum('total_amount', filter=Q(status='Pending')),
+        total_approved=Sum('total_amount', filter=Q(status='Approved')),
+        total_rejected=Sum('total_amount', filter=Q(status='Rejected')),
+        total_all=Sum('total_amount')
+    )
+    
+    total_pending_amount = aggs['total_pending'] or Decimal('0')
+    total_approved_amount = aggs['total_approved'] or Decimal('0')
+    total_rejected_amount = aggs['total_rejected'] or Decimal('0')
+    total_amount_all = aggs['total_all'] or Decimal('0')
+
+    # 5. Context
+    context = {
+        'office_name': "Budget Office", 
+        'report_title': "Activity Design Report",
+        'generated_by': request.user.get_full_name(),
+        'date_generated': datetime.now(),
+        'filters': {
+            'year': year,
+            'status': status,
+            'department': department
+        },
+        'activity_designs': ads_qs,
+        'total_requests': total_requests,
+        'total_pending_amount': total_pending_amount,
+        'total_approved_amount': total_approved_amount,
+        'total_rejected_amount': total_rejected_amount,
+        'total_amount_all': total_amount_all,
+    }
+    
+    # 6. Render PDF
+    pdf = render_to_pdf('reports/admin_ad_report_pdf.html', context)
+    if pdf:
+        response = HttpResponse(pdf, content_type='application/pdf')
+        filename = f"AD_Report_{datetime.now().strftime('%Y%m%d')}.pdf"
         response['Content-Disposition'] = f'inline; filename="{filename}"'
         response['X-Frame-Options'] = 'SAMEORIGIN'
         return response

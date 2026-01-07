@@ -1,0 +1,164 @@
+{% extends "reports/report_template.html" %}
+{% load humanize %}
+
+{% block report_content %}
+<style>
+    /* Force specific styles for this report's summary table */
+    table.summary-table-override {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+        border: none;
+    }
+    table.summary-table-override td {
+        width: 25%;
+        border: 1px solid #ddd; 
+        padding: 5px;
+        text-align: center; 
+        vertical-align: middle;
+        background-color: #f9fafb;
+    }
+    .summary-title {
+        font-size: 9pt;
+        color: #6b7280;
+        margin-bottom: 2px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .summary-value {
+        font-size: 11pt;
+        font-weight: bold;
+    }
+    
+    /* Data table override */
+    .data-table {
+        font-size: 8pt; 
+    }
+    .data-table td, .data-table th {
+        padding: 4px;
+        vertical-align: middle;
+    }
+    
+    .status-pill {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-size: 6pt;
+        font-weight: bold;
+        text-align: center;
+        color: #fff;
+    }
+    .status-pending { background-color: #f59e0b; }
+    .status-approved { background-color: #10b981; }
+    .status-rejected { background-color: #ef4444; }
+    .status-partially { background-color: #3b82f6; }
+    .status-draft { background-color: #6b7280; }
+    .status-verify { background-color: #8b5cf6; } 
+</style>
+
+<!-- Filters Subheader -->
+<div style="text-align: center; margin-bottom: 15px; font-size: 10pt; color: #555;">
+    {% if filters.year and filters.year != 'all' %}
+        <strong>Fiscal Year:</strong> {{ filters.year }} &nbsp;|&nbsp;
+    {% endif %}
+    {% if filters.department %}
+        <strong>Dept:</strong> {{ filters.department }} &nbsp;|&nbsp;
+    {% endif %}
+    {% if filters.status %}
+        <strong>Status:</strong> {{ filters.status }}
+    {% endif %}
+</div>
+
+<!-- Summary Section Table -->
+<table class="summary-table-override" pdf:keep-together="true">
+    <tr>
+        <td>
+            <div class="summary-title">Total Requests</div>
+            <div class="summary-value" style="color: #374151;">{{ total_requests }}</div>
+        </td>
+        <td>
+            <div class="summary-title">Pending Amount</div>
+            <div class="summary-value" style="color: #d97706;">Php {{ total_pending_amount|floatformat:0|intcomma }}</div>
+        </td>
+        <td>
+            <div class="summary-title">Approved Amount</div>
+            <div class="summary-value" style="color: #059669;">Php {{ total_approved_amount|floatformat:0|intcomma }}</div>
+        </td>
+        <td>
+            <div class="summary-title">Rejected Amount</div>
+            <div class="summary-value" style="color: #dc2626;">Php {{ total_rejected_amount|floatformat:0|intcomma }}</div>
+        </td>
+    </tr>
+</table>
+
+<!-- Data Table -->
+<table class="data-table" repeat="1">
+    <!-- Columns: Title(25%), Requestor(20%), Venue/Date(20%), Participants(10%), Status(10%), Amount(15%) -->
+    <col width="25%">
+    <col width="20%">
+    <col width="20%">
+    <col width="10%">
+    <col width="10%">
+    <col width="15%">
+    
+    <thead>
+        <tr>
+            <th style="text-align: left;">Activity Title / Program</th>
+            <th style="text-align: left;">Requestor / Dept</th>
+            <th style="text-align: left;">Venue / Date</th>
+            <th style="text-align: center;">Target Pax</th>
+            <th style="text-align: center;">Status</th>
+            <th style="text-align: right;">Total Amount</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for ad in activity_designs %}
+        <tr>
+            <td style="text-align: left;">
+                <div style="font-weight: bold;">{{ ad.activity_title|default:ad.ad_number }}</div>
+                {% if ad.process_program %}
+                    <div style="font-size: 7pt; color: #555;">{{ ad.program }}</div>
+                {% endif %}
+            </td>
+            <td style="text-align: left;">
+                <div style="font-weight: bold;">{{ ad.submitted_by.get_full_name }}</div>
+                <div style="font-size: 7pt; color: #555;">{{ ad.department }}</div>
+            </td>
+            <td style="text-align: left;">
+                <div>{{ ad.venue|default:"-" }}</div>
+                <div style="font-size: 7pt; color: #555;">{{ ad.date_of_activity|date:"M d, Y" }}</div>
+            </td>
+            <td style="text-align: center;">
+                {{ ad.target_participants|default:"0" }}
+            </td>
+            <td style="text-align: center;">
+                <span class="status-pill 
+                    {% if ad.status == 'Pending' %}status-pending
+                    {% elif ad.status == 'Approved' %}status-approved
+                    {% elif ad.status == 'Rejected' %}status-rejected
+                    {% elif ad.status == 'Partially Approved' %}status-partially
+                    {% elif ad.status == 'Awaiting Admin Verification' %}status-verify
+                    {% else %}status-draft{% endif %}">
+                    {% if ad.status == 'Awaiting Admin Verification' %}VERIFY{% else %}{{ ad.status|upper }}{% endif %}
+                </span>
+            </td>
+            <td style="text-align: right;">{{ ad.total_amount|floatformat:2|intcomma }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="6" style="text-align: center; padding: 20px; font-style: italic;">No activity designs found matching the criteria.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    <tfoot>
+        <tr class="total-row">
+            <td colspan="5" style="text-align: right; padding-right: 10px;">TOTAL:</td>
+            <td style="text-align: right;">{{ total_amount_all|floatformat:2|intcomma }}</td>
+        </tr>
+    </tfoot>
+</table>
+
+<div class="notes" style="margin-top: 30px; font-size: 8pt; color: #666;">
+    <p><strong>Note:</strong> This report reflects the status of activity designs as of {{ date_generated|date:"M d, Y H:i" }}. Amounts shown are estimated total costs.</p>
+</div>
+{% endblock %}
