@@ -1,0 +1,121 @@
+{% extends "reports/report_template.html" %}
+{% load humanize %}
+
+{% block report_content %}
+<style>
+    /* Force specific styles for this report's summary table */
+    table.summary-table-override {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+        border: none;
+    }
+    table.summary-table-override td {
+        width: 25%;
+        border: 1px solid #ddd; 
+        padding: 5px;
+        text-align: center; 
+        vertical-align: middle;
+        background-color: #f9fafb;
+    }
+    .summary-title {
+        font-size: 9pt;
+        color: #6b7280;
+        margin-bottom: 2px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .summary-value {
+        font-size: 11pt;
+        font-weight: bold;
+    }
+    
+    /* Stats specific colors inline to ensure render */
+    
+    /* Data table override */
+    .data-table {
+        font-size: 9pt; /* Reduce font size to fit columns better */
+    }
+    .data-table td, .data-table th {
+        padding: 4px;
+    }
+</style>
+
+<!-- Date/Year Subheader -->
+<div style="text-align: center; margin-bottom: 20px; font-style: italic; font-size: 11pt;">
+    {% if fiscal_year and fiscal_year != 'all' %}
+        Fiscal Year: {{ fiscal_year }}
+    {% else %}
+        Fiscal Year: All Time History
+    {% endif %}
+</div>
+
+<!-- Summary Section Table -->
+<table class="summary-table-override" pdf:keep-together="true">
+    <tr>
+        <td>
+            <div class="summary-title">Total Approved</div>
+            <div class="summary-value" style="color: #2563eb;">Php {{ total_approved|floatformat:0|intcomma }}</div>
+        </td>
+        <td>
+            <div class="summary-title">Total Remaining</div>
+            <div class="summary-value" style="color: #059669;">Php {{ total_remaining|floatformat:0|intcomma }}</div>
+        </td>
+        <td>
+            <div class="summary-title">Utilization Rate</div>
+            <div class="summary-value" style="color: #d97706;">{{ utilization_rate|floatformat:1 }}%</div>
+        </td>
+        <td>
+            <div class="summary-title">Total Entries</div>
+            <div class="summary-value" style="color: #7c3aed;">{{ total_entries }}</div>
+        </td>
+    </tr>
+</table>
+
+<!-- Data Table -->
+<table class="data-table" repeat="1">
+    <!-- Use col tags for better width control in xhtml2pdf -->
+    <col width="35%">
+    <col width="10%">
+    <col width="20%">
+    <col width="20%">
+    <col width="15%">
+    
+    <thead>
+        <tr>
+            <th style="text-align: left;">Title</th>
+            <th style="text-align: center;">Year</th>
+            <th style="text-align: right;">Amount</th>
+            <th style="text-align: right;">Balance</th>
+            <th style="text-align: center;">Date</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for budget in budgets %}
+        <tr>
+            <td style="text-align: left;">{{ budget.title }}</td>
+            <td style="text-align: center;">{{ budget.fiscal_year }}</td>
+            <td style="text-align: right;">Php {{ budget.amount|floatformat:2|intcomma }}</td>
+            <td style="text-align: right;">Php {{ budget.remaining_budget|floatformat:2|intcomma }}</td>
+            <td style="text-align: center; white-space: nowrap;">{{ budget.created_at|date:"M d, Y" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="5" style="text-align: center; padding: 20px; font-style: italic;">No approved budgets found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    <tfoot>
+        <tr class="total-row">
+            <td colspan="2" style="text-align: right; padding-right: 10px;">TOTAL:</td>
+            <td style="text-align: right;">Php {{ total_approved|floatformat:2|intcomma }}</td>
+            <td style="text-align: right;">Php {{ total_remaining|floatformat:2|intcomma }}</td>
+            <td></td>
+        </tr>
+    </tfoot>
+</table>
+
+<div class="notes" style="margin-top: 30px; font-size: 8pt; color: #666;">
+    <p><strong>Note:</strong> This report reflects the approved budget allocations and their current remaining balances as of {{ date_generated|date:"M d, Y H:i" }}.</p>
+</div>
+{% endblock %}

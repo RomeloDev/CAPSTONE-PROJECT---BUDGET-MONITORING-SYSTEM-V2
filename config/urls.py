@@ -18,13 +18,13 @@ from django.contrib import admin
 from django.urls import path, include
 from django.shortcuts import render
 
-def home(request):
-    return render(request, 'base.html')
+# def home(request):
+#     return render(request, 'base.html')
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('auth/', include('apps.user_accounts.urls')),
+    path('django/admin/', admin.site.urls),
+    path('', include('apps.user_accounts.urls')),
     path('user/', include('apps.end_user_panel.urls')), 
     path('admin-panel/', include('apps.admin_panel.urls')),
-    path('', home)
+    # path('', home)
 ]

@@ -134,6 +134,17 @@
             </div>
         </section>
 
+        <!-- Preview Report Button Section -->
+        <div class="flex justify-end mb-4">
+            <button onclick="previewApprovedBudget()" 
+                    class="bg-blue-600 text-white font-semibold px-4 py-2 rounded hover:bg-blue-700 transition-colors flex items-center shadow-md">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                Preview Report
+            </button>
+        </div>
+
         <!-- Budget History Table -->
         <section class="bg-white rounded-lg p-6 shadow-md">
             <header class="mb-4 flex justify-between items-center">
@@ -875,6 +886,37 @@
             input.value = formatted;
             document.getElementById(hiddenFieldId).value = value;
         }
+    }
+
+    function previewApprovedBudget() {
+        const yearSelect = document.getElementById('summary_year');
+        const selectedYear = yearSelect ? yearSelect.value : 'all';
+        
+        // Construct standard URL
+        let url = "{% url 'export_approved_budget_report_pdf' %}"; 
+        url += `?year=${selectedYear}`;
+        
+        const reportModalHtml = `
+            <div id="reportPreviewModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                <div class="bg-white rounded-lg shadow-xl w-full max-w-5xl h-[85vh] flex flex-col">
+                    <div class="flex justify-between items-center p-4 border-b">
+                        <h3 class="text-lg font-bold text-gray-800">Report Preview</h3>
+                        <button onclick="document.getElementById('reportPreviewModal').remove()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+                    </div>
+                    <div class="flex-1 bg-gray-100 p-4 overflow-hidden">
+                        <div class="w-full h-full bg-white rounded shadow">
+                            <iframe src="${url}" class="w-full h-full border-0"></iframe>
+                        </div>
+                    </div>
+                    <div class="p-4 border-t flex justify-end">
+                        <a href="${url}" download target="_blank" class="text-blue-600 hover:text-blue-800 font-medium mr-4">Download / Open New Tab</a>
+                        <button onclick="document.getElementById('reportPreviewModal').remove()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Close</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', reportModalHtml);
     }
 </script>
 {% endblock %}

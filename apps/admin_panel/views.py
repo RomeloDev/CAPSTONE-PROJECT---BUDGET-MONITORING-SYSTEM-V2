@@ -23,9 +23,10 @@ from django.contrib import messages
 from apps.admin_panel.models import AuditTrail
 from apps.budgets.models import ApprovedBudget, BudgetTransaction
 from apps.budgets.forms import ApprovedBudgetForm
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.views.decorators.clickjacking import xframe_options_exempt
 from .forms import BudgetAllocationForm, CustomUserCreationForm, CustomUserEditForm, ApprovedDocumentUploadForm
 import json
 from django.views.decorators.http import require_POST
@@ -1549,3 +1550,58 @@ def handle_admin_realignment_action(request, pk):
             messages.error(request, f"Error: {str(e)}")
             
     return redirect('admin_realignment_detail', pk=pk)
+
+@xframe_options_exempt
+@require_http_methods(["GET"])
+@login_required
+@user_passes_test(lambda u: u.is_superuser or u.is_staff)
+def export_approved_budget_report_pdf(request):
+    """
+    Generate Approved Budget Report PDF for Admin
+    """
+    from apps.end_user_panel.pdf_utils import render_to_pdf
+    from apps.budgets.models import ApprovedBudget
+    from datetime import datetime
+    from decimal import Decimal
+    
+    # 1. Get Filter Parameters
+    selected_year = request.GET.get('year', 'all')
+    
+    # 2. Base Query
+    budgets = ApprovedBudget.objects.filter(is_active=True).order_by('-fiscal_year', '-created_at')
+    
+    if selected_year and selected_year != 'all':
+        budgets = budgets.filter(fiscal_year=selected_year)
+        
+    # 3. Calculate Summaries
+    total_approved = budgets.aggregate(total=Sum('amount'))['total'] or Decimal('0')
+    total_remaining = budgets.aggregate(total=Sum('remaining_budget'))['total'] or Decimal('0')
+    total_entries = budgets.count()
+    
+    utilization_rate = Decimal('0')
+    if total_approved > 0:
+        utilization_rate = ((total_approved - total_remaining) / total_approved) * 100
+        
+    # 4. Context
+    context = {
+        'office_name': "Budget Office", 
+        'report_title': "Approved Budget Report",
+        'generated_by': request.user.get_full_name(),
+        'date_generated': datetime.now(),
+        'fiscal_year': selected_year,
+        'budgets': budgets,
+        'total_approved': total_approved,
+        'total_remaining': total_remaining,
+        'utilization_rate': utilization_rate,
+        'total_entries': total_entries
+    }
+    
+    # 5. Render PDF
+    pdf = render_to_pdf('reports/admin_approved_budget_pdf.html', context)
+    if pdf:
+        response = HttpResponse(pdf, content_type='application/pdf')
+        filename = f"Approved_Budget_Report_{datetime.now().strftime('%Y%m%d')}.pdf"
+        response['Content-Disposition'] = f'inline; filename="{filename}"'
+        return response
+        
+    return HttpResponse("Error Rendering PDF", status=400)
