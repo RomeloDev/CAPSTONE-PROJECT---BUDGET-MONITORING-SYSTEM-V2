@@ -1,0 +1,170 @@
+{% extends "reports/report_template.html" %}
+{% load humanize %}
+
+{% block report_content %}
+<style>
+    /* Force specific styles for this report's summary table */
+    table.summary-table-override {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+        border: none;
+    }
+    table.summary-table-override td {
+        width: 25%;
+        border: 1px solid #ddd; 
+        padding: 5px;
+        text-align: center; 
+        vertical-align: middle;
+        background-color: #f9fafb;
+    }
+    .summary-title {
+        font-size: 9pt;
+        color: #6b7280;
+        margin-bottom: 2px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .summary-value {
+        font-size: 11pt;
+        font-weight: bold;
+    }
+    
+    /* Data table override */
+    .data-table {
+        font-size: 8pt; 
+    }
+    .data-table td, .data-table th {
+        padding: 4px;
+        vertical-align: middle;
+    }
+    
+    .status-pill {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-size: 6pt;
+        font-weight: bold;
+        text-align: center;
+        color: #fff;
+    }
+    .status-pending { background-color: #f59e0b; }
+    .status-approved { background-color: #10b981; }
+    .status-rejected { background-color: #ef4444; }
+    .status-partially { background-color: #3b82f6; }
+    .status-draft { background-color: #6b7280; }
+    .status-verify { background-color: #8b5cf6; } 
+</style>
+
+<!-- Filters Subheader -->
+<div style="text-align: center; margin-bottom: 15px; font-size: 10pt; color: #555;">
+    {% if filters.department %}
+        <strong>Dept:</strong> {{ filters.department }} &nbsp;|&nbsp;
+    {% endif %}
+    {% if filters.status %}
+        <strong>Status:</strong> {{ filters.status }} &nbsp;|&nbsp;
+    {% endif %}
+    {% if filters.date_from or filters.date_to %}
+        <strong>Date Range:</strong> {{ filters.date_from|default:"-" }} to {{ filters.date_to|default:"-" }} &nbsp;|&nbsp;
+    {% endif %}
+    {% if filters.search %}
+        <strong>Search:</strong> "{{ filters.search }}"
+    {% endif %}
+</div>
+
+<!-- Summary Section Table -->
+<table class="summary-table-override" pdf:keep-together="true">
+    <tr>
+        <td>
+            <div class="summary-title">Total Requests</div>
+            <div class="summary-value" style="color: #374151;">{{ total_requests }}</div>
+        </td>
+        <td>
+            <div class="summary-title">Pending</div>
+            <div class="summary-value" style="color: #d97706;">{{ total_pending }}</div>
+        </td>
+        <td>
+            <div class="summary-title">Approved</div>
+            <div class="summary-value" style="color: #059669;">{{ total_approved }}</div>
+        </td>
+        <td>
+            <div class="summary-title">Rejected</div>
+            <div class="summary-value" style="color: #dc2626;">{{ total_rejected }}</div>
+        </td>
+    </tr>
+</table>
+
+<!-- Data Table -->
+<table class="data-table" repeat="1">
+    <!-- Columns: PRE ID(20%), Dept(25%), Year(15%), Date(15%), Status(10%), Amount(15%) -->
+    <col width="20%">
+    <col width="25%">
+    <col width="15%">
+    <col width="15%">
+    <col width="10%">
+    <col width="15%">
+    
+    <thead>
+        <tr>
+            <th style="text-align: left;">PRE ID</th>
+            <th style="text-align: left;">Department / Submitter</th>
+            <th style="text-align: center;">Budget Year</th>
+            <th style="text-align: left;">Date Submitted</th>
+            <th style="text-align: center;">Status</th>
+            <th style="text-align: right;">Total Amount</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for pre in pres %}
+        <tr>
+            <td style="text-align: left;">
+                <div style="font-weight: bold;">PRE-{{ pre.id|slice:":8"|upper }}</div>
+            </td>
+            <td style="text-align: left;">
+                <div style="font-weight: bold;">{{ pre.department }}</div>
+                <div style="font-size: 7pt; color: #555;">{{ pre.submitted_by.get_full_name|default:pre.submitted_by.username }}</div>
+            </td>
+            <td style="text-align: center;">
+                {{ pre.fiscal_year }}
+            </td>
+            <td style="text-align: left;">
+                <div>{{ pre.created_at|date:"M d, Y" }}</div>
+                <div style="font-size: 7pt; color: #555;">{{ pre.created_at|time:"g:i A" }}</div>
+            </td>
+            <td style="text-align: center;">
+                <span class="status-pill 
+                    {% if pre.status == 'Pending' %}status-pending
+                    {% elif pre.status == 'Approved' %}status-approved
+                    {% elif pre.status == 'Rejected' %}status-rejected
+                    {% elif pre.status == 'Partially Approved' %}status-partially
+                    {% elif pre.status == 'Awaiting Admin Verification' %}status-verify
+                    {% else %}status-draft{% endif %}">
+                    {% if pre.status == 'Awaiting Admin Verification' %}VERIFY{% else %}{{ pre.status|upper }}{% endif %}
+                </span>
+            </td>
+            <td style="text-align: right;">
+                {% if pre.total_amount > 0 %}
+                {{ pre.total_amount|floatformat:2|intcomma }}
+                {% else %}
+                -
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="6" style="text-align: center; padding: 20px; font-style: italic;">No PRE requests found matching the criteria.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    <tfoot>
+        <tr class="total-row">
+            <td colspan="5" style="text-align: right; padding-right: 10px;">TOTAL (Displayed):</td>
+            <td style="text-align: right;">{{ total_amount_displayed|floatformat:2|intcomma }}</td>
+        </tr>
+    </tfoot>
+</table>
+
+<div class="notes" style="margin-top: 30px; font-size: 8pt; color: #666;">
+    <p><strong>Note:</strong> This report reflects the status of PRE requests as of {{ date_generated|date:"M d, Y H:i" }}.</p>
+</div>
+{% endblock %}

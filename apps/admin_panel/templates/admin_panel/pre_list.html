@@ -14,11 +14,12 @@
             </div>
             <!-- Optional Actions -->
             <div class="flex items-center gap-3">
-                <button onclick="window.print()" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                <button onclick="previewPreReport()" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                     </svg>
-                    Print Report
+                    Preview Report
                 </button>
             </div>
         </div>
@@ -290,4 +291,49 @@
 
     </main>
 </div>
+
+<script>
+function previewPreReport() {
+    // Collect filters from form inputs
+    const searchInput = document.getElementById('search');
+    const deptSelect = document.getElementById('department');
+    const statusSelect = document.getElementById('status');
+    const dateFromInput = document.getElementById('date_from');
+    // Note: date_to is not in the form shown in file view but view logic handles it. 
+    // Assuming modifying existing form or just using what's available.
+    
+    const search = searchInput ? searchInput.value : '';
+    const dept = deptSelect ? deptSelect.value : '';
+    const status = statusSelect ? statusSelect.value : '';
+    const dateFrom = dateFromInput ? dateFromInput.value : '';
+    
+    let url = "/admin-panel/pre/report/pdf/";
+    url += `?search=${encodeURIComponent(search)}`;
+    if (dept) url += `&department=${encodeURIComponent(dept)}`;
+    if (status) url += `&status=${encodeURIComponent(status)}`;
+    if (dateFrom) url += `&date_from=${encodeURIComponent(dateFrom)}`;
+    
+    const reportModalHtml = `
+        <div id="reportPreviewModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-5xl h-[85vh] flex flex-col">
+                <div class="flex justify-between items-center p-4 border-b">
+                    <h3 class="text-lg font-bold text-gray-800">Report Preview</h3>
+                    <button onclick="document.getElementById('reportPreviewModal').remove()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+                </div>
+                <div class="flex-1 bg-gray-100 p-4 overflow-hidden">
+                    <div class="w-full h-full bg-white rounded shadow">
+                        <iframe src="${url}" class="w-full h-full border-0"></iframe>
+                    </div>
+                </div>
+                <div class="p-4 border-t flex justify-end">
+                    <a href="${url}" download target="_blank" class="text-blue-600 hover:text-blue-800 font-medium mr-4">Download / Open New Tab</a>
+                    <button onclick="document.getElementById('reportPreviewModal').remove()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Close</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', reportModalHtml);
+}
+</script>
 {% endblock %}

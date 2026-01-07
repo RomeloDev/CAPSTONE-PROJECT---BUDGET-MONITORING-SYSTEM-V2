@@ -9,6 +9,7 @@ urlpatterns = [
     path('budget_allocation/report/pdf/', views.export_budget_allocation_report_pdf, name='export_budget_allocation_report_pdf'),
     path('purchase_requests/report/pdf/', views.export_admin_pr_report_pdf, name='export_admin_pr_report_pdf'),
     path('activity_designs/report/pdf/', views.export_admin_ad_report_pdf, name='export_admin_ad_report_pdf'),
+    path('pre/report/pdf/', views.export_admin_pre_report_pdf, name='export_admin_pre_report_pdf'),
     path('approved_budget/<int:pk>/details/', views.approved_budget_detail, name='approved_budget_detail'),
     path('budget_allocation/', views.BudgetAllocationListView.as_view(), name='budget_allocation'),
     path('api/get-users-by-mfo/', views.get_users_by_mfo, name='get_users_by_mfo'),
