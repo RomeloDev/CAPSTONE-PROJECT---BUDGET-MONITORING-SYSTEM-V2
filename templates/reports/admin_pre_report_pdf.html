@@ -118,7 +118,7 @@
         {% for pre in pres %}
         <tr>
             <td style="text-align: left;">
-                <div style="font-weight: bold;">PRE-{{ pre.id|slice:":8"|upper }}</div>
+                <div style="font-weight: bold;">PRE-{{ pre.id|stringformat:"s"|slice:":8"|upper }}</div>
             </td>
             <td style="text-align: left;">
                 <div style="font-weight: bold;">{{ pre.department }}</div>
