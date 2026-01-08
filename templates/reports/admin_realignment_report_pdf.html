@@ -1,0 +1,170 @@
+{% extends "reports/report_template.html" %}
+{% load humanize %}
+
+{% block report_content %}
+<style>
+    /* Force specific styles for this report's summary table */
+    table.summary-table-override {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+        border: none;
+    }
+    table.summary-table-override td {
+        width: 25%;
+        border: 1px solid #ddd; 
+        padding: 5px;
+        text-align: center; 
+        vertical-align: middle;
+        background-color: #f9fafb;
+    }
+    .summary-title {
+        font-size: 9pt;
+        color: #6b7280;
+        margin-bottom: 2px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .summary-value {
+        font-size: 11pt;
+        font-weight: bold;
+    }
+    
+    /* Data table override */
+    .data-table {
+        font-size: 8pt; 
+    }
+    .data-table td, .data-table th {
+        padding: 4px;
+        vertical-align: middle;
+    }
+    
+    .status-pill {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-size: 6pt;
+        font-weight: bold;
+        text-align: center;
+        color: #fff;
+    }
+    /* Status Colors */
+    .status-pending { background-color: #f59e0b; }
+    .status-approved { background-color: #10b981; }
+    .status-rejected { background-color: #ef4444; }
+    .status-partially { background-color: #3b82f6; }
+    .status-draft { background-color: #6b7280; }
+    .status-verify { background-color: #8b5cf6; } 
+    
+    .item-text {
+        font-size: 7pt;
+        color: #4b5563;
+        display: block;
+        max-width: 150px; /* Force wrap */
+        word-wrap: break-word; /* Ensure long words break */
+    }
+</style>
+
+<!-- Filters Subheader -->
+<div style="text-align: center; margin-bottom: 15px; font-size: 10pt; color: #555;">
+    {% if filters.status %}
+        <strong>Status:</strong> {{ filters.status }}
+    {% endif %}
+    {% if not filters.status %}
+        <strong>Status:</strong> All Records
+    {% endif %}
+</div>
+
+<!-- Summary Section Table -->
+<table class="summary-table-override" pdf:keep-together="true">
+    <tr>
+        <td>
+            <div class="summary-title">Total Requests</div>
+            <div class="summary-value" style="color: #374151;">{{ total_requests }}</div>
+        </td>
+        <td>
+            <div class="summary-title">Pending</div>
+            <div class="summary-value" style="color: #d97706;">{{ total_pending }}</div>
+        </td>
+        <td>
+            <div class="summary-title">Approved</div>
+            <div class="summary-value" style="color: #059669;">{{ total_approved }}</div>
+        </td>
+        <td>
+            <div class="summary-title">Rejected</div>
+            <div class="summary-value" style="color: #dc2626;">{{ total_rejected }}</div>
+        </td>
+    </tr>
+</table>
+
+<!-- Data Table -->
+<table class="data-table" repeat="1">
+    <!-- Columns: ID(10%), Requestor(20%), Source(20%), Target(20%), Status(15%), Amount(15%) -->
+    <col width="10%">
+    <col width="20%">
+    <col width="20%">
+    <col width="20%">
+    <col width="15%">
+    <col width="15%">
+    
+    <thead>
+        <tr>
+            <th style="text-align: left;">Req ID</th>
+            <th style="text-align: left;">Requestor / Dept</th>
+            <th style="text-align: left;">Source Item</th>
+            <th style="text-align: left;">Target Item</th>
+            <th style="text-align: center;">Status</th>
+            <th style="text-align: right;">Amount</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for req in realignments %}
+        <tr>
+            <td style="text-align: left;">
+                <div style="font-weight: bold;">#{{ req.id }}</div>
+                <div style="font-size: 6pt; color: #666;">{{ req.created_at|date:"M d, Y" }}</div>
+            </td>
+            <td style="text-align: left;">
+                <div style="font-weight: bold;">{{ req.requested_by.get_full_name|default:req.requested_by.username }}</div>
+                <div style="font-size: 7pt; color: #555;">{{ req.requested_by.department|default:"-" }}</div>
+            </td>
+            <td style="text-align: left;">
+                <!-- Truncating to ensure it fits -->
+                <div class="item-text">{{ req.source_item_display|truncatechars:40 }}</div>
+            </td>
+            <td style="text-align: left;">
+                <div class="item-text">{{ req.target_item_display|truncatechars:40 }}</div>
+            </td>
+            <td style="text-align: center;">
+                <span class="status-pill 
+                    {% if req.status == 'Pending' %}status-pending
+                    {% elif req.status == 'Approved' %}status-approved
+                    {% elif req.status == 'Rejected' %}status-rejected
+                    {% elif req.status == 'Partially Approved' %}status-partially
+                    {% elif req.status == 'Awaiting Admin Verification' %}status-verify
+                    {% else %}status-draft{% endif %}">
+                    {% if req.status == 'Awaiting Admin Verification' %}VERIFY{% else %}{{ req.status|upper }}{% endif %}
+                </span>
+            </td>
+            <td style="text-align: right;">
+                {{ req.amount|floatformat:2|intcomma }}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="6" style="text-align: center; padding: 20px; font-style: italic;">No realignment requests found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    <tfoot>
+        <tr class="total-row">
+            <td colspan="5" style="text-align: right; padding-right: 10px;">TOTAL (Displayed):</td>
+            <td style="text-align: right;">{{ total_amount_displayed|floatformat:2|intcomma }}</td>
+        </tr>
+    </tfoot>
+</table>
+
+<div class="notes" style="margin-top: 30px; font-size: 8pt; color: #666;">
+    <p><strong>Note:</strong> This report reflects the status of Budget Realignment requests as of {{ date_generated|date:"M d, Y H:i" }}.</p>
+</div>
+{% endblock %}

@@ -1981,3 +1981,84 @@ def export_admin_pre_report_pdf(request):
         return response
         
     return HttpResponse("Error Rendering PDF", status=400)
+
+
+@xframe_options_exempt
+@require_http_methods(["GET"])
+@login_required
+@user_passes_test(lambda u: u.is_superuser or u.is_staff)
+def export_admin_realignment_report_pdf(request):
+    """
+    Generate Admin Budget Realignment Report PDF
+    """
+    from apps.end_user_panel.pdf_utils import render_to_pdf
+    from apps.budgets.models import PREBudgetRealignment
+    from datetime import datetime
+    from django.db.models import Sum, Q, Count
+    from decimal import Decimal
+    
+    # 1. Get Filters
+    status = request.GET.get('status', '')
+    
+    # 2. Base Query
+    # Excluding drafts if desired, or keep all
+    qs = PREBudgetRealignment.objects.exclude(status='Draft').select_related(
+        'requested_by'
+    ).order_by('-created_at')
+    
+    # 3. Apply Filters
+    if status:
+        qs = qs.filter(status=status)
+        
+    # 4. Calculate Summaries
+    total_requests = qs.count()
+    
+    # Aggregates
+    aggs = qs.aggregate(
+        total_pending=Count('id', filter=Q(status='Pending')),
+        total_approved=Count('id', filter=Q(status='Approved')),
+        total_rejected=Count('id', filter=Q(status='Rejected')),
+        total_amount_displayed=Sum('amount')
+    )
+    
+    total_pending = aggs['total_pending'] or 0
+    total_approved = aggs['total_approved'] or 0
+    total_rejected = aggs['total_rejected'] or 0
+    total_amount_displayed = aggs['total_amount_displayed'] or Decimal('0')
+
+    # Fix: Replace ₱ with Php for PDF compatibility
+    # Evaluating queryset to list to allow in-memory modification
+    realignments_list = list(qs)
+    for req in realignments_list:
+        if req.source_item_display:
+            req.source_item_display = req.source_item_display.replace('₱', 'Php ').replace('ï¿½', '') 
+        if req.target_item_display:
+            req.target_item_display = req.target_item_display.replace('₱', 'Php ').replace('ï¿½', '')
+
+    # 5. Context
+    context = {
+        'office_name': "Budget Office", 
+        'report_title': "Budget Realignment Report",
+        'generated_by': request.user.get_full_name(),
+        'date_generated': datetime.now(),
+        'filters': {
+            'status': status
+        },
+        'realignments': realignments_list,
+        'total_requests': total_requests,
+        'total_pending': total_pending,
+        'total_approved': total_approved,
+        'total_rejected': total_rejected,
+        'total_amount_displayed': total_amount_displayed,
+    }
+    
+    # 6. Render PDF
+    pdf = render_to_pdf('reports/admin_realignment_report_pdf.html', context)
+    if pdf:
+        response = HttpResponse(pdf, content_type='application/pdf')
+        filename = f"Realignment_Report_{datetime.now().strftime('%Y%m%d')}.pdf"
+        response['Content-Disposition'] = f'inline; filename="{filename}"'
+        response['X-Frame-Options'] = 'SAMEORIGIN'
+        return response
+        
+    return HttpResponse("Error Rendering PDF", status=400)
