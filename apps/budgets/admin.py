@@ -1,8 +1,42 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from .models import ApprovedBudget, SupportingDocument, DepartmentPRE, BudgetAllocation, PRECategory, PRELineItem, PREReceipt, PRESubCategory, SystemNotification, RequestApproval, PurchaseRequest, PurchaseRequestAllocation, PurchaseRequestItem, PRDraft, PRDraftSupportingDocument, PurchaseRequestSupportingDocument, PurchaseRequestApprovedDocument, ActivityDesign, ActivityDesignAllocation, ActivityDesignSupportingDocument, DepartmentPRESupportingDocument, BudgetSavings, PRELineItemSavings, PREBudgetRealignment, BudgetRealignmentSupportingDocument
 
 # Register your models here.
-admin.site.register(ApprovedBudget)
+# Register your models here.
+# admin.site.register(ApprovedBudget) # Replaced with custom admin below
+
+from .services import archive_budget_cascade
+
+@admin.register(ApprovedBudget)
+class ApprovedBudgetAdmin(admin.ModelAdmin):
+    list_display = ['title', 'fiscal_year', 'amount', 'remaining_budget', 'is_archived', 'archive_type']
+    list_filter = ['fiscal_year', 'is_archived', 'archive_type']
+    search_fields = ['title', 'fiscal_year']
+    actions = ['archive_selected_fiscal_years', 'restore_selected_fiscal_years']
+
+    @admin.action(description='Archive Selected Fiscal Years (Deep Archive)')
+    def archive_selected_fiscal_years(self, request, queryset):
+        success_count = 0
+        for budget in queryset:
+            if not budget.is_archived:
+                archive_budget_cascade(budget.id, archive_type='MANUAL', user=request.user)
+                success_count += 1
+        
+        if success_count > 0:
+            self.message_user(request, f"{success_count} budgets successfully archived.", messages.SUCCESS)
+        else:
+            self.message_user(request, "No eligible budgets were archived (they might already be archived).", messages.WARNING)
+
+    @admin.action(description='Restore Selected Fiscal Years (Cascade Restore)')
+    def restore_selected_fiscal_years(self, request, queryset):
+        from .services import restore_budget_cascade # Import here to avoid circularity if any
+        success_count = 0
+        for budget in queryset:
+            if budget.is_archived:
+                restore_budget_cascade(budget.id)
+                success_count += 1
+        
+        self.message_user(request, f"{success_count} budgets successfully restored.", messages.SUCCESS)
 admin.site.register(SupportingDocument)
 admin.site.register(DepartmentPRE)
 admin.site.register(BudgetAllocation)

@@ -462,7 +462,7 @@ class ViewPREDetailView(LoginRequiredMixin, View):
     def get(self, request, pre_id):
         # 1. Fetch the PRE object with optimized queries
         pre = get_object_or_404(
-            DepartmentPRE.objects.select_related(
+            DepartmentPRE.all_objects.select_related(
                 'budget_allocation',
                 'budget_allocation__approved_budget',
                 'submitted_by'
@@ -1405,8 +1405,8 @@ class ViewPRDetailView(LoginRequiredMixin, DetailView):
     context_object_name = 'pr'
     pk_url_kwarg = 'pr_id'
     def get_queryset(self):
-        # Security: Users can only view their own PRs
-        return PurchaseRequest.objects.filter(submitted_by=self.request.user)
+        # Security: Users can only view their own PRs (including archived)
+        return PurchaseRequest.all_objects.filter(submitted_by=self.request.user)
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         pr = self.object
@@ -1748,6 +1748,11 @@ class ActivityDesignDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailVi
     template_name = 'end_user_panel/view_ad_detail.html'
     context_object_name = 'ad'
     pk_url_kwarg = 'ad_id' # We will use 'ad_id' in the URL
+    
+    def get_queryset(self):
+        # Allow viewing archived ADs
+        return ActivityDesign.all_objects.filter(submitted_by=self.request.user)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         ad = self.object
@@ -1914,7 +1919,14 @@ class PREBudgetRealignmentView(LoginRequiredMixin, UserPassesTestMixin, FormView
         kwargs = super().get_form_kwargs()
         kwargs['source_choices'] = self.get_available_lines()
         kwargs['target_choices'] = self.get_target_lines()
+        # The 'pk_url_kwarg = 'pre_id'' line was misplaced in the instruction.
+        # It is typically a class attribute for DetailView/UpdateView, not a local variable in get_form_kwargs.
+        # As this is a FormView, it doesn't inherently use pk_url_kwarg for fetching an object.
         return kwargs
+    
+    def get_queryset(self):
+        # Allow viewing archived PREs
+        return DepartmentPRE.all_objects.filter(user=self.request.user)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -2048,6 +2060,10 @@ class PreviewRealignmentView(LoginRequiredMixin, UserPassesTestMixin, DetailView
     template_name = 'end_user_panel/preview_realignment_documents.html'
     context_object_name = 'realignment'
     
+    def get_queryset(self):
+        # Allow viewing archived Realignments
+        return PREBudgetRealignment.all_objects.all()
+
     def test_func(self):
         obj = self.get_object()
         return obj.requested_by == self.request.user or self.request.user.is_staff
@@ -2119,6 +2135,7 @@ class PREBudgetRealignmentHistoryView(LoginRequiredMixin, UserPassesTestMixin, L
         return not self.request.user.is_staff
     
     def get_queryset(self):
+        # Use all_objects to include archived items in history
         qs = super().get_queryset().filter(requested_by=self.request.user)
         
         status_param = self.request.GET.get('status')
@@ -2677,3 +2694,78 @@ def export_transaction_report_pdf(request):
         return response
         
     return HttpResponse("Error Rendering PDF", status=400)
+# --- Archive Feature Views ---
+
+class ArchiveHistoryView(LoginRequiredMixin, TemplateView):
+    template_name = 'end_user_panel/archive_history.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+
+        # 1. Archived Purchase Requests
+        # Note: Using all_objects to bypass the default ArchiveManager filter
+        context['archived_prs'] = PurchaseRequest.all_objects.filter(
+            is_archived=True,
+            submitted_by=user
+        ).select_related('budget_allocation__approved_budget').order_by('-archived_at')
+
+        # 2. Archived Activity Designs
+        context['archived_ads'] = ActivityDesign.all_objects.filter(
+            is_archived=True,
+            submitted_by=user
+        ).select_related('budget_allocation__approved_budget').order_by('-archived_at')
+
+        # 3. Archived PREs
+        context['archived_pres'] = DepartmentPRE.all_objects.filter(
+            is_archived=True,
+            submitted_by=user
+        ).select_related('budget_allocation__approved_budget').order_by('-archived_at')
+        
+        # 4. Archived Realignments (New)
+        context['archived_realignments'] = PREBudgetRealignment.all_objects.filter(
+            is_archived=True,
+            requested_by=user
+        ).select_related('source_pre', 'target_pre').order_by('-archived_at')
+
+        return context
+
+
+@login_required
+@require_POST
+def archive_resource(request, resource_type, pk):
+    """
+    Manually archive a resource.
+    resource_type options: 'pr', 'ad', 'pre', 'realignment'
+    Supports both UUID (PR, AD, PRE) and Int (Realignment) PKs via string handling.
+    """
+    try:
+        if resource_type == 'pr':
+            obj = get_object_or_404(PurchaseRequest, pk=pk, submitted_by=request.user)
+            redirect_url = 'pr_ad_list'
+        elif resource_type == 'ad':
+            obj = get_object_or_404(ActivityDesign, pk=pk, submitted_by=request.user)
+            redirect_url = 'pr_ad_list'
+        elif resource_type == 'pre':
+            obj = get_object_or_404(DepartmentPRE, pk=pk, submitted_by=request.user)
+            redirect_url = 'department_pre_page'
+        elif resource_type == 'realignment':
+            obj = get_object_or_404(PREBudgetRealignment, pk=pk, requested_by=request.user)
+            redirect_url = 'realignment_history' # Redirect to history or dashboard
+        else:
+            messages.error(request, "Invalid resource type.")
+            return redirect('user_dashboard')
+
+        # Perform Manual Archive
+        obj.is_archived = True
+        obj.archive_type = 'MANUAL'
+        obj.archived_at = timezone.now()
+        obj.archived_by = request.user
+        obj.save()
+
+        messages.success(request, f"{resource_type.upper()} has been successfully moved to the Archive.")
+        return redirect(redirect_url)
+
+    except Exception as e:
+        messages.error(request, f"Error archiving resource: {str(e)}")
+        return redirect('user_dashboard')

@@ -2915,6 +2915,31 @@ class PREBudgetRealignment(models.Model):
     source_item_display = models.CharField(max_length=500, null=True, blank=True)
     target_item_display = models.CharField(max_length=500, null=True, blank=True)
 
+    # Archive fields
+    is_archived = models.BooleanField(default=False, db_index=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
+    archived_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='archived_pre_realignments'
+    )
+    archive_reason = models.TextField(blank=True)
+    archive_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('FISCAL_YEAR', 'Fiscal Year Archive'),
+            ('MANUAL', 'Manual Archive/Delete'),
+        ],
+        default='FISCAL_YEAR',
+        blank=True
+    )
+
+    # Managers
+    objects = ArchiveManager()  # Default: excludes archived
+    all_objects = models.Manager()  # Fallback: includes everything
+
     class Meta:
         ordering = ['-created_at']
 

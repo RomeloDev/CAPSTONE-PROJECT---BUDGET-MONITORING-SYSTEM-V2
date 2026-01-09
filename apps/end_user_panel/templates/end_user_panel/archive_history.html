@@ -1,0 +1,284 @@
+{% extends 'end_user_base_template/dashboard.html' %}
+{% load humanize %}
+
+{% block title %}
+    Archive History
+{% endblock %}
+
+{% block main-content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-800">Archived Documents</h1>
+            <p class="text-sm text-gray-600 dark:text-gray-400">View your past Purchase Requests, Activity Designs, PREs, and Realignments.</p>
+        </div>
+        <a href="{% url 'user_dashboard' %}" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm transition-colors">
+            Back to Dashboard
+        </a>
+    </div>
+
+    <!-- Tabs Header -->
+    <div class="mb-4 border-b border-gray-200 dark:border-gray-700">
+        <ul class="flex flex-wrap -mb-px text-sm font-medium text-center" id="archiveTabs" role="tablist">
+            <li class="mr-2" role="presentation">
+                <button class="inline-block p-4 border-b-2 rounded-t-lg hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300 active-tab-btn" 
+                        id="pr-tab" data-tabs-target="#pr" type="button" role="tab" aria-controls="pr" aria-selected="true">
+                    Purchase Requests
+                </button>
+            </li>
+            <li class="mr-2" role="presentation">
+                <button class="inline-block p-4 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300 inactive-tab-btn" 
+                        id="ad-tab" data-tabs-target="#ad" type="button" role="tab" aria-controls="ad" aria-selected="false">
+                    Activity Designs
+                </button>
+            </li>
+            <li class="mr-2" role="presentation">
+                <button class="inline-block p-4 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300 inactive-tab-btn" 
+                        id="pre-tab" data-tabs-target="#pre" type="button" role="tab" aria-controls="pre" aria-selected="false">
+                    Department PREs
+                </button>
+            </li>
+            <li class="mr-2" role="presentation">
+                <button class="inline-block p-4 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300 inactive-tab-btn" 
+                        id="realignment-tab" data-tabs-target="#realignment" type="button" role="tab" aria-controls="realignment" aria-selected="false">
+                    Realignments
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Tabs Content -->
+    <div id="archiveTabContent">
+        
+        <!-- Purchase Requests Tab -->
+        <div class="hidden p-4 rounded-lg bg-gray-50 dark:bg-gray-800" id="pr" role="tabpanel" aria-labelledby="pr-tab">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-100 dark:bg-gray-700 dark:text-gray-400">
+                        <tr>
+                            <th scope="col" class="px-6 py-3">Reference No</th>
+                            <th scope="col" class="px-6 py-3">Purpose</th>
+                            <th scope="col" class="px-6 py-3">Fiscal Year</th>
+                            <th scope="col" class="px-6 py-3">Archive Type</th>
+                            <th scope="col" class="px-6 py-3">Archived Date</th>
+                            <th scope="col" class="px-6 py-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if archived_prs %}
+                            {% for pr in archived_prs %}
+                            <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
+                                    {{ pr.pr_number|default:"N/A" }}
+                                </td>
+                                <td class="px-6 py-4">{{ pr.purpose|truncatechars:50 }}</td>
+                                <td class="px-6 py-4">{{ pr.budget_allocation.approved_budget.fiscal_year }}</td>
+                                <td class="px-6 py-4">
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full 
+                                        {% if pr.archive_type == 'MANUAL' %}bg-yellow-100 text-yellow-800{% else %}bg-blue-100 text-blue-800{% endif %}">
+                                        {{ pr.get_archive_type_display }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4">{{ pr.archived_at|date:"M d, Y" }}</td>
+                                <td class="px-6 py-4">
+                                    <a href="{% url 'view_pr_detail' pr_id=pr.pk %}" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs">View</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="px-6 py-4 text-center">No archived Purchase Requests found.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Activity Designs Tab -->
+        <div class="hidden p-4 rounded-lg bg-gray-50 dark:bg-gray-800" id="ad" role="tabpanel" aria-labelledby="ad-tab">
+             <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-100 dark:bg-gray-700 dark:text-gray-400">
+                        <tr>
+                            <th scope="col" class="px-6 py-3">Reference No</th>
+                            <th scope="col" class="px-6 py-3">Title</th>
+                            <th scope="col" class="px-6 py-3">Fiscal Year</th>
+                            <th scope="col" class="px-6 py-3">Archive Type</th>
+                            <th scope="col" class="px-6 py-3">Archived Date</th>
+                            <th scope="col" class="px-6 py-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if archived_ads %}
+                            {% for ad in archived_ads %}
+                            <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
+                                    {{ ad.ad_number|default:"N/A" }}
+                                </td>
+                                <td class="px-6 py-4">{{ ad.title|truncatechars:50 }}</td>
+                                <td class="px-6 py-4">{{ ad.budget_allocation.approved_budget.fiscal_year }}</td>
+                                <td class="px-6 py-4">
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full 
+                                        {% if ad.archive_type == 'MANUAL' %}bg-yellow-100 text-yellow-800{% else %}bg-blue-100 text-blue-800{% endif %}">
+                                        {{ ad.get_archive_type_display }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4">{{ ad.archived_at|date:"M d, Y" }}</td>
+                                <td class="px-6 py-4">
+                                    <a href="{% url 'view_ad_detail' ad.pk %}" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs">View</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="px-6 py-4 text-center">No archived Activity Designs found.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- PREs Tab -->
+        <div class="hidden p-4 rounded-lg bg-gray-50 dark:bg-gray-800" id="pre" role="tabpanel" aria-labelledby="pre-tab">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-100 dark:bg-gray-700 dark:text-gray-400">
+                        <tr>
+                            <th scope="col" class="px-6 py-3">PRE ID</th>
+                            <th scope="col" class="px-6 py-3">Office/Dept</th>
+                            <th scope="col" class="px-6 py-3">Fiscal Year</th>
+                            <th scope="col" class="px-6 py-3">Archive Type</th>
+                            <th scope="col" class="px-6 py-3">Archived Date</th>
+                             <th scope="col" class="px-6 py-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if archived_pres %}
+                            {% for pre in archived_pres %}
+                            <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
+                                    PRE-{{ pre.id|truncatechars:10 }}
+                                </td>
+                                <td class="px-6 py-4">{{ pre.department }}</td>
+                                <td class="px-6 py-4">{{ pre.budget_allocation.approved_budget.fiscal_year }}</td>
+                                <td class="px-6 py-4">
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full 
+                                        {% if pre.archive_type == 'MANUAL' %}bg-yellow-100 text-yellow-800{% else %}bg-blue-100 text-blue-800{% endif %}">
+                                        {{ pre.get_archive_type_display }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4">{{ pre.archived_at|date:"M d, Y" }}</td>
+                                <td class="px-6 py-4">
+                                    <a href="{% url 'view_pre_detail' pre.pk %}" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs">View</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="px-6 py-4 text-center">No archived PREs found.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Realignments Tab -->
+        <div class="hidden p-4 rounded-lg bg-gray-50 dark:bg-gray-800" id="realignment" role="tabpanel" aria-labelledby="realignment-tab">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-100 dark:bg-gray-700 dark:text-gray-400">
+                        <tr>
+                            <th scope="col" class="px-6 py-3">Reference</th>
+                            <th scope="col" class="px-6 py-3">Source Item</th>
+                            <th scope="col" class="px-6 py-3">Target Item</th>
+                             <th scope="col" class="px-6 py-3">Amount</th>
+                            <th scope="col" class="px-6 py-3">Archive Type</th>
+                             <th scope="col" class="px-6 py-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if archived_realignments %}
+                            {% for real in archived_realignments %}
+                            <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
+                                    REALIGN-{{ real.pk }}
+                                </td>
+                                <td class="px-6 py-4">{{ real.source_item_display|truncatechars:30 }}</td>
+                                <td class="px-6 py-4">{{ real.target_item_display|truncatechars:30 }}</td>
+                                <td class="px-6 py-4">₱ {{ real.amount|intcomma }}</td>
+                                <td class="px-6 py-4">
+                                     <span class="px-2 py-1 text-xs font-semibold rounded-full 
+                                        {% if real.archive_type == 'MANUAL' %}bg-yellow-100 text-yellow-800{% else %}bg-blue-100 text-blue-800{% endif %}">
+                                        {{ real.get_archive_type_display }}
+                                    </span>
+                                </td>
+                                 <td class="px-6 py-4">
+                                    <!-- Use preview_realignment_documents expecting int pk -->
+                                    <a href="{% url 'preview_realignment_documents' real.pk %}" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs">View</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="px-6 py-4 text-center">No archived Realignments found.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const tabButtons = document.querySelectorAll('[role="tab"]');
+        const tabPanels = document.querySelectorAll('[role="tabpanel"]');
+        
+        // Define active/inactive classes
+        const activeClasses = ['text-blue-600', 'border-blue-600', 'dark:text-blue-500', 'dark:border-blue-500'];
+        const inactiveClasses = ['border-transparent', 'hover:text-gray-600', 'hover:border-gray-300', 'dark:hover:text-gray-300'];
+
+        function switchTab(targetId) {
+            // Hide all panels
+            tabPanels.forEach(panel => {
+               panel.classList.add('hidden');
+            });
+            
+            // Show target panel
+            const targetPanel = document.querySelector(targetId);
+            if(targetPanel) targetPanel.classList.remove('hidden');
+            
+            // Update button states
+            tabButtons.forEach(btn => {
+                const isSelected = btn.getAttribute('data-tabs-target') === targetId;
+                btn.setAttribute('aria-selected', isSelected);
+                
+                if (isSelected) {
+                    btn.classList.add(...activeClasses);
+                    btn.classList.remove(...inactiveClasses);
+                } else {
+                    btn.classList.remove(...activeClasses);
+                    btn.classList.add(...inactiveClasses);
+                }
+            });
+        }
+
+        tabButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const target = btn.getAttribute('data-tabs-target');
+                switchTab(target);
+            });
+        });
+
+        // Initialize first tab
+        if(tabButtons.length > 0) {
+            switchTab(tabButtons[0].getAttribute('data-tabs-target'));
+        }
+    });
+</script>
+{% endblock %}

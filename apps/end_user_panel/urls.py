@@ -42,4 +42,8 @@ urlpatterns = [
     path('realignment/<int:pk>/preview/', views.PreviewRealignmentView.as_view(), name='preview_realignment_documents'),
     path('realignment/<int:pk>/upload-signed/', views.UploadSignedRealignmentDocView.as_view(), name='upload_signed_realignment'),
     path('realignment/history/', views.PREBudgetRealignmentHistoryView.as_view(), name='realignment_history'),
+
+    # Archive Feature
+    path('archive/history/', views.ArchiveHistoryView.as_view(), name='archive_history'),
+    path('archive/<str:resource_type>/<str:pk>/', views.archive_resource, name='archive_resource'),
 ]
