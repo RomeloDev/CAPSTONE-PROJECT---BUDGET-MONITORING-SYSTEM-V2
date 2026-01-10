@@ -36,4 +36,6 @@ urlpatterns = [
     path('realignment/', views.AdminPREBudgetRealignmentListView.as_view(), name='admin_realignment_list'),
     path('realignment/<int:pk>/', views.AdminPREBudgetRealignmentDetailView.as_view(), name='admin_realignment_detail'),
     path('realignment/<int:pk>/action/', views.handle_admin_realignment_action, name='handle_admin_realignment_action'),
+    path('archive-center/', views.ArchiveCenterView.as_view(), name='admin_archive_center'),
+    path('archive-center/restore/<str:model_name>/<str:pk>/', views.restore_archived_resource, name='restore_archived_resource'),
 ]

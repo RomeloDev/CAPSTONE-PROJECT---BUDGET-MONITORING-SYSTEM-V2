@@ -775,15 +775,14 @@ class PREDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
     def test_func(self):
         return self.request.user.is_superuser or self.request.user.is_staff
     def get_queryset(self):
-        # Optimize query to fetch related data in one go
-        return super().get_queryset().select_related(
-            'submitted_by',
-            'budget_allocation',
-            'budget_allocation__approved_budget'
+        return DepartmentPRE.all_objects.select_related(
+            'budget_allocation', 
+            'budget_allocation__approved_budget', 
+            'submitted_by'
         ).prefetch_related(
             'line_items__category',
             'line_items__subcategory',
-            'supporting_documents',      
+            'supporting_documents',
             'signed_approved_documents'
         )
     def get_context_data(self, **kwargs):
@@ -1242,6 +1241,10 @@ class AdminPRDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
     def test_func(self):
         return self.request.user.is_superuser or self.request.user.is_staff
         
+    def get_queryset(self):
+        return PurchaseRequest.all_objects.select_related(
+            'budget_allocation', 'submitted_by'
+        )
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         pr = self.object
@@ -1438,6 +1441,10 @@ class AdminADDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
     template_name = 'admin_panel/view_ad_detail.html'
     context_object_name = 'ad'
     pk_url_kwarg = 'pk' # Matches the <uuid:pk> in urls.py
+
+    def get_queryset(self):
+        return ActivityDesign.all_objects.all()
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         ad = self.object
@@ -1497,6 +1504,11 @@ class AdminPREBudgetRealignmentDetailView(LoginRequiredMixin, UserPassesTestMixi
     model = PREBudgetRealignment
     template_name = 'admin_panel/pre_budget_realignment_detail.html'
     context_object_name = 'realignment'
+    
+    def get_queryset(self):
+        return PREBudgetRealignment.all_objects.select_related(
+            'source_pre', 'requested_by', 'source_pre__budget_allocation__approved_budget'
+        )
     def test_func(self):
         return self.request.user.is_superuser or self.request.user.is_staff
     def get_context_data(self, **kwargs):
@@ -2062,3 +2074,117 @@ def export_admin_realignment_report_pdf(request):
         return response
         
     return HttpResponse("Error Rendering PDF", status=400)
+
+# --- ARCHIVE CENTER ---
+
+class ArchiveCenterView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
+    template_name = 'admin_panel/archive_center.html'
+
+    def test_func(self):
+        return self.request.user.is_superuser or self.request.user.is_staff
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Filter Logic: Year
+        selected_year = self.request.GET.get('year', 'all')
+        
+        # 1. Budgets
+        budgets = ApprovedBudget.all_objects.filter(is_archived=True).order_by('-fiscal_year')
+        if selected_year != 'all':
+            budgets = budgets.filter(fiscal_year=selected_year)
+            
+        # 2. Allocations
+        allocations = BudgetAllocation.all_objects.filter(is_archived=True).select_related('approved_budget').order_by('-approved_budget__fiscal_year')
+        if selected_year != 'all':
+            allocations = allocations.filter(approved_budget__fiscal_year=selected_year)
+
+        # 3. PREs
+        pres = DepartmentPRE.all_objects.filter(is_archived=True).select_related('budget_allocation__approved_budget').order_by('-created_at')
+        if selected_year != 'all':
+            pres = pres.filter(budget_allocation__approved_budget__fiscal_year=selected_year)
+
+        # 4. PRs
+        prs = PurchaseRequest.all_objects.filter(is_archived=True).select_related('budget_allocation__approved_budget').order_by('-created_at')
+        if selected_year != 'all':
+            prs = prs.filter(budget_allocation__approved_budget__fiscal_year=selected_year)
+
+        # 5. ADs
+        ads = ActivityDesign.all_objects.filter(is_archived=True).select_related('budget_allocation__approved_budget').order_by('-created_at')
+        if selected_year != 'all':
+            ads = ads.filter(budget_allocation__approved_budget__fiscal_year=selected_year)
+
+        # 6. Realignments
+        realignments = PREBudgetRealignment.all_objects.filter(is_archived=True).select_related('source_pre__budget_allocation__approved_budget').order_by('-created_at')
+        if selected_year != 'all':
+            realignments = realignments.filter(source_pre__budget_allocation__approved_budget__fiscal_year=selected_year)
+            
+        context.update({
+            'archived_budgets': budgets,
+            'archived_allocations': allocations,
+            'archived_pres': pres,
+            'archived_prs': prs,
+            'archived_ads': ads,
+            'archived_realignments': realignments,
+            'selected_year': selected_year,
+            # Get all available years from archived budgets for the filter
+            'avail_years': ApprovedBudget.all_objects.filter(is_archived=True).values_list('fiscal_year', flat=True).distinct().order_by('-fiscal_year')
+        })
+        return context
+
+@login_required
+@require_POST
+def restore_archived_resource(request, model_name, pk):
+    """
+    Restore a generic archived resource.
+    Security: Only allows restoration if archive_type is 'MANUAL'.
+    """
+    if not (request.user.is_superuser or request.user.is_staff):
+        messages.error(request, "Unauthorized access.")
+        return redirect('admin_archive_center')
+
+    # Map model_name string to actual Model class
+    model_map = {
+        'approvedbudget': ApprovedBudget,
+        'budgetallocation': BudgetAllocation,
+        'departmentpre': DepartmentPRE,
+        'purchaserequest': PurchaseRequest,
+        'activitydesign': ActivityDesign,
+        'prebudgetrealignment': PREBudgetRealignment
+    }
+    
+    ModelClass = model_map.get(model_name.lower())
+    if not ModelClass:
+        messages.error(request, "Invalid resource type.")
+        return redirect('admin_archive_center')
+        
+    try:
+        # Use all_objects to find the archived item
+        obj = ModelClass.all_objects.get(pk=pk)
+        
+        if not obj.is_archived:
+            messages.warning(request, "Item is already restored.")
+        elif obj.archive_type == 'FISCAL_YEAR':
+            messages.error(request, "Cannot restore this item individually because it belongs to an archived Fiscal Year. Please restore the parent Approved Budget instead.")
+        elif obj.archive_type == 'MANUAL':
+            # Perform Restoration
+            obj.is_archived = False
+            obj.archive_type = '' # Clear reason/type
+            obj.save()
+            
+            # Log Activity
+            log_activity(
+                user=request.user,
+                action='RESTORE',
+                model_name=ModelClass._meta.verbose_name,
+                record_id=str(obj.pk),
+                detail=f"Restored archived item: {obj}"
+            )
+            messages.success(request, f"Successfully restored {ModelClass._meta.verbose_name}.")
+        else:
+            messages.error(request, "Unknown archive type. Restoration blocked for safety.")
+            
+    except ModelClass.DoesNotExist:
+        messages.error(request, "Item not found.")
+        
+    return redirect('admin_archive_center')

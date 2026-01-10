@@ -1,0 +1,17 @@
+{% if item.archive_type == 'MANUAL' %}
+<form action="{% url 'restore_archived_resource' model_name item.id %}" method="POST" class="inline" onsubmit="return confirm('Are you sure you want to restore this item?');">
+    {% csrf_token %}
+    <button type="submit" class="text-green-600 hover:text-green-900 text-xs font-semibold focus:outline-none">
+        Restore
+    </button>
+</form>
+{% else %}
+<span class="text-gray-400 text-xs cursor-not-allowed group relative" title="This item was archived as part of a Fiscal Year. Please restore the Approved Budget to restore this item.">
+    Cannot Restore
+    <!-- Tooltip -->
+    <div class="hidden group-hover:block absolute z-50 bg-gray-800 text-white text-xs rounded py-1 px-2 bottom-full left-1/2 -translate-x-1/2 mb-1 w-48 text-center shadow-lg">
+        Restore Parent Fiscal Year Budget instead.
+        <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
+    </div>
+</span>
+{% endif %}

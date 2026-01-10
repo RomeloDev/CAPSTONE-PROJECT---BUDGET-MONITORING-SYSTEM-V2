@@ -191,9 +191,9 @@
             </li>
 
             <li>
-              <a href="#"
+              <a href="{% url "admin_archive_center" %}"
                  class="flex items-center gap-2 px-3 py-2 rounded-md relative group
-                 {% if request.resolver_match.url_name == 'archive_center' %}
+                 {% if request.resolver_match.url_name == 'admin_archive_center' %}
                    bg-blue-600 text-white font-medium
                  {% else %}
                    text-gray-700 hover:bg-blue-600 hover:text-white

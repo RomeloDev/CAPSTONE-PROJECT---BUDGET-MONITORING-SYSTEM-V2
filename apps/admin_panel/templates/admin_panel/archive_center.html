@@ -1,0 +1,324 @@
+{% extends "admin_base_template/dashboard.html" %}
+{% load humanize %}
+
+{% block title %}Archive Center{% endblock %}
+
+{% block main-content %}
+<div class="flex flex-col w-full min-h-screen bg-gray-50">
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                    <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path>
+                    </svg>
+                    Archive Center
+                </h1>
+                <p class="text-sm text-gray-500 mt-1">Manage and restore archived resources</p>
+            </div>
+            
+            <!-- Fiscal Year Filter -->
+            <form method="GET" class="flex items-center gap-2">
+                <label for="year" class="text-sm font-medium text-gray-700">Filter by Year:</label>
+                <select name="year" id="year" onchange="this.form.submit()" 
+                        class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    <option value="all" {% if selected_year == 'all' %}selected{% endif %}>All Years</option>
+                    {% for year in avail_years %}
+                        <option value="{{ year }}" {% if selected_year == year %}selected{% endif %}>{{ year }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 px-6 py-6">
+        
+        <!-- Tabs -->
+        <div class="mb-6 border-b border-gray-200">
+            <ul class="flex flex-wrap -mb-px text-sm font-medium text-center" id="archiveTabs" data-tabs-toggle="#archiveTabContent" role="tablist">
+                <li class="mr-2" role="presentation">
+                    <button class="inline-block p-4 border-b-2 rounded-t-lg hover:text-gray-600 hover:border-gray-300" id="budgets-tab" data-tabs-target="#budgets" type="button" role="tab" aria-controls="budgets" aria-selected="false">Approved Budgets ({{ archived_budgets.count }})</button>
+                </li>
+                <li class="mr-2" role="presentation">
+                    <button class="inline-block p-4 border-b-2 rounded-t-lg hover:text-gray-600 hover:border-gray-300" id="allocations-tab" data-tabs-target="#allocations" type="button" role="tab" aria-controls="allocations" aria-selected="false">Allocations ({{ archived_allocations.count }})</button>
+                </li>
+                <li class="mr-2" role="presentation">
+                    <button class="inline-block p-4 border-b-2 rounded-t-lg hover:text-gray-600 hover:border-gray-300" id="pres-tab" data-tabs-target="#pres" type="button" role="tab" aria-controls="pres" aria-selected="false">Department PREs ({{ archived_pres.count }})</button>
+                </li>
+                <li class="mr-2" role="presentation">
+                    <button class="inline-block p-4 border-b-2 rounded-t-lg hover:text-gray-600 hover:border-gray-300" id="prs-tab" data-tabs-target="#prs" type="button" role="tab" aria-controls="prs" aria-selected="false">Purchase Requests ({{ archived_prs.count }})</button>
+                </li>
+                 <li class="mr-2" role="presentation">
+                    <button class="inline-block p-4 border-b-2 rounded-t-lg hover:text-gray-600 hover:border-gray-300" id="ads-tab" data-tabs-target="#ads" type="button" role="tab" aria-controls="ads" aria-selected="false">Activity Designs ({{ archived_ads.count }})</button>
+                </li>
+                 <li class="mr-2" role="presentation">
+                    <button class="inline-block p-4 border-b-2 rounded-t-lg hover:text-gray-600 hover:border-gray-300" id="realign-tab" data-tabs-target="#realign" type="button" role="tab" aria-controls="realign" aria-selected="false">Realignments ({{ archived_realignments.count }})</button>
+                </li>
+            </ul>
+        </div>
+
+        <div id="archiveTabContent">
+            
+            <!-- BUDGETS TAB -->
+            <div class="hidden p-4 rounded-lg bg-gray-50" id="budgets" role="tabpanel" aria-labelledby="budgets-tab">
+                 <div class="bg-white shadow rounded-lg overflow-hidden">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fiscal Year</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Archived At</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {% for item in archived_budgets %}
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ item.fiscal_year }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.title }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.archived_at|date:"M d, Y H:i" }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {% if item.archive_type == 'MANUAL' %}bg-green-100 text-green-800{% else %}bg-purple-100 text-purple-800{% endif %}">
+                                        {{ item.archive_type }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                   {% include "admin_panel/partials/restore_button.html" with item=item model_name="approvedbudget" %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="5" class="px-6 py-4 text-center text-gray-500 italic">No archived budgets found.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ALLOCATIONS TAB -->
+            <div class="hidden p-4 rounded-lg bg-gray-50" id="allocations" role="tabpanel" aria-labelledby="allocations-tab">
+                <div class="bg-white shadow rounded-lg overflow-hidden">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Budget Source</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {% for item in archived_allocations %}
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ item.department }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.approved_budget.title }} ({{ item.approved_budget.fiscal_year }})</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">₱{{ item.allocated_amount|intcomma }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {% if item.archive_type == 'MANUAL' %}bg-green-100 text-green-800{% else %}bg-purple-100 text-purple-800{% endif %}">
+                                        {{ item.archive_type }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                     {% include "admin_panel/partials/restore_button.html" with item=item model_name="budgetallocation" %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="5" class="px-6 py-4 text-center text-gray-500 italic">No archived allocations found.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+             <!-- PREs TAB -->
+            <div class="hidden p-4 rounded-lg bg-gray-50" id="pres" role="tabpanel" aria-labelledby="pres-tab">
+                 <div class="bg-white shadow rounded-lg overflow-hidden">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PRE ID</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                         <tbody class="bg-white divide-y divide-gray-200">
+                            {% for item in archived_pres %}
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">PRE-{{ item.id|truncatechars:10 }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.department }}</td>
+                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.created_at|date:"M d, Y" }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {% if item.archive_type == 'MANUAL' %}bg-green-100 text-green-800{% else %}bg-purple-100 text-purple-800{% endif %}">
+                                        {{ item.archive_type }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {% include "admin_panel/partials/restore_button.html" with item=item model_name="departmentpre" %}
+                                    <a href="{% url 'admin_pre_detail' item.id %}" target="_blank" class="ml-2 text-blue-600 hover:text-blue-900 text-xs">View</a>
+                                </td>
+                            </tr>
+                             {% empty %}
+                            <tr><td colspan="5" class="px-6 py-4 text-center text-gray-500 italic">No archived PREs found.</td></tr>
+                            {% endfor %}
+                         </tbody>
+                    </table>
+                 </div>
+            </div>
+
+            <!-- PRs TAB -->
+             <div class="hidden p-4 rounded-lg bg-gray-50" id="prs" role="tabpanel" aria-labelledby="prs-tab">
+                 <div class="bg-white shadow rounded-lg overflow-hidden">
+                    <table class="min-w-full divide-y divide-gray-200">
+                         <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PR Number</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Purpose</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                         <tbody class="bg-white divide-y divide-gray-200">
+                            {% for item in archived_prs %}
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ item.pr_number }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.purpose|truncatechars:30 }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">₱{{ item.total_amount|intcomma }}</td>
+                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {% if item.archive_type == 'MANUAL' %}bg-green-100 text-green-800{% else %}bg-purple-100 text-purple-800{% endif %}">
+                                        {{ item.archive_type }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {% include "admin_panel/partials/restore_button.html" with item=item model_name="purchaserequest" %}
+                                    <a href="{% url 'admin_pr_detail' item.id %}" target="_blank" class="ml-2 text-blue-600 hover:text-blue-900 text-xs">View</a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="5" class="px-6 py-4 text-center text-gray-500 italic">No archived PRs found.</td></tr>
+                            {% endfor %}
+                         </tbody>
+                    </table>
+                 </div>
+             </div>
+
+              <!-- ADs TAB -->
+             <div class="hidden p-4 rounded-lg bg-gray-50" id="ads" role="tabpanel" aria-labelledby="ads-tab">
+                 <div class="bg-white shadow rounded-lg overflow-hidden">
+                    <table class="min-w-full divide-y divide-gray-200">
+                         <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">AD Number</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Submitted By</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                         <tbody class="bg-white divide-y divide-gray-200">
+                            {% for item in archived_ads %}
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ item.ad_number }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.submitted_by|truncatechars:30 }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">₱{{ item.total_amount|intcomma }}</td>
+                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {% if item.archive_type == 'MANUAL' %}bg-green-100 text-green-800{% else %}bg-purple-100 text-purple-800{% endif %}">
+                                        {{ item.archive_type }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {% include "admin_panel/partials/restore_button.html" with item=item model_name="activitydesign" %}
+                                    <a href="{% url 'admin_preview_ad' item.id %}" target="_blank" class="ml-2 text-blue-600 hover:text-blue-900 text-xs">View</a>
+                                </td>
+                            </tr>
+                             {% empty %}
+                            <tr><td colspan="5" class="px-6 py-4 text-center text-gray-500 italic">No archived Activity Designs found.</td></tr>
+                            {% endfor %}
+                         </tbody>
+                    </table>
+                 </div>
+             </div>
+             
+              <!-- Realignments TAB -->
+             <div class="hidden p-4 rounded-lg bg-gray-50" id="realign" role="tabpanel" aria-labelledby="realign-tab">
+                 <div class="bg-white shadow rounded-lg overflow-hidden">
+                    <table class="min-w-full divide-y divide-gray-200">
+                         <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Req By</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source -> Target</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                         <tbody class="bg-white divide-y divide-gray-200">
+                            {% for item in archived_realignments %}
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ item.requested_by.get_full_name }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ item.source_item_display }} -> {{ item.target_item_display }}
+                                </td>
+                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {% if item.archive_type == 'MANUAL' %}bg-green-100 text-green-800{% else %}bg-purple-100 text-purple-800{% endif %}">
+                                        {{ item.archive_type }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {% include "admin_panel/partials/restore_button.html" with item=item model_name="prebudgetrealignment" %}
+                                     <a href="{% url 'admin_realignment_detail' item.id %}" target="_blank" class="ml-2 text-blue-600 hover:text-blue-900 text-xs">View</a>
+                                </td>
+                            </tr>
+                             {% empty %}
+                            <tr><td colspan="4" class="px-6 py-4 text-center text-gray-500 italic">No archived Realignments found.</td></tr>
+                            {% endfor %}
+                         </tbody>
+                    </table>
+                 </div>
+             </div>
+
+        </div>
+    </main>
+</div>
+
+<script>
+    // Simple Tab Switching Logic
+    document.addEventListener('DOMContentLoaded', function() {
+        const tabs = document.querySelectorAll('[role="tab"]');
+        const panels = document.querySelectorAll('[role="tabpanel"]');
+        
+        // Show first tab by default
+        if(tabs.length > 0) {
+             tabs[0].classList.add('text-blue-600', 'border-blue-600');
+             document.querySelector(tabs[0].dataset.tabsTarget).classList.remove('hidden');
+        }
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Reset all tabs
+                tabs.forEach(t => {
+                    t.classList.remove('text-blue-600', 'border-blue-600');
+                    t.classList.add('hover:text-gray-600', 'hover:border-gray-300');
+                    t.setAttribute('aria-selected', 'false');
+                });
+                
+                // Reset all panels
+                panels.forEach(p => p.classList.add('hidden'));
+                
+                // Activate clicked tab
+                tab.classList.remove('hover:text-gray-600', 'hover:border-gray-300');
+                tab.classList.add('text-blue-600', 'border-blue-600');
+                tab.setAttribute('aria-selected', 'true');
+                
+                // Show target panel
+                const target = document.querySelector(tab.dataset.tabsTarget);
+                target.classList.remove('hidden');
+            });
+        });
+    });
+</script>
+{% endblock %}
