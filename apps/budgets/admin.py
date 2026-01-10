@@ -14,6 +14,10 @@ class ApprovedBudgetAdmin(admin.ModelAdmin):
     search_fields = ['title', 'fiscal_year']
     actions = ['archive_selected_fiscal_years', 'restore_selected_fiscal_years']
 
+    def get_queryset(self, request):
+        """Show all budgets including archived ones"""
+        return self.model.all_objects.get_queryset()
+
     @admin.action(description='Archive Selected Fiscal Years (Deep Archive)')
     def archive_selected_fiscal_years(self, request, queryset):
         success_count = 0

@@ -489,8 +489,8 @@ class ViewPREDetailView(LoginRequiredMixin, View):
         # It relies on the pre-existing logic in `PRELineItem.get_quarter_breakdown(quarter)`.
         line_items_with_breakdown = []
         
-        # Determine if we should show breakdown (only if approved/active)
-        if pre.status == 'Approved': 
+        # Determine if we should show breakdown (only if approved/active OR archived)
+        if pre.status == 'Approved' or pre.is_archived: 
              for item in pre.line_items.all():
                 item_data = {
                     'item': item,
