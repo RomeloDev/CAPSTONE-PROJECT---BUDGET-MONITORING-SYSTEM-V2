@@ -789,7 +789,7 @@ class AuditTrailListView(LoginRequiredMixin, ListView):
         if context['active_tab'] == 'activity':
             context['action_choices'] = AuditTrail.ACTION_CHOICES
         else:
-            context['transaction_types'] = BudgetTransaction.TRANSACTION_TYPES
+            context['transaction_types'] = BudgetTransaction.transaction_type.field.choices
             
         return context
     

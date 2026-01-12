@@ -41,20 +41,20 @@ class EndUserLoginView(LoginView):
         
         return reverse_lazy('user_dashboard')
 
-def logout_view(self, request):
+def logout_view(request):
     """
     Custom logout view to handle GET requests (deprecated in Django 5.0+ default LogoutView).
     """
-    logout(request)
-    
     log_activity(
-            user=self.request.user,
-            action='LOGOUT',
-            detail=f"End User {self.request.user} has been logout successfully.",
-            model_name='User',
-            record_id=self.request.user.pk,
-            request=self.request
-        )
+        user=request.user,
+        action='LOGOUT',
+        detail=f"End User {request.user} has been logout successfully.",
+        model_name='User',
+        record_id=request.user.pk,
+        request=request
+    )
+    
+    logout(request)
     
     # Redirect to admin login if the user was on the admin side (simple heuristic)
     if 'admin' in request.path:
