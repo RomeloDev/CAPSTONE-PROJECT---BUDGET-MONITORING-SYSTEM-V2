@@ -32,6 +32,7 @@ import json
 from django.views.decorators.http import require_POST
 from apps.admin_panel.utils import log_activity
 from django.db import transaction
+from apps.budgets.utils import log_budget_transaction
 
 class AdminDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     """Dashboard for Budget Officers/Admins"""
@@ -272,6 +273,14 @@ class ApprovedBudgetListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
                     file_name=f.name
                 )
                 
+            log_activity(
+                user=request.user,
+                action='EDIT_APPROVED_BUDGET',
+                detail=f'Edited Approved Budget ID {budget.id}',
+                model_name='ApprovedBudget',
+                record_id=budget.id
+            )
+                
             messages.success(request, 'Budget updated successfully!')
             return redirect('approved_budget')
         
@@ -303,6 +312,14 @@ class ApprovedBudgetListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
                             file_name=f.name, # Model auto-populates format/size in save()
                             description="Initial supporting document"
                         )
+                        
+                    log_activity(
+                        user=request.user,
+                        action='CREATE_APPROVED_BUDGET',
+                        detail=f'Created Approved Budget ID {budget.id}',
+                        model_name='ApprovedBudget',
+                        record_id=budget.id
+                    )
                     
                     messages.success(request, f'Approved Budget "{budget.title}" added successfully with {len(files)} document(s)!')
                     return redirect('approved_budget')
@@ -428,6 +445,23 @@ class BudgetAllocationListView(ListView):
                 approved_budget.remaining_budget -= allocation.allocated_amount
                 approved_budget.save()
                 
+                log_activity(
+                    user=request.user,
+                    action='Budget Allocated',
+                    detail=f"Allocated {allocation.allocated_amount} to {allocation.end_user.get_full_name()}",
+                    model_name='BudgetAllocation',
+                    record_id=allocation.id
+                )
+                
+                log_budget_transaction(
+                    allocation=allocation,
+                    amount=allocation.allocated_amount, # Positive initial value
+                    transaction_type='Initial Allocation',
+                    user=request.user,
+                    remarks='Initial budget creation',
+                    update_allocation=False # Already saved above
+                )
+                
                 messages.success(request, "Budget allocated successfully.")
             except Exception as e:
                 messages.error(request, f"Error saving allocation: {e}")
@@ -461,6 +495,23 @@ class BudgetAllocationListView(ListView):
                 allocation = form.save(commit=False)
                 allocation.remaining_balance = new_amount - allocation.get_total_used()
                 allocation.save()
+                
+                log_activity(
+                    user=request.user,
+                    action='Budget Allocation Updated',
+                    detail=f"Updated {allocation.allocated_amount} to {allocation.end_user.get_full_name()}",
+                    model_name='BudgetAllocation',
+                    record_id=allocation.id
+                )
+                
+                log_budget_transaction(
+                    allocation=allocation,
+                    amount=difference, # Can be positive or negative
+                    transaction_type='Manual Adjustment',
+                    user=request.user,
+                    remarks='Admin edited budget amount',
+                    update_allocation=True # This will apply the new amount to the model
+                )
                 
                 messages.success(request, "Budget allocation updated successfully.")
             except Exception as e:
@@ -575,6 +626,15 @@ class ClientAccountsListView(ListView):
             form = CustomUserCreationForm(request.POST)
             if form.is_valid():
                 form.save()
+                
+                log_activity(
+                    user=request.user,
+                    action='CREATE_USER',
+                    detail=f"Created user {form.instance.get_full_name()}",
+                    model_name='User',
+                    record_id=form.instance.id,
+                )
+                
                 messages.success(request, "User created successfully.")
             else:
                 for error in form.errors.values():
@@ -586,6 +646,15 @@ class ClientAccountsListView(ListView):
             form = CustomUserEditForm(request.POST, instance=user)
             if form.is_valid():
                 form.save()
+                
+                log_activity(
+                    user=request.user,
+                    action='UPDATE_USER',
+                    detail=f"Updated user {form.instance.get_full_name()}",
+                    model_name='User',
+                    record_id=form.instance.id,
+                )
+                
                 messages.success(request, "User updated successfully.")
             else:
                 messages.error(request, "Error updating user.")
@@ -636,10 +705,28 @@ def bulk_user_action(request):
         
         if action == 'activate':
             users.update(is_active=True)
+            
+            log_activity(
+                user=request.user,
+                action='ACTIVATE_USER',
+                detail=f"Activated {users.count()} users",
+                model_name='User',
+                record_id=None,
+            )
+            
             message = f"{users.count()} users activated."
         elif action == 'deactivate':
             # Prevent self-deactivation if ID in list
             users.exclude(id=request.user.id).update(is_active=False)
+            
+            log_activity(
+                user=request.user,
+                action='DEACTIVATE_USER',
+                detail=f"Deactivated {users.count()} users",
+                model_name='User',
+                record_id=None,
+            )
+            
             message = f"{users.count()} users deactivated."
         else:
             return JsonResponse({'success': False, 'message': 'Invalid action.'})
@@ -859,6 +946,14 @@ def admin_handle_pre_action(request, pre_id):
                 object_id=pre.id
             )
             
+            log_activity(
+                user=request.user,
+                action='PARTIALLY_APPROVE_PRE',
+                detail=f'PRE {str(pre.id)[:8]} has been partially approved.',
+                model_name='DepartmentPRE',
+                record_id=pre.id
+            )
+            
             messages.success(request, f'PRE {str(pre.id)[:8]} has been partially approved.')
         else:
             messages.warning(request, 'This PRE cannot be approved in its current status.')
@@ -886,6 +981,14 @@ def admin_handle_pre_action(request, pre_id):
                 message=f'Your PRE for {department_name} has been rejected. Reason: {reason}',
                 content_type='pre',
                 object_id=pre.id
+            )
+            
+            log_activity(
+                user=request.user,
+                action='REJECTED',
+                detail=f'PRE {str(pre.id)[:8]} has been rejected. Reason: {reason}',
+                model_name='DepartmentPRE',
+                record_id=pre.id
             )
             
             messages.success(request, 'PRE has been rejected.')
@@ -932,6 +1035,15 @@ def admin_verify_and_approve_pre(request, pre_id):
             content_type='pre',
             object_id=pre.id
         )
+        
+        log_activity(
+            user=request.user,
+            action='FULLY_APPROVED',
+            detail=f'PRE {str(pre.id)[:8]} has been fully approved after verification.',
+            model_name='DepartmentPRE',
+            record_id=pre.id
+        )
+        
         messages.success(request, 'PRE verified and fully approved!')
     elif action == 'reject':
         # Revert to Partially Approved, require re-upload
@@ -957,6 +1069,15 @@ def admin_verify_and_approve_pre(request, pre_id):
             content_type='pre',
             object_id=pre.id
         )
+        
+        log_activity(
+            user=request.user,
+            action='VERIFICATION_REJECTED',
+            detail=f'PRE {str(pre.id)[:8]} verification rejected. Re-upload required.',
+            model_name='DepartmentPRE',
+            record_id=pre.id
+        )
+        
         messages.warning(request, 'Verification rejected. User has been notified to re-upload.')
     return redirect('admin_pre_detail', pk=pre.id)
 
@@ -981,6 +1102,14 @@ def admin_upload_approved_document(request, pre_id):
                 approved_by=request.user,
                 approval_level='final',
                 comments='Admin manually uploaded signed document.'
+            )
+            
+            log_activity(
+                user=request.user,
+                action='MANUALLY_UPLOADED',
+                detail=f'Admin manually uploaded signed document for PRE {str(pre.id)[:8]}',
+                model_name='DepartmentPRE',
+                record_id=pre.id
             )
             
             messages.success(request, 'Document uploaded and PRE fully approved.')
@@ -1082,66 +1211,66 @@ def admin_upload_approved_document(request, pre_id):
 #     return redirect('admin_pr_list')
 
 
-class BudgetAllocationListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
-    model = BudgetAllocation
-    template_name = 'admin_panel/budget_allocation.html'
-    context_object_name = 'allocations'
-    paginate_by = 10
+# class BudgetAllocationListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+#     model = BudgetAllocation
+#     template_name = 'admin_panel/budget_allocation.html'
+#     context_object_name = 'allocations'
+#     paginate_by = 10
 
-    def test_func(self):
-        return self.request.user.is_superuser or self.request.user.is_staff
+#     def test_func(self):
+#         return self.request.user.is_superuser or self.request.user.is_staff
 
-    def get_queryset(self):
-        queryset = BudgetAllocation.objects.select_related('approved_budget', 'end_user').order_by('-allocated_at')
+#     def get_queryset(self):
+#         queryset = BudgetAllocation.objects.select_related('approved_budget', 'end_user').order_by('-allocated_at')
         
-        # Filter by Fiscal Year
-        fiscal_year = self.request.GET.get('fiscal_year')
-        if fiscal_year and fiscal_year != 'all':
-            queryset = queryset.filter(approved_budget__fiscal_year=fiscal_year)
+#         # Filter by Fiscal Year
+#         fiscal_year = self.request.GET.get('fiscal_year')
+#         if fiscal_year and fiscal_year != 'all':
+#             queryset = queryset.filter(approved_budget__fiscal_year=fiscal_year)
             
-        return queryset
+#         return queryset
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
+#     def get_context_data(self, **kwargs):
+#         context = super().get_context_data(**kwargs)
         
-        # Fiscal Year Logic
-        selected_year = self.request.GET.get('fiscal_year', 'all')
-        # Get all unique fiscal years from ApprovedBudget
-        fiscal_years = ApprovedBudget.objects.values_list('fiscal_year', flat=True).distinct().order_by('-fiscal_year')
+#         # Fiscal Year Logic
+#         selected_year = self.request.GET.get('fiscal_year', 'all')
+#         # Get all unique fiscal years from ApprovedBudget
+#         fiscal_years = ApprovedBudget.objects.values_list('fiscal_year', flat=True).distinct().order_by('-fiscal_year')
         
-        # Calculate Totals based on filtered queryset (or base if no filter)
-        # Note: self.object_list contains the filtered queryset
-        allocations = self.object_list
+#         # Calculate Totals based on filtered queryset (or base if no filter)
+#         # Note: self.object_list contains the filtered queryset
+#         allocations = self.object_list
         
-        total_allocated = allocations.aggregate(total=Sum('allocated_amount'))['total'] or 0
+#         total_allocated = allocations.aggregate(total=Sum('allocated_amount'))['total'] or 0
         
-        # Total Remaining (sum of remaining balances of allocations)
-        total_remaining = allocations.aggregate(total=Sum('remaining_balance'))['total'] or 0
+#         # Total Remaining (sum of remaining balances of allocations)
+#         total_remaining = allocations.aggregate(total=Sum('remaining_balance'))['total'] or 0
         
-        # Utilization Rate (Total Used / Total Allocated)
-        total_used = sum(a.get_total_used() for a in allocations)
-        utilization_rate = 0
-        if total_allocated > 0:
-            utilization_rate = (total_used / total_allocated) * 100
+#         # Utilization Rate (Total Used / Total Allocated)
+#         total_used = sum(a.get_total_used() for a in allocations)
+#         utilization_rate = 0
+#         if total_allocated > 0:
+#             utilization_rate = (total_used / total_allocated) * 100
             
-        context['approved_budgets'] = ApprovedBudget.objects.filter(is_active=True, remaining_budget__gt=0)
-        context['mfos'] = User.objects.values_list('mfo', flat=True).distinct()
+#         context['approved_budgets'] = ApprovedBudget.objects.filter(is_active=True, remaining_budget__gt=0)
+#         context['mfos'] = User.objects.values_list('mfo', flat=True).distinct()
         
-        context['total_allocated'] = total_allocated
-        context['total_remaining'] = total_remaining
-        context['total_departments'] = allocations.values('department').distinct().count()
-        context['utilization_rate'] = utilization_rate
-        context['fiscal_years'] = fiscal_years
-        context['selected_year'] = selected_year
+#         context['total_allocated'] = total_allocated
+#         context['total_remaining'] = total_remaining
+#         context['total_departments'] = allocations.values('department').distinct().count()
+#         context['utilization_rate'] = utilization_rate
+#         context['fiscal_years'] = fiscal_years
+#         context['selected_year'] = selected_year
         
-        return context
+#         return context
 
-    def post(self, request, *args, **kwargs):
-        context = super().get_context_data(**kwargs)
+#     def post(self, request, *args, **kwargs):
+#         context = super().get_context_data(**kwargs)
         
-        # Base Queryset for Stats
-        stats_qs = PurchaseRequest.objects.all()
-        year = self.request.GET.get('summary_year')
+#         # Base Queryset for Stats
+#         stats_qs = PurchaseRequest.objects.all()
+#         year = self.request.GET.get('summary_year')
 
 
 class AdminPRListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
@@ -1215,12 +1344,29 @@ def handle_pr_action(request, pr_id):
         if pr.status == 'Pending':
             pr.status = 'Partially Approved'
             pr.save()
+            
+            log_activity(
+                user=request.user,
+                action='PARTIALLY_APPROVED_PR',
+                detail=f'PR {pr.pr_number} has been Partially Approved status.',
+                model_name='PurchaseRequest',
+                model_id=pr.id,
+            )
+            
             messages.success(request, f"PR {pr.pr_number} successfully approved! It is now 'Partially Approved'.")
         
-        elif pr.status == 'Awaiting Admin Verification':
-            pr.status = 'Approved'
-            pr.save()
-            messages.success(request, f"PR {pr.pr_number} has been fully APPROVED.")
+        # elif pr.status == 'Awaiting Admin Verification':
+        #     pr.status = 'Approved'
+        #     pr.save()
+            
+        #     log_activity(
+        #         user=request.user,
+        #         action='FULLY_APPROVED_PR',
+        #         detail=f'PR {pr.pr_number} has been fully Approved.',
+        #         model_name='PurchaseRequest',
+        #         model_id=pr.id,
+        #     )
+        #     messages.success(request, f"PR {pr.pr_number} has been fully APPROVED.")
             
         else:
              messages.warning(request, f"PR {pr.pr_number} cannot be approved from its current status: {pr.status}")
@@ -1228,6 +1374,15 @@ def handle_pr_action(request, pr_id):
     elif action == 'reject':
         pr.status = 'Rejected'
         pr.save()
+        
+        log_activity(
+            user=request.user,
+            action='REJECTED_PR',
+            detail=f'PR {pr.pr_number} has been Rejected.',
+            model_name='PurchaseRequest',
+            model_id=pr.id,
+        )
+        
         messages.error(request, f"PR {pr.pr_number} has been rejected.")
         
     return redirect('admin_pr_list')
@@ -1290,6 +1445,24 @@ def admin_verify_and_approve_pr(request, pr_id):
         # Update Budget Allocation Usage
         pr.update_budget_usage()
         
+        log_activity(
+            user=request.user,
+            action='FULLY_APPROVED_PR',
+            detail=f'PR {pr.pr_number} has been fully Approved.',
+            model_name='PurchaseRequest',
+            model_id=pr.id,
+        )
+        
+        if pr.budget_allocation:
+            log_budget_transaction(
+                allocation=pr.budget_allocation,
+                amount=-pr.total_amount, # Negative for Expense
+                transaction_type='Expense - PR',
+                user=request.user,
+                remarks=f'Approved PR-{pr.pr_number}',
+                update_allocation=False # Usage is already updated by pr.update_budget_usage()
+            )
+        
         messages.success(request, f"PR {pr.pr_number} has been verified and fully APPROVED.")
         
     elif action == 'reject':
@@ -1301,6 +1474,14 @@ def admin_verify_and_approve_pr(request, pr_id):
         pr.status = 'Partially Approved' 
         # pr.admin_notes = f"Verification Rejected: {reason}" # Optional
         pr.save()
+        
+        log_activity(
+            user=request.user,
+            action='REJECTED_PR',
+            detail=f'PR {pr.pr_number} has been Rejected.',
+            model_name='PurchaseRequest',
+            model_id=pr.id,
+        )
         
         messages.warning(request, f"Verification rejected. PR returned to user for correction. Reason: {reason}")
         
@@ -1392,6 +1573,15 @@ class HandleADRequestView(LoginRequiredMixin, UserPassesTestMixin, View):
                     ad.partially_approved_at = timezone.now()
                     ad.save()
                     
+                    # Log for Audit Trail
+                    log_activity(
+                        user=request.user,
+                        action='PARTIALLY_APPROVED_AD',
+                        detail=f'AD-{ad.ad_number} has been Partially Approved.',
+                        model_name='ActivityDesign',
+                        record_id=ad.id
+                    )
+                    
                     messages.success(request, f"AD-{ad.ad_number} Partially Approved. Waiting for signed docs.")
                 elif action == 'approve_final':
                     # 1. Lock the allocation row so no other request can touch it yet (Isolation)
@@ -1412,6 +1602,25 @@ class HandleADRequestView(LoginRequiredMixin, UserPassesTestMixin, View):
                     allocation.ad_amount_used = F('ad_amount_used') + ad.total_amount
                     allocation.save()
                     
+                    # Log for Audit Trail
+                    log_activity(
+                        user=request.user,
+                        action='FULLY_APPROVED_AD',
+                        detail=f'AD-{ad.ad_number} has been fully Approved.',
+                        model_name='ActivityDesign',
+                        record_id=ad.id
+                    )
+                    
+                    # Log for Budget Changes
+                    log_budget_transaction(
+                        allocation=ad.budget_allocation,
+                        amount=-ad.total_amount, # Negative for Expense
+                        transaction_type='Expense - AD',
+                        user=request.user,
+                        remarks=f'Approved AD-{ad.ad_number}',
+                        update_allocation=False # Do NOT change the Total Allocated Amount
+                    )
+                    
                     messages.success(request, f"AD-{ad.ad_number} Fully Approved!")
                 elif action == 'reject':
                     ad.status = 'Rejected'
@@ -1420,6 +1629,14 @@ class HandleADRequestView(LoginRequiredMixin, UserPassesTestMixin, View):
                     # If budget was reserved, clear it? 
                     # AD allocations usually sum up dynamically, so changing status to Rejected might be enough
                     # if your Budget Allocation logic excludes Rejected ads.
+                    
+                    log_activity(
+                        user=request.user,
+                        action='REJECTED_AD',
+                        detail=f'AD-{ad.ad_number} has been Rejected.',
+                        model_name='ActivityDesign',
+                        record_id=ad.id
+                    )
                     messages.warning(request, f"AD-{ad.ad_number} Rejected.")
                     
         except Exception as e:
@@ -1540,6 +1757,15 @@ def handle_admin_realignment_action(request, pk):
                     realignment.partial_approved_by = request.user
                     realignment.partially_approved_at = timezone.now()
                     realignment.save()
+                    
+                    log_activity(
+                        user=request.user,
+                        action='PARTIALLY_APPROVED_REALIGNMENT',
+                        detail=f'Partial approval of request #{pk}',
+                        model_name='PREBudgetRealignment',
+                        record_id=realignment.id
+                    )
+                    
                     messages.success(request, f"Request #{pk} Partially Approved.")
                 elif action == 'final_approve':
                     # 1. Fetch Source and Target Lines
@@ -1612,6 +1838,14 @@ def handle_admin_realignment_action(request, pk):
                     realignment.final_approved_at = timezone.now()
                     realignment.save()
                     
+                    log_activity(
+                        user=request.user,
+                        action='APPROVED_REALIGNMENT',
+                        detail=f'Final approval of request #{pk}',
+                        model_name='PREBudgetRealignment',
+                        record_id=realignment.id
+                    )
+                    
                     messages.success(request, f"Request #{pk} Fully Approved and Budget Transferred.")
                     
                 elif action == 'reject':
@@ -1619,6 +1853,15 @@ def handle_admin_realignment_action(request, pk):
                     realignment.status = 'Rejected'
                     realignment.rejection_reason = reason
                     realignment.save()
+                    
+                    log_activity(
+                        user=request.user,
+                        action='REJECTED_REALIGNMENT',  
+                        detail=f'Rejected request #{pk}',
+                        model_name='PREBudgetRealignment',
+                        record_id=realignment.id
+                    )
+                    
                     messages.warning(request, f"Request #{pk} Rejected.")
         except Exception as e:
             messages.error(request, f"Error: {str(e)}")

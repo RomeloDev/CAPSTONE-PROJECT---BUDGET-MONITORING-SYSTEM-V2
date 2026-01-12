@@ -55,6 +55,8 @@ from datetime import datetime
 from django.core.paginator import Paginator
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST
+from apps.admin_panel.utils import log_activity
+from apps.budgets.utils import log_budget_transaction
 
 class EndUserDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     """Dashboard for regular staff/end users"""
@@ -269,6 +271,15 @@ class UploadPREView(LoginRequiredMixin, View):
                 draft.uploaded_excel_file = request.FILES['pre_document']
                 draft.pre_filename = request.FILES['pre_document'].name
                 draft.save()
+                
+                log_activity(
+                    user=request.user,
+                    action='UPLOAD_DRAFT',
+                    detail=f'Uploaded {draft.pre_filename} PRE Excel Draft',
+                    model_name='PREDraft',
+                    record_id=draft.id
+                )
+                
                 messages.success(request, 'PRE Excel file uploaded successfully.')
             else:
                 messages.error(request, 'No file selected.')
@@ -282,6 +293,15 @@ class UploadPREView(LoginRequiredMixin, View):
                         file_name=f.name,
                         file_size=f.size
                     )
+                    
+                    log_activity(
+                        user=request.user,
+                        action='UPLOAD_DRAFT',
+                        detail=f'Uploaded {f.name} Supporting Document',
+                        model_name='PREDraftSupportingDocument',
+                        record_id=f.id
+                    )
+                    
                 messages.success(request, f'{len(files)} supporting document(s) uploaded.')
             else:
                 messages.error(request, 'No supporting documents selected.')
@@ -289,9 +309,27 @@ class UploadPREView(LoginRequiredMixin, View):
             doc_id = request.POST.get('doc_id')
             doc = get_object_or_404(PREDraftSupportingDocument, id=doc_id, draft=draft)
             doc.delete()
+            
+            log_activity(
+                user=request.user,
+                action='REMOVE_DRAFT',
+                detail=f'Removed {doc.file_name} Supporting Document',
+                model_name='PREDraftSupportingDocument',
+                record_id=doc.id
+            )
+            
             messages.info(request, 'Document removed.')
         elif action == 'clear_draft':
             draft.delete() # Or clear fields if you prefer not to delete the object
+            
+            log_activity(
+                user=request.user,
+                action='CLEAR_DRAFT',
+                detail=f'Cleared {draft.pre_filename} PRE Excel Draft',
+                model_name='PREDraft',
+                record_id=draft.id
+            )
+            
             messages.warning(request, 'Draft cleared.')
             return redirect('department_pre_page')
         elif action == 'continue':
@@ -403,6 +441,15 @@ class PreviewPREView(LoginRequiredMixin, UserPassesTestMixin, View):
                     
                     # Clear session
                     del request.session['pre_preview_data']
+                    
+                    log_activity(
+                        user=request.user,
+                        action='SUBMIT_PRE',
+                        detail=f'Submitted PRE ID: {pre.id} from Draft ID: {draft.id}',
+                        model_name='DepartmentPRE',
+                        record_id=pre.id
+                    )
+                    
                     messages.success(request, f"PRE Submitted Successfully! Reference ID: {pre.id}")
                     return redirect('department_pre_page')
             except Exception as e:
@@ -571,6 +618,15 @@ def upload_approved_pre_documents(request, pre_id):
             pre.awaiting_verification = True
             pre.end_user_uploaded_at = timezone.now()
             pre.save()
+            
+            log_activity(
+                user=request.user,
+                action='UPLOAD_APPROVED_PRE_DOCS',
+                detail=f'Uploaded {uploaded_count} document(s) for PRE ID: {pre.id}',
+                model_name='DepartmentPREApprovedDocument',
+                record_id=pre.id
+            )
+            
             messages.success(
                 request, 
                 f'Successfully uploaded {uploaded_count} document(s). Your PRE is now awaiting admin verification.'
@@ -1253,6 +1309,15 @@ def purchase_request_upload(request):
                 draft.pr_file = f
                 draft.pr_filename = f.name
                 draft.save()
+                
+                log_activity(
+                    user=request.user,
+                    action='UPLOAD_DRAFT',
+                    detail=f'Uploaded {draft.pr_filename} PR Document',
+                    model_name='PRDraft',
+                    record_id=draft.id
+                )
+                
                 messages.success(request, "PR Document uploaded successfully.")
             else:
                  messages.error(request, f"Upload failed: {form.errors}")
@@ -1269,6 +1334,15 @@ def purchase_request_upload(request):
                         file_name=f.name,
                         file_size=f.size
                     )
+                
+                log_activity(
+                    user=request.user,
+                    action='UPLOAD_DRAFT',
+                    detail=f'Uploaded {len(files)} PR supporting documents',
+                    model_name='PRDraftSupportingDocument',
+                    record_id=draft.id
+                )
+                
                 messages.success(request, f"{len(files)} supporting documents uploaded.")
             else:
                 messages.error(request, "No files selected.")
@@ -1279,12 +1353,32 @@ def purchase_request_upload(request):
                 draft.pr_file.delete()
                 draft.pr_filename = ''
                 draft.save()
+                
+                log_activity(
+                    user=request.user,
+                    action='REMOVE_DRAFT',
+                    detail='Removed PR Document',
+                    model_name='PRDraft',
+                    record_id=draft.id
+                )
+                
+                messages.success(request, "PR Document removed successfully.")
+                
             return redirect('purchase_request_upload')
             
         elif 'remove_doc_id' in request.POST:
             doc_id = request.POST.get('remove_doc_id')
             doc = get_object_or_404(PRDraftSupportingDocument, id=doc_id, draft=draft)
             doc.delete()
+            
+            log_activity(
+                user=request.user,
+                action='REMOVE_DRAFT',
+                detail=f'Removed supporting document: {doc.file_name}',
+                model_name='PRDraftSupportingDocument',
+                record_id=draft.id
+            )
+            
             return redirect('purchase_request_upload')
         # === ACTION: FINAL SUBMIT ===
         elif action == 'submit_final':
@@ -1336,6 +1430,14 @@ def purchase_request_upload(request):
                         
                         # Clear Draft
                         draft.delete()
+                        
+                        log_activity(
+                            user=request.user,
+                            action='SUBMIT_PR',
+                            detail=f'Submitted Purchase Request {pr.pr_number}',
+                            model_name='PurchaseRequest',
+                            record_id=pr.id
+                        )
                         
                         messages.success(request, "Purchase Request submitted successfully!")
                         return redirect('pr_ad_list')
@@ -1531,6 +1633,14 @@ def upload_signed_pr_docs(request, pr_id):
         pr.status = 'Awaiting Admin Verification'
         pr.save() # Ensure 'end_user_uploaded_at' auto-updates or set it manually
         
+        log_activity(
+            user=request.user,
+            action='UPLOAD_SIGNED_PR',
+            detail=f'Uploaded {len(uploaded_files)} signed documents for PR {pr.pr_number}',
+            model_name='PurchaseRequest',
+            record_id=pr.id
+        )
+        
         messages.success(request, "Signed documents uploaded successfully! Admin will verify them shortly.")
         
     except Exception as e:
@@ -1577,6 +1687,15 @@ def activity_design_upload(request):
                 
                 draft.uploaded_document = f
                 draft.save()
+                
+                log_activity(
+                    user=request.user,
+                    action='UPLOAD_DRAFT',
+                    detail=f'Uploaded {draft.ad_number} AD Draft',
+                    model_name='ActivityDesign',
+                    record_id=draft.id
+                )
+                
                 return JsonResponse({'success': True, 'message': 'AD Document uploaded'})
             else:
                 return JsonResponse({'success': False, 'error': upload_form.errors.as_text()})
@@ -1604,6 +1723,15 @@ def activity_design_upload(request):
                     file_size=f.size,
                     uploaded_by=request.user
                 )
+                
+            log_activity(
+                user=request.user,
+                action='UPLOAD_DRAFT',
+                detail=f'Uploaded {draft.ad_number} AD Draft',
+                model_name='ActivityDesign',
+                record_id=draft.id
+            )
+            
             return JsonResponse({'success': True, 'message': f'{len(files)} files uploaded'})
         # --- ACTION: REMOVE AD ---
         elif action == 'remove_ad':
@@ -1611,11 +1739,27 @@ def activity_design_upload(request):
                 draft.uploaded_document.delete() 
                 draft.uploaded_document = None
                 draft.save()
+                
+                log_activity(
+                    user=request.user,
+                    action='REMOVE_DRAFT',
+                    detail=f'Removed AD Draft {draft.ad_number}',
+                    model_name='ActivityDesign',
+                    record_id=draft.id
+                )
             return JsonResponse({'success': True, 'message': 'File removed'})
         # --- ACTION: REMOVE SUPPORTING ---
         elif action == 'remove_supporting':
             doc_id = request.POST.get('doc_id')
             ActivityDesignSupportingDocument.objects.filter(id=doc_id, activity_design=draft).delete()
+            
+            log_activity(
+                user=request.user,
+                action='REMOVE_DRAFT',
+                detail=f'Removed AD Draft {draft.ad_number}',
+                model_name='ActivityDesign',
+                record_id=draft.id
+            )
             return JsonResponse({'success': True, 'message': 'File removed'})
         
         # --- ACTION: ADD DRAFT ALLOCATION (SESSION ONLY) ---
@@ -1724,6 +1868,14 @@ def activity_design_upload(request):
                         del request.session['ad_draft_id']
                     if 'ad_draft_allocations' in request.session:
                         del request.session['ad_draft_allocations']
+                        
+                    log_activity(
+                        user=request.user,
+                        action='SUBMIT_AD',
+                        detail=f'Submitted Activity Design {ad.ad_number}',
+                        model_name='ActivityDesign',
+                        record_id=ad.id
+                    )
                         
                     messages.success(request, "Activity Design submitted successfully!")
                     return redirect('pr_ad_list') 
@@ -1834,6 +1986,14 @@ def upload_signed_ad_docs(request, ad_id):
         ad.end_user_uploaded_at = timezone.now()
         ad.awaiting_verification = True
         ad.save() 
+        
+        log_activity(
+            user=request.user,
+            action='UPLOAD_SIGNED_AD',
+            detail=f'Uploaded {len(uploaded_files)} signed documents for AD {ad.ad_number}',
+            model_name='ActivityDesign',
+            record_id=ad.id
+        )
         
         messages.success(request, "Signed documents uploaded successfully! Admin will verify them shortly.")
         
@@ -1997,6 +2157,35 @@ class PREBudgetRealignmentView(LoginRequiredMixin, UserPassesTestMixin, FormView
                     file_size=f.size,
                     uploaded_by=user
                 )
+                
+            log_activity(
+                user=user,
+                action='SUBMIT_PRE_REALIGNMENT',
+                detail=f'Submitted Budget Realignment Request ID {realignment.id}',
+                model_name='PREBudgetRealignment',
+                record_id=realignment.id
+            )
+            
+            # Log OUT from Source
+            if source_pre.budget_allocation:
+                log_budget_transaction(
+                    allocation=source_pre.budget_allocation,
+                    amount=-Decimal(realignment.total_amount or 0), # Debit
+                    transaction_type='Realignment Out (Pending)',
+                    user=user,
+                    remarks=f'Realignment Request #{realignment.id} to {target_pre.department}',
+                    update_allocation=False # Pending, don't move funds yet
+                )
+            # Log IN to Target
+            if target_pre.budget_allocation:
+                log_budget_transaction(
+                    allocation=target_pre.budget_allocation,
+                    amount=Decimal(realignment.total_amount or 0), # Credit
+                    transaction_type='Realignment In (Pending)',
+                    user=user,
+                    remarks=f'Realignment Request #{realignment.id} from {source_pre.department}',
+                    update_allocation=False # Pending
+                )
 
             messages.success(self.request, "Budget Realignment request submitted successfully.")
             return redirect('create_budget_realignment')
@@ -2117,6 +2306,14 @@ class UploadSignedRealignmentDocView(LoginRequiredMixin, UserPassesTestMixin, Vi
                     is_signed_copy=True
                 )
                 count += 1
+                
+            log_activity(
+                user=request.user,
+                action='UPLOAD_SIGNED_REALIGNMENT',
+                detail=f'Uploaded {count} signed documents for Realignment ID {realignment.id}',
+                model_name='PREBudgetRealignment',
+                record_id=realignment.id
+            )
             
             messages.success(request, f"Successfully uploaded {count} signed document(s).")
         else:
@@ -2232,6 +2429,15 @@ def export_budget_summary_pdf(request):
         response = HttpResponse(pdf, content_type='application/pdf')
         filename = f"Budget_Summary_{current_year}_{request.user.username}.pdf"
         response['Content-Disposition'] = f'inline; filename="{filename}"'
+        
+        log_activity(
+            user=request.user,
+            action='EXPORT_BUDGET_SUMMARY_PDF',
+            detail=f'Exported Budget Summary Report PDF for fiscal year {current_year}',
+            model_name='BudgetAllocation',
+            record_id=None
+        )
+        
         return response
         
     return HttpResponse("Error Rendering PDF", status=400)
@@ -2317,6 +2523,14 @@ def export_quarterly_report_pdf(request):
         response = HttpResponse(pdf, content_type='application/pdf')
         filename = f"Quarterly_Report_{quarter}_{current_year}.pdf"
         response['Content-Disposition'] = f'inline; filename="{filename}"'
+        
+        log_activity(
+            user=request.user,
+            action='EXPORT_QUARTERLY_REPORT_PDF',
+            detail=f'Exported Quarterly Report PDF for quarter {quarter} and fiscal year {current_year}',
+            model_name='BudgetAllocation',
+            record_id=None
+        )
         return response
         
     return HttpResponse("Error Rendering PDF", status=400)
@@ -2431,6 +2645,14 @@ def export_pre_budget_details_pdf(request):
         filename = f"PRE_Details_Report_{selected_year}_{datetime.now().strftime('%Y%m%d')}.pdf"
         # ATTACHMENT = Download Only
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        log_activity(
+            user=request.user,
+            action='EXPORT_PRE_BUDGET_DETAILS_PDF',
+            detail=f'Exported PRE Budget Details PDF for year {selected_year}',
+            model_name='BudgetAllocation',
+            record_id=None
+        )
         return response
         
     return HttpResponse("Error Rendering PDF", status=400)
@@ -2536,6 +2758,14 @@ def export_category_report_pdf(request):
         response = HttpResponse(pdf, content_type='application/pdf')
         filename = f"Category_Report_{current_year}.pdf"
         response['Content-Disposition'] = f'inline; filename="{filename}"'
+        
+        log_activity(
+            user=request.user,
+            action='EXPORT_CATEGORY_REPORT_PDF',
+            detail=f'Exported Category-wise Report PDF for fiscal year {current_year}',
+            model_name='BudgetAllocation',
+            record_id=None
+        )
         return response
         
     return HttpResponse("Error Rendering PDF", status=400)
@@ -2691,6 +2921,15 @@ def export_transaction_report_pdf(request):
         response = HttpResponse(pdf, content_type='application/pdf')
         filename = f"Transaction_Report_{datetime.now().strftime('%Y%m%d')}.pdf"
         response['Content-Disposition'] = f'inline; filename="{filename}"'
+        
+        log_activity(
+            user=request.user,
+            action='EXPORT_TRANSACTION_REPORT_PDF',
+            detail=f'Exported Transaction History Report PDF from {date_from} to {date_to}',
+            model_name='BudgetAllocation',
+            record_id=None
+        )
+        
         return response
         
     return HttpResponse("Error Rendering PDF", status=400)
@@ -2762,6 +3001,15 @@ def archive_resource(request, resource_type, pk):
         obj.archived_at = timezone.now()
         obj.archived_by = request.user
         obj.save()
+        
+        # Log Activity
+        log_activity(
+            user=request.user,
+            action=f'ARCHIVE_{resource_type.upper()}',
+            detail=f'Manually archived {resource_type.upper()}',
+            model_name=resource_type.upper(),
+            record_id=obj.pk
+        )
 
         messages.success(request, f"{resource_type.upper()} has been successfully moved to the Archive.")
         return redirect(redirect_url)

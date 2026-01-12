@@ -3207,19 +3207,12 @@ class BudgetRealignmentSupportingDocument(models.Model):
         
 class BudgetTransaction(models.Model):
     """Tracks financial movements (Audit Trail for Budgets)"""
-    TRANSACTION_TYPES = [
-        ('ALLOCATION_CREATED', 'Allocation Created'),
-        ('ALLOCATION_UPDATED', 'Allocation Updated'),
-        ('REALIGNMENT', 'Budget Realignment'),
-        ('SUPPLEMENTAL', 'Supplemental Budget'),
-        ('REVERSION', 'Budget Reversion'),
-    ]
     allocation = models.ForeignKey(
         'BudgetAllocation', 
         on_delete=models.CASCADE,
         related_name='transactions'
     )
-    transaction_type = models.CharField(max_length=50, choices=TRANSACTION_TYPES)
+    transaction_type = models.CharField(max_length=50)
     amount = models.DecimalField(max_digits=15, decimal_places=2) # The change amount (+/-)
     
     # Snapshots for history
