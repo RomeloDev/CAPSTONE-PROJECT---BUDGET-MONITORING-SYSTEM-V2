@@ -53,7 +53,7 @@ import os
 import uuid
 from datetime import datetime
 from django.core.paginator import Paginator
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse, HttpResponse, FileResponse, Http404
 from django.views.decorators.http import require_POST
 from apps.admin_panel.utils import log_activity
 from apps.budgets.utils import log_budget_transaction
@@ -3017,3 +3017,33 @@ def archive_resource(request, resource_type, pk):
     except Exception as e:
         messages.error(request, f"Error archiving resource: {str(e)}")
         return redirect('user_dashboard')
+
+@login_required
+def download_pre_template(request):
+    """
+    Serves the PRE Excel Template with Audit Logging.
+    """
+    # 1. Define Path
+    file_path = os.path.join(settings.BASE_DIR, 'static', 'docs', 'PRE_Template.xlsx')
+    
+    # 2. Security Check
+    if not os.path.exists(file_path):
+        raise Http404("PRE Template not found on server.")
+        
+    # 3. Log Activity
+    log_activity(
+        user=request.user,
+        action='DOWNLOAD_PRE_TEMPLATE',
+        detail='Downloaded the generic PRE Excel Template',
+        model_name='System',
+        record_id=None
+    )
+    
+    # 4. Serve File
+    # Using FileResponse is efficient for file serving
+    response = FileResponse(open(file_path, 'rb'), as_attachment=True, filename='PRE_Template.xlsx')
+    
+    # Set correct MIME type for .xlsx
+    response['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    
+    return response

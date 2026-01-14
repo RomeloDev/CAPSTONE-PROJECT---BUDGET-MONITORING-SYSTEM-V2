@@ -480,7 +480,7 @@ class BudgetAllocationListView(ListView):
         form = BudgetAllocationForm(request.POST, instance=allocation)
         
         if form.is_valid():
-            try:
+            try:                      
                 new_amount = form.cleaned_data['allocated_amount']
                 old_amount = allocation.allocated_amount # Pre-update value (from DB)
                 

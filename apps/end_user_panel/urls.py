@@ -46,4 +46,7 @@ urlpatterns = [
     # Archive Feature
     path('archive/history/', views.ArchiveHistoryView.as_view(), name='archive_history'),
     path('archive/<str:resource_type>/<str:pk>/', views.archive_resource, name='archive_resource'),
+    
+    # Download PRE Template
+    path('download-template/', views.download_pre_template, name='download_pre_template'),
 ]
