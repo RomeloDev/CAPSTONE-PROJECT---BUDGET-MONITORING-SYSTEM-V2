@@ -43,7 +43,42 @@ class ApprovedBudgetAdmin(admin.ModelAdmin):
         self.message_user(request, f"{success_count} budgets successfully restored.", messages.SUCCESS)
 admin.site.register(SupportingDocument)
 admin.site.register(DepartmentPRE)
-admin.site.register(BudgetAllocation)
+@admin.register(BudgetAllocation)
+class BudgetAllocationAdmin(admin.ModelAdmin):
+    list_display = ['department', 'end_user', 'approved_budget', 'allocated_amount', 'remaining_balance', 'is_archived', 'archive_type']
+    list_filter = ['approved_budget__fiscal_year', 'end_user__department', 'is_archived', 'archive_type']
+    search_fields = ['department', 'end_user__username', 'end_user__first_name', 'end_user__last_name', 'approved_budget__title']
+    actions = ['archive_selected_allocations', 'restore_selected_allocations']
+
+    def get_queryset(self, request):
+        """Show all allocations including archived ones"""
+        return self.model.all_objects.select_related('approved_budget', 'end_user').all()
+
+    @admin.action(description='Archive Selected Allocations (Cascade)')
+    def archive_selected_allocations(self, request, queryset):
+        from .services import archive_allocation_cascade
+        success_count = 0
+        for allocation in queryset:
+            if not allocation.is_archived:
+                archive_allocation_cascade(allocation.id, archive_type='MANUAL', user=request.user)
+                success_count += 1
+        
+        if success_count > 0:
+            self.message_user(request, f"{success_count} allocations successfully archived.", messages.SUCCESS)
+        else:
+            self.message_user(request, "No eligible allocations were archived.", messages.WARNING)
+
+    @admin.action(description='Restore Selected Allocations (Cascade)')
+    def restore_selected_allocations(self, request, queryset):
+        from .services import restore_allocation_cascade
+        success_count = 0
+        for allocation in queryset:
+            if allocation.is_archived:
+                restore_allocation_cascade(allocation.id)
+                success_count += 1
+        
+        self.message_user(request, f"{success_count} allocations successfully restored.", messages.SUCCESS)
+
 admin.site.register(PRECategory)
 admin.site.register(PRELineItem)
 admin.site.register(PREReceipt)

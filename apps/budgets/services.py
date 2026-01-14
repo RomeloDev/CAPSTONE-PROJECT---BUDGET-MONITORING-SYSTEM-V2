@@ -126,3 +126,86 @@ def restore_budget_cascade(budget_id):
         ).update(is_archived=False, archive_type='')
         
         return True
+
+def archive_allocation_cascade(allocation_id, archive_type='MANUAL', user=None):
+    """
+    Recursively archives a BudgetAllocation and all its related documents.
+    Used for Admin Action logic.
+    """
+    timestamp = timezone.now()
+    
+    with transaction.atomic():
+        # 1. Archive the Allocation
+        # Use update matches model structure
+        allocation_qs = BudgetAllocation.all_objects.filter(pk=allocation_id)
+        allocation_qs.update(
+            is_archived=True,
+            archive_type=archive_type,
+            archived_at=timestamp,
+            archived_by=user
+        )
+        
+        # 2. Archive Children (PREs, Realignments, PRs, ADs)
+        
+        # PREs
+        pre_qs = DepartmentPRE.all_objects.filter(budget_allocation__in=allocation_qs)
+        pre_qs.update(
+            is_archived=True,
+            archive_type=archive_type,
+            archived_at=timestamp,
+            archived_by=user
+        )
+        
+        # Realignments
+        realignment_qs = PREBudgetRealignment.all_objects.filter(source_pre__budget_allocation__in=allocation_qs)
+        realignment_qs.update(
+            is_archived=True,
+            archive_type=archive_type,
+            archived_at=timestamp,
+            archived_by=user
+        )
+        
+        # PRs
+        pr_qs = PurchaseRequest.all_objects.filter(budget_allocation__in=allocation_qs)
+        pr_qs.update(
+            is_archived=True,
+            archive_type=archive_type,
+            archived_at=timestamp,
+            archived_by=user
+        )
+        
+        # ADs
+        ad_qs = ActivityDesign.all_objects.filter(budget_allocation__in=allocation_qs)
+        ad_qs.update(
+            is_archived=True,
+            archive_type=archive_type,
+            archived_at=timestamp,
+            archived_by=user
+        )
+        return True
+
+def restore_allocation_cascade(allocation_id):
+    """
+    Restores a BudgetAllocation and its children.
+    Restores items regardless of archive_type if calling this directly on the allocation,
+    assuming admin intent is to force restore.
+    """
+    with transaction.atomic():
+        # 1. Restore the Allocation
+        allocation_qs = BudgetAllocation.all_objects.filter(pk=allocation_id)
+        allocation_qs.update(is_archived=False, archive_type='')
+        
+        # 2. Restore Children (Simpler logic than Fiscal Year: just restore everything linked)
+        # PREs
+        DepartmentPRE.all_objects.filter(budget_allocation__in=allocation_qs).update(is_archived=False, archive_type='')
+        
+        # Realignments
+        PREBudgetRealignment.all_objects.filter(source_pre__budget_allocation__in=allocation_qs).update(is_archived=False, archive_type='')
+        
+        # PRs
+        PurchaseRequest.all_objects.filter(budget_allocation__in=allocation_qs).update(is_archived=False, archive_type='')
+        
+        # ADs
+        ActivityDesign.all_objects.filter(budget_allocation__in=allocation_qs).update(is_archived=False, archive_type='')
+        
+        return True
