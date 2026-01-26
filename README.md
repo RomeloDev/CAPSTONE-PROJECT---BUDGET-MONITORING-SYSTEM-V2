@@ -1,7 +1,41 @@
-# Financial & Budget Management System (Capstone Project v2)
+# BISU Balilihan - Budget Monitoring System (Capstone Project v2)
+
+<div align="center">
+
+![Python Version](https://img.shields.io/badge/python-3.12.3-blue.svg)
+![Django Version](https://img.shields.io/badge/django-5.1.6-green.svg)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+
+</div>
 
 ## 📌 Overview
-This project is a comprehensive **Budget Management and Financial Workflow System** designed to streamline compliance and financial tracking for organizational departments. It features a robust dual-portal architecture (Admin vs. End User) ensuring strict control over budget allocations, utilization (PR/AD), and regulatory document processing.
+This project is a comprehensive **Budget Management and Financial Workflow System** designed for Bohol Island State University (BISU) - Balilihan Campus.. It features a robust dual-portal architecture (Admin vs. End User) ensuring strict control over budget allocations, utilization (PR/AD), and regulatory document processing.
+
+## About the Project
+
+The **BISU Balilihan Budget Monitoring System** is a capstone project developed to streamline and modernize the budget management processes at Bohol Island State University - Balilihan Campus. The system provides real-time monitoring, tracking, and reporting of budget allocations, expenditures, and financial requests across different departments.
+
+### Problem Statement
+
+Traditional budget management at BISU Balilihan involved:
+- Manual tracking of budget allocations and expenditures
+- Paper-based document processing
+- Difficulty in real-time budget monitoring
+- Lack of centralized data management
+- Time-consuming approval workflows
+
+### Solution
+
+This system provides:
+- ✅ Centralized budget tracking and monitoring
+- ✅ Digital document management
+- ✅ Automated workflow approvals
+- ✅ Real-time budget utilization reports
+- ✅ Multi-level user access control
+- ✅ Comprehensive audit trails
+- ✅ Excel/PDF report generation
+
+---
 
 ## 🚀 Key Features
 
@@ -38,7 +72,7 @@ This project is a comprehensive **Budget Management and Financial Workflow Syste
 1.  **Clone the Repo**
     ```bash
     git clone <repository_url>
-    cd capstone-projectv2
+    cd CAPSTONE-PROJECT---BUDGET-MONITORING-SYSTEM-V2
     ```
 
 2.  **Create Virtual Env**
