@@ -141,3 +141,18 @@ LOGOUT_REDIRECT_URL = 'end_user_login' # Where to go after logout
 TAILWIND_CLI_MODE = 'jit'
 TAILWIND_CLI_SRC_CSS = 'static/css/input.css' # You need to create this
 TAILWIND_CLI_DIST_CSS = 'css/output.css'
+
+# ==========================================
+# EMAIL CONFIGURATION (Gmail SMTP)
+# ==========================================
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = os.getenv('EMAIL_PORT', 587)
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', True)
+# Your Gmail address
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER') 
+# The 16-character App Password (NOT your real password)
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD') 
+# Password Reset Configuration
+# This ensures links point to the correct domain automatically (Localhost or PythonAnywhere)
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER

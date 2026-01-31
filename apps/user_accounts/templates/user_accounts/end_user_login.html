@@ -1,14 +1,15 @@
 {% extends "end_user_base_template/end_user_auth.html" %}
+{% load static %}
 
 {% block title %}Login{% endblock %}
 
 {% block content %}
 <div class="relative w-full h-screen">
-    <img src="/static/assets/admin_bg_img.jpg" alt="University Photo" class="absolute w-full h-full object-cover">
+    <img src="{% static 'assets/admin_bg_img.jpg' %}" alt="University Photo" class="absolute w-full h-full object-cover">
     <div class="absolute inset-0 bg-purple-900 bg-opacity-70"></div>
 
     <div class="h-screen flex flex-col items-center justify-center relative z-10">
-        <img src="https://bisu.edu.ph/wp-content/themes/gwt-wordpress-gwt-wordpress-26.0.0/images/bisu-logo2.png" 
+        <img src="{% static 'assets/bisu_logo.png' %}" 
              alt="Bisu Logo" class="w-[80px] h-[80px] mb-3">
         <h2 class="text-lg text-center font-semibold text-white drop-shadow-md">
             Bohol Island State University - Balilihan Campus
@@ -33,12 +34,18 @@
                 </div>
             </div>
 
-            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 mt-6 rounded-full font-semibold text-lg shadow-md transition duration-300">
+            <div class="flex justify-end px-2 mt-3">
+                <a href="{% url 'password_reset' %}" class="text-sm font-medium text-white hover:text-blue-200 transition-colors drop-shadow-md">
+                    Forgot Password?
+                </a>
+            </div>
+
+            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 mt-3 rounded-full font-semibold text-lg shadow-md transition duration-300">
                 LOGIN
             </button>
             
             {% if form.errors %}
-                <p class="text-red-300 text-center mt-2 text-sm">Invalid username or password</p>
+                <p class="text-red-600 text-center mt-2 text-sm">Invalid username or password</p>
             {% endif %}
         </form>
     </div>

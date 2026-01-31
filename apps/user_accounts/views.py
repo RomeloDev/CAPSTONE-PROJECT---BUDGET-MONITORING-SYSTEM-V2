@@ -4,6 +4,7 @@ from django.contrib.auth.views import LoginView
 from django.urls import reverse_lazy
 from .forms import LoginForm
 from apps.admin_panel.utils import log_activity
+from django.contrib.auth.views import PasswordResetView, PasswordResetDoneView, PasswordResetConfirmView, PasswordResetCompleteView
 
 class AdminLoginView(LoginView):
     template_name = 'user_accounts/admin_login.html'
@@ -60,3 +61,15 @@ def logout_view(request):
     if 'admin' in request.path:
          return redirect('admin_login')
     return redirect('end_user_login')
+
+class CustomPasswordResetView(PasswordResetView):
+    template_name = 'user_accounts/registration/password_reset_form.html'
+    email_template_name = 'user_accounts/registration/password_reset_email.html'
+    success_url = reverse_lazy('password_reset_done')
+class CustomPasswordResetDoneView(PasswordResetDoneView):
+    template_name = 'user_accounts/registration/password_reset_done.html'
+class CustomPasswordResetConfirmView(PasswordResetConfirmView):
+    template_name = 'user_accounts/registration/password_reset_confirm.html'
+    success_url = reverse_lazy('password_reset_complete')
+class CustomPasswordResetCompleteView(PasswordResetCompleteView):
+    template_name = 'user_accounts/registration/password_reset_complete.html'
