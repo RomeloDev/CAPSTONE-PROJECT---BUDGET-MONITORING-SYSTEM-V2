@@ -5,10 +5,10 @@
 
 {% block main-content %}
 <main class="content space-y-8">
-    <div class="mx-auto p-6">
+    <div class="mx-auto p-4 sm:p-6">
         <!-- Header -->
         <header class="mb-8">
-            <div class="flex justify-between items-center">
+            <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                 <div>
                     <h1 class="text-3xl font-bold text-gray-900 mb-2">Budget Realignment History</h1>
                     <p class="text-gray-600">Track all your submitted budget realignment requests and their status.</p>
@@ -26,7 +26,7 @@
         </header>
 
         <!-- Summary Cards -->
-        <section class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500">
                 <div class="flex items-center">
                     <div class="p-3 rounded-full bg-blue-100 text-blue-600">
