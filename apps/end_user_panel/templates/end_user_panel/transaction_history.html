@@ -15,12 +15,12 @@
             <a href="{% url 'budget_overview' %}" class="inline-flex items-center px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition shadow-sm">
                 ← Back to Overview
             </a>
-            <a href="#" class="inline-flex items-center px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition shadow-sm opacity-50 cursor-not-allowed" title="Coming soon">
+            {% comment %} <a href="#" class="inline-flex items-center px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition shadow-sm opacity-50 cursor-not-allowed" title="Coming soon">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                 </svg>
                 Export
-            </a>
+            </a> {% endcomment %}
         </div>
     </header>
 
@@ -30,7 +30,7 @@
             <!-- Type Filter -->
             <div>
                 <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Type</label>
-                <select name="type" class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                <select name="type" class="block w-full px-4 py-2.5 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 block transition-all duration-200 ease-in-out shadow-sm hover:bg-white hover:border-gray-400 cursor-pointer font-medium">
                     <option value="all" {% if transaction_type == 'all' %}selected{% endif %}>All Types</option>
                     <option value="pre" {% if transaction_type == 'pre' %}selected{% endif %}>PRE</option>
                     <option value="pr" {% if transaction_type == 'pr' %}selected{% endif %}>Purchase Request</option>
@@ -42,7 +42,7 @@
             <!-- Status Filter -->
             <div>
                 <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Status</label>
-                <select name="status" class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                <select name="status" class="block w-full px-4 py-2.5 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 block transition-all duration-200 ease-in-out shadow-sm hover:bg-white hover:border-gray-400 cursor-pointer font-medium">
                     <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Status</option>
                     <option value="Pending" {% if status_filter == 'Pending' %}selected{% endif %}>Pending</option>
                     <option value="Approved" {% if status_filter == 'Approved' %}selected{% endif %}>Approved</option>
@@ -54,7 +54,7 @@
             <!-- Quarter Filter -->
             <div>
                 <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Quarter</label>
-                <select name="quarter" class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                <select name="quarter" class="block w-full px-4 py-2.5 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 block transition-all duration-200 ease-in-out shadow-sm hover:bg-white hover:border-gray-400 cursor-pointer font-medium">
                     <option value="all" {% if quarter_filter == 'all' %}selected{% endif %}>All Quarters</option>
                     <option value="Q1" {% if quarter_filter == 'Q1' %}selected{% endif %}>Q1</option>
                     <option value="Q2" {% if quarter_filter == 'Q2' %}selected{% endif %}>Q2</option>

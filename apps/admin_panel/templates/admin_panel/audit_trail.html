@@ -49,7 +49,7 @@
                         <!-- Department -->
                         <div>
                             <label class="block text-xs font-medium text-gray-500 mb-1">Department</label>
-                            <select name="department" class="w-full text-sm border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <select name="department" class="block w-full px-4 py-2.5 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 block transition-all duration-200 ease-in-out shadow-sm hover:bg-white hover:border-gray-400 cursor-pointer font-medium">
                                 <option value="">All Departments</option>
                                 {% for dept in departments %}
                                     <option value="{{ dept }}" {% if request.GET.department == dept %}selected{% endif %}>{{ dept }}</option>
@@ -140,7 +140,7 @@
                         <!-- Department -->
                          <div>
                             <label class="block text-xs font-medium text-gray-500 mb-1">Department</label>
-                            <select name="department" class="w-full text-sm border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <select name="department" class="block w-full px-4 py-2.5 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 block transition-all duration-200 ease-in-out shadow-sm hover:bg-white hover:border-gray-400 cursor-pointer font-medium">
                                 <option value="">All Departments</option>
                                 {% for dept in departments %}
                                     <option value="{{ dept }}" {% if request.GET.department == dept %}selected{% endif %}>{{ dept }}</option>
@@ -151,7 +151,7 @@
                         <!-- Action Type -->
                         <div>
                              <label class="block text-xs font-medium text-gray-500 mb-1">Action Type</label>
-                            <select name="action" class="w-full text-sm border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <select name="action" class="block w-full px-4 py-2.5 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 block transition-all duration-200 ease-in-out shadow-sm hover:bg-white hover:border-gray-400 cursor-pointer font-medium">
                                 <option value="">All Actions</option>
                                 {% for code, label in action_choices %}
                                     <option value="{{ code }}" {% if request.GET.action == code %}selected{% endif %}>{{ label }}</option>
