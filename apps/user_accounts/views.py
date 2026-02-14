@@ -2,7 +2,10 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import logout
 from django.contrib.auth.views import LoginView
 from django.urls import reverse_lazy
-from .forms import LoginForm
+from django.contrib.auth import update_session_auth_hash
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from .forms import LoginForm, UserUpdateForm, CustomPasswordChangeForm
 from apps.admin_panel.utils import log_activity
 from django.contrib.auth.views import PasswordResetView, PasswordResetDoneView, PasswordResetConfirmView, PasswordResetCompleteView
 
@@ -73,3 +76,55 @@ class CustomPasswordResetConfirmView(PasswordResetConfirmView):
     success_url = reverse_lazy('password_reset_complete')
 class CustomPasswordResetCompleteView(PasswordResetCompleteView):
     template_name = 'user_accounts/registration/password_reset_complete.html'
+
+@login_required
+def settings_view(request):
+    """
+    Unified Settings View for both Admin and End Users.
+    Handles Profile Update and Password Change via HTMX or standard POST.
+    """
+    # Determine base template based on user role
+    if request.user.is_superuser or request.user.is_staff:
+        base_template = 'admin_base_template/dashboard.html'
+    else:
+        base_template = 'end_user_base_template/dashboard.html'
+
+    user = request.user
+    profile_form = UserUpdateForm(instance=user)
+    password_form = CustomPasswordChangeForm(user)
+
+    if request.method == 'POST':
+        form_type = request.POST.get('form_type')
+        
+        if form_type == 'profile_update':
+            profile_form = UserUpdateForm(request.POST, instance=user)
+            if profile_form.is_valid():
+                profile_form.save()
+                messages.success(request, "Profile updated successfully.")
+            else:
+                messages.error(request, "Please correct the errors below.")
+        
+        elif form_type == 'password_change':
+            password_form = CustomPasswordChangeForm(user, request.POST)
+            if password_form.is_valid():
+                user = password_form.save()
+                update_session_auth_hash(request, user)  # Important!
+                messages.success(request, "Password changed successfully.")
+                # Re-initialize form to clear fields
+                password_form = CustomPasswordChangeForm(user)
+            else:
+                messages.error(request, "Please correct the errors below.")
+        
+        # If HTMX request, return only the forms partial with messages
+        if request.headers.get('HX-Request'):
+            return render(request, 'partials/settings_forms.html', {
+                'profile_form': profile_form,
+                'password_form': password_form,
+            })
+
+    context = {
+        'base_template': base_template,
+        'profile_form': profile_form,
+        'password_form': password_form,
+    }
+    return render(request, 'common/settings.html', context)

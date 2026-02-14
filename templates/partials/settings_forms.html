@@ -1,0 +1,104 @@
+<!-- Profile Information Section -->
+<section id="profile-section" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden scroll-mt-28">
+    <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+        <div>
+            <h3 class="text-lg font-bold text-gray-800">Profile Information</h3>
+            <p class="text-sm text-gray-500">Update your account details and email.</p>
+        </div>
+        <div class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+            {{ user.get_role_display|default:"User" }}
+        </div>
+    </div>
+    
+    <div class="p-6">
+        <form hx-post="{% url 'admin_settings' %}" 
+              hx-target="#settings-content" 
+              hx-swap="innerHTML"
+              class="max-w-xl">
+            {% csrf_token %}
+            <input type="hidden" name="form_type" value="profile_update">
+            
+            <div class="space-y-5">
+                <!-- Username (Read Only) -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                    <input type="text" value="{{ user.username }}" disabled
+                           class="w-full px-4 py-2 border border-gray-200 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed">
+                    <p class="mt-1 text-xs text-gray-400">Username cannot be changed.</p>
+                </div>
+
+                <!-- Full Name -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                    {{ profile_form.fullname }}
+                    {% if profile_form.fullname.errors %}
+                        <p class="mt-1 text-xs text-red-600">{{ profile_form.fullname.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Email -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                    {{ profile_form.email }}
+                    {% if profile_form.email.errors %}
+                        <p class="mt-1 text-xs text-red-600">{{ profile_form.email.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div class="pt-4">
+                    <button type="submit" class="px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-100 transition-all shadow-sm">
+                        Save Changes
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</section>
+
+<!-- Security Section -->
+<section id="security-section" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden scroll-mt-28">
+    <div class="p-6 border-b border-gray-100">
+        <h3 class="text-lg font-bold text-gray-800">Security & Password</h3>
+        <p class="text-sm text-gray-500">Ensure your account is secure with a strong password.</p>
+    </div>
+    
+    <div class="p-6">
+        <form hx-post="{% url 'admin_settings' %}" 
+              hx-target="#settings-content" 
+              hx-swap="innerHTML"
+              class="max-w-xl">
+            {% csrf_token %}
+            <input type="hidden" name="form_type" value="password_change">
+
+            <div class="space-y-5">
+                {% for field in password_form %}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.errors %}
+                        <p class="mt-1 text-xs text-red-600">{{ field.errors.0 }}</p>
+                    {% endif %}
+                    {% if field.help_text %}
+                        <p class="mt-1 text-xs text-gray-400">{{ field.help_text }}</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+
+                <div class="pt-4">
+                    <button type="submit" class="px-5 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-black focus:ring-4 focus:ring-gray-100 transition-all shadow-sm">
+                        Update Password
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</section>
+
+<!-- OOB Swap for Toasts -->
+<div id="toast-container" hx-swap-oob="true" class="fixed top-24 right-5 z-50 flex flex-col gap-2">
+    {% if messages %}
+        {% for message in messages %}
+            {% include 'partials/toast.html' with message=message %}
+        {% endfor %}
+    {% endif %}
+</div>

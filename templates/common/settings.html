@@ -1,0 +1,47 @@
+{% extends base_template %}
+{% load static %}
+
+{% block title %}Settings & Profile{% endblock %}
+
+{% block main-content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex flex-col md:flex-row gap-8">
+        
+        <!-- Sidebar Navigation -->
+        <div class="w-full md:w-1/4">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden sticky top-24">
+                <div class="p-6 border-b border-gray-100">
+                    <h2 class="text-lg font-bold text-gray-800">Settings</h2>
+                    <p class="text-sm text-gray-500">Manage your account preferences</p>
+                </div>
+                <nav class="flex flex-col p-2 space-y-1">
+                    <a href="#profile-section" 
+                       class="flex items-center gap-3 px-4 py-3 text-sm font-medium text-blue-700 bg-blue-50 rounded-lg transition-colors">
+                        <i class="fa-solid fa-user-circle text-lg"></i>
+                        Profile Information
+                    </a>
+                    <a href="#security-section" 
+                       class="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition-colors">
+                        <i class="fa-solid fa-shield-halved text-lg"></i>
+                        Security & Password
+                    </a>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="w-full md:w-3/4 space-y-8" id="settings-content">
+            {% include 'partials/settings_forms.html' %}
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification Container -->
+<div id="toast-container" class="fixed top-24 right-5 z-50 flex flex-col gap-2">
+    {% if messages %}
+        {% for message in messages %}
+            {% include 'partials/toast.html' with message=message %}
+        {% endfor %}
+    {% endif %}
+</div>
+{% endblock %}

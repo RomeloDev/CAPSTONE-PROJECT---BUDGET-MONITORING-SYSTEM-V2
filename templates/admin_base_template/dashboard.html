@@ -205,20 +205,20 @@
               </a>
             </li>
 
-            {% comment %} <li>
-              <a href="{% url 'savings_overview' %}"
+            <li>
+              <a href="{% url 'admin_settings' %}"
                  class="flex items-center gap-2 px-3 py-2 rounded-md relative group
-                 {% if request.resolver_match.url_name == 'savings_overview' %}
+                 {% if request.resolver_match.url_name == 'admin_settings' %}
                    bg-blue-600 text-white font-medium
                  {% else %}
                    text-gray-700 hover:bg-blue-600 hover:text-white
                  {% endif %}"
                  :class="sidebarCollapsed && 'justify-center'">
-                <i class="fa-solid fa-piggy-bank w-5 text-center"></i>
-                <span x-show="!sidebarCollapsed" x-transition>Budget Savings</span>
-                <div x-show="sidebarCollapsed" class="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">Budget Savings</div>
+                <i class="fa-solid fa-gear w-5 text-center"></i>
+                <span x-show="!sidebarCollapsed" x-transition>Settings</span>
+                <div x-show="sidebarCollapsed" class="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">Settings</div>
               </a>
-            </li> {% endcomment %}
+            </li>
 
             <li class="pt-6 border-t mt-6">
               <a href="{% url 'logout' %}"

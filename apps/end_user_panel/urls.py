@@ -1,6 +1,7 @@
 from django.urls import path
 from .views import EndUserDashboardView
 from . import views
+from apps.user_accounts import views as user_views
 
 urlpatterns = [
     path('dashboard/', EndUserDashboardView.as_view(), name='user_dashboard'),
@@ -16,6 +17,8 @@ urlpatterns = [
     # path('download-template/', views.download_pre_template, name='download_pre_template'),
     
     path('pre/<uuid:pre_id>/upload-signed-docs/', views.upload_approved_pre_documents, name='upload_approved_pre_documents'),
+    # Settings
+    path('settings/', user_views.settings_view, name='user_settings'),
     path('budget/overview/', views.budget_overview, name='budget_overview'),
     path('budget/pre-details/', views.pre_budget_details, name='pre_budget_details'),
     path('budget/pre-details/pdf/', views.export_pre_budget_details_pdf, name='export_pre_budget_details_pdf'),
