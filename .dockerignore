@@ -1,0 +1,26 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Local databases
+db.sqlite3
+*.sqlite3
+
+# Environment variables (Crucial for security!)
+.env
+
+# Static & Media directories (generated inside container/cloud)
+staticfiles/
+media/
+
+# Git and Docker internals
+.git/
+.gitignore
+Dockerfile
+.dockerignore
