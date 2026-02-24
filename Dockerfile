@@ -27,8 +27,12 @@ COPY . /app/
 # Collect static files (Uses WhiteNoise & django-tailwind-cli)
 RUN python manage.py collectstatic --noinput
 
+# Copy the custom start script and make it executable
+COPY start.sh /app/
+RUN chmod +x /app/start.sh
+
 # Expose the port Gunicorn will listen on
 EXPOSE 8000
 
-# Start the application using Gunicorn
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000"]
+# Start the application using the script (handles migrations)
+CMD ["/app/start.sh"]
