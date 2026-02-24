@@ -10,7 +10,7 @@ if [ -n "$SUPERUSER_USERNAME" ] && [ -n "$SUPERUSER_EMAIL" ] && [ -n "$SUPERUSER
     export DJANGO_SUPERUSER_PASSWORD="$SUPERUSER_PASSWORD"
     python manage.py createsuperuser --noinput \
         --username "$SUPERUSER_USERNAME" \
-        --email "$SUPERUSER_EMAIL" \``
+        --email "$SUPERUSER_EMAIL" \
         --position "${SUPERUSER_POSITION:-System Admin}" \
         --fullname "${SUPERUSER_FULLNAME:-Super Admin}" \
         --department "${SUPERUSER_DEPARTMENT:-IT Department}" || true
