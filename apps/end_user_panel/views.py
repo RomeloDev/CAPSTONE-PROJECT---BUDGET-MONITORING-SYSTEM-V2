@@ -287,7 +287,7 @@ class UploadPREView(LoginRequiredMixin, View):
             files = request.FILES.getlist('supporting_documents')
             if files:
                 for f in files:
-                    PREDraftSupportingDocument.objects.create(
+                    doc = PREDraftSupportingDocument.objects.create(
                         draft=draft,
                         document=f,
                         file_name=f.name,
@@ -299,7 +299,7 @@ class UploadPREView(LoginRequiredMixin, View):
                         action='UPLOAD_DRAFT',
                         detail=f'Uploaded {f.name} Supporting Document',
                         model_name='PREDraftSupportingDocument',
-                        record_id=f.id
+                        record_id=doc.id
                     )
                     
                 messages.success(request, f'{len(files)} supporting document(s) uploaded.')
