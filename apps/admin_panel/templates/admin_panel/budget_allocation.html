@@ -578,7 +578,6 @@
     // --- Report Preview Logic ---
     function previewBudgetAllocation() {
         // Get the value from the new Year Filter select element
-        // Since it's inside a form, we can query selector by name inside the form
         const yearSelect = document.querySelector('select[name="fiscal_year"]');
         const selectedYear = yearSelect ? yearSelect.value : 'all';
         

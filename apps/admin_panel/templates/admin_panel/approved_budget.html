@@ -742,7 +742,7 @@
                                                 <p class="text-xs text-gray-500">${doc.size}</p>
                                             </div>
                                         </div>
-                                        <a href="${doc.url}" target="_blank" class="text-blue-600 hover:text-blue-800 text-sm font-semibold whitespace-nowrap ml-2">
+                                        <a href="https://docs.google.com/gview?url=${encodeURIComponent(doc.url)}&embedded=true" target="_blank" class="text-blue-600 hover:text-blue-800 text-sm font-semibold whitespace-nowrap ml-2">
                                             View
                                         </a>
                                     </div>
@@ -806,7 +806,7 @@
                     <ul class="list-disc pl-5 text-gray-600">
                         ${data.documents.map(doc => `
                             <li>
-                                <a href="${doc.url}" target="_blank" class="text-blue-600 hover:underline">${doc.name}</a>
+                                <a href="https://docs.google.com/gview?url=${encodeURIComponent(doc.url)}&embedded=true" target="_blank" class="text-blue-600 hover:underline">${doc.name}</a>
                             </li>
                         `).join('')}
                     </ul>

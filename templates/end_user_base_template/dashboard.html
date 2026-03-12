@@ -8,37 +8,15 @@
     <title>{% block title %}
             Default Title
         {% endblock title %}</title>
-    <!-- Choices.js CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Load HTMX -->
     <script src="{% static 'js/htmx.min.js' %}"></script>
-
-    <!-- Choices.js JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
 
-    <!-- Extra head content for child templates -->
     {% block extra_head %}{% endblock %}
 </head>
 <body>
-    {% comment %} <div class="dashboard">
-        <!-- Sidebar -->
-        <aside class="sidebar">
-            <h2>Budget Monitoring System</h2>
-            <nav>
-                <ul>
-                    <li><a href="{% url "user_dashboard" %}">Dashboard</a></li>
-                    <li><a href="{% url "user_view_budget" %}">View Budget</a></li>
-                    <li><a href="{% url "user_purchase_request" %}">Purchase Requests</a></li>
-                    <li><a href="{% url "user_settings" %}">Settings</a></li>
-                    <li><a href="{% url "logout" %}">Logout</a></li>
-                </ul>
-            </nav>
-        </aside>
-        {% block main-content %}{% endblock main-content %}
-    </div> {% endcomment %}
 
-    <!-- Sidebar toggle for mobile screen -->
     <button id="sidebarToggle" type="button" class="inline-flex items-center p-2 mt-2 ms-3 text-sm text-gray-500 rounded-lg sm:hidden hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200">
         <span class="sr-only">Open sidebar</span>
         <svg class="w-6 h-6" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20">
@@ -46,7 +24,6 @@
         </svg>
     </button>
 
-    <!-- Sidebar -->
     <aside id="logo-sidebar" class="fixed top-0 left-0 z-40 w-72 h-screen transition-transform -translate-x-full sm:translate-x-0" aria-label="Sidebar">
         <div class="h-full px-3 py-4 overflow-y-auto bg-gray-800">
             
@@ -56,7 +33,6 @@
             </div>
             
             <ul class="space-y-2 font-medium">
-                {% comment %} Dashboard {% endcomment %}
                 <li>
                     <a href="{% url "user_dashboard" %}" class="flex items-center p-2 rounded-lg text-white
                     {% if request.resolver_match.url_name == 'user_dashboard' %}
@@ -80,7 +56,6 @@
                     </a>
                 </li>
 
-                {% comment %} Budget Monitoring {% endcomment %}
                 <li>
                     <a href="{% url "budget_overview" %}" class="flex items-center p-2 rounded-lg text-white
                     {% if request.resolver_match.url_name == 'budget_overview' or request.resolver_match.url_name == 'pre_budget_details' or request.resolver_match.url_name == 'quarterly_analysis' or request.resolver_match.url_name == 'transaction_history' or request.resolver_match.url_name == 'budget_reports' %}
@@ -99,7 +74,6 @@
                     </a>
                 </li>
 
-                {% comment %} PR & AD Request {% endcomment %}
                 <li>
                     <a href="{% url "pr_ad_list" %}" class="flex items-center p-2 rounded-lg text-white 
                     {% if request.resolver_match.url_name == 'pr_ad_list' %}
@@ -118,7 +92,6 @@
                     </a>
                 </li>
 
-                {% comment %} Department PRE {% endcomment %}
                 <li>
                     <a href="{% url "department_pre_page" %}" class="flex items-center p-2 rounded-lg text-white 
                         {% if request.resolver_match.url_name == 'department_pre_page' %}
@@ -136,7 +109,6 @@
                     </a>
                 </li>
 
-                {% comment %} Budget Re-alignment {% endcomment %}
                 <li>
                     <a href="{% url 'realignment_history' %}" class="flex items-center p-2 rounded-lg text-white
                     {% if request.resolver_match.url_name == 'realignment_history' %}
@@ -153,7 +125,6 @@
                     </a>
                 </li>
 
-                {% comment %} Archive History {% endcomment %}
                 <li>
                     <a href="{% url 'archive_history' %}" class="flex items-center p-2 rounded-lg text-white
                     {% if request.resolver_match.url_name == 'archive_history' %}
@@ -168,7 +139,7 @@
                         {% endif %} text-gray-400 group-hover:text-white" fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M32 32l448 0c17.7 0 32 14.3 32 32l0 32c0 17.7-14.3 32-32 32L32 128C14.3 128 0 113.7 0 96L0 64C0 46.3 14.3 32 32 32zm0 128l448 0 0 256c0 35.3-28.7 64-64 64L96 480c-35.3 0-64-28.7-64-64l0-256zm128 80c0 8.8 7.2 16 16 16l160 0c8.8 0 16-7.2 16-16s-7.2-16-16-16l-160 0c-8.8 0-16 7.2-16 16z"/></svg>
                         <span class="flex-1 ms-3 whitespace-nowrap">Archive History</span>
                     </a>
-                {% comment %} Settings {% endcomment %}
+                </li>
                 <li>
                     <a href="{% url 'user_settings' %}" class="flex items-center p-2 rounded-lg text-white
                     {% if request.resolver_match.url_name == 'user_settings' %}
@@ -180,12 +151,11 @@
                         <svg class="shrink-0 w-5 h-5 transition duration-75
                         {% if request.resolver_match.url_name == 'user_settings' %}
                             text-white
-                        {% endif %} text-gray-400 group-hover:text-white" fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M495.9 166.6c3.2 8.7 .5 18.4-6.4 24.6l-43.3 39.4c1.1 8.3 1.7 16.8 1.7 25.4s-.6 17.1-1.7 25.4l43.3 39.4c6.9 6.2 9.6 15.9 6.4 24.6c-4.4 11.9-9.7 23.3-15.8 34.3l-4.7 8.1c-6.6 11-14 21.4-22.1 31.2c-5.9 7.2-15.7 9.6-24.5 6.8l-55.7-17.7c-13.4 10.3-28.2 18.9-44 25.4l-12.5 57.1c-2 9.1-9 16.3-18.2 17.8c-13.8 2.3-28 3.5-42.5 3.5s-28.7-1.2-42.5-3.5c-9.2-1.5-16.2-8.7-18.2-17.8l-12.5-57.1c-15.8-6.5-30.6-15.1-44-25.4L83.1 425.9c-8.8 2.8-18.6 .3-24.5-6.8c-8.1-9.8-15.5-20.2-22.1-31.2l-4.7-8.1c-6.1-11-11.4-22.4-15.8-34.3c-3.2-8.7-.5-18.4 6.4-24.6l43.3-39.4C64.6 273.1 64 264.6 64 256s.6-17.1 1.7-25.4L22.4 191.2c-6.9-6.2-9.6-15.9-6.4-24.6c4.4-11.9 9.7-23.3 15.8-34.3l4.7-8.1c6.6-11 14-21.4 22.1-31.2c5.9-7.2 15.7-9.6 24.5-6.8l55.7 17.7c13.4-10.3 28.2-18.9 44-25.4l12.5-57.1c2-9.1 9-16.3 18.2-17.8C227.3 1.2 241.5 0 256 0s28.7 1.2 42.5 3.5c9.2 1.5 16.2 8.7 18.2 17.8l12.5 57.1c15.8 6.5 30.6 15.1 44 25.4l55.7-17.7c8.8-2.8 18.6-.3 24.5 6.8c8.1 9.8 15.5 20.2 22.1 31.2l4.7 8.1c6.1 11 11.4 22.4 15.8 34.3zM256 336a80 80 0 1 0 0-160 80 80 0 1 0 0 160z"/></svg>
+                        {% endif %} text-gray-400 group-hover:text-white" fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M495.9 166.6c3.2 8.7 .5 18.4-6.4 24.6l-43.3 39.4c1.1 8.3 1.7 16.8 1.7 25.4s-.6 17.1-1.7 25.4l43.3 39.4c6.9 6.2 9.6 15.9 6.4 24.6c-4.4 11.9-9.7 23.3-15.8 34.3l-4.7 8.1c-6.6 11-14 21.4-22.1 31.2c-5.9 7.2-15.7 9.6-24.5 6.8l-55.7-17.7c-13.4 10.3-28.2 18.9-44 25.4l-12.5 57.1c-2 9.1-9 16.3-18.2 17.8c-13.8 2.3-28 3.5-42.5 3.5s-28.7-1.2-42.5-3.5c-9.2-1.5-16.2-8.7-18.2-17.8l-12.5-57.1c-15.8-6.5-30.6-15.1-44-25.4L83.1 425.9c-8.8 2.8-18.6 .3-24.5-6.8c-8.1-9.8-15.5-20.2-22.1-31.2l-4.7-8.1c-6.1-11-11.4-22.4-15.8-34.3c-3.2-8.7-.5-18.4 6.4-24.6l43.3-39.4C64.6 273.1 64 264.6 64 256s.6-17.1 1.7-25.4L22.4 191.2c-6.9-6.2-9.6-15.9-6.4-24.6c4.4-11.9 9.7-23.3 15.8-34.3l4.7-8.1c6.6-11 14-21.4 22.1-31.2c5.9-7.2 15.7-9.6 24.5-6.8l55.7 17.7c13.4-10.3 28.2-18.9 44-25.4l12.5 57.1c2 9.1 9 16.3 18.2 17.8C227.3 1.2 241.5 0 256 0s28.7 1.2 42.5 3.5c9.2 1.5 16.2 8.7 18.2 17.8l12.5 57.1c15.8 6.5 30.6 15.1 44 25.4l55.7-17.7c8.8-2.8 18.6-.3 24.5 6.8c8.1 9.8 15.5 20.2 22.1 31.2l4.7 8.1c6.1 11 11.4 22.4 15.8 34.3zM256 336a80 80 0 1 0 0-160 80 80 0 1 0 0 160z"/></svg>
                         <span class="flex-1 ms-3 whitespace-nowrap">Settings</span>
                     </a>
                 </li>
 
-                {% comment %} Logout {% endcomment %}
                 <li>
                     <a href="{% url "logout" %}" class="flex items-center p-2 rounded-lg text-white hover:bg-gray-700 group">
                         <svg class="shrink-0 w-5 h-5 transition duration-75 text-gray-400 group-hover:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 18 16">
@@ -199,7 +169,6 @@
         </div>
     </aside>
 
-    {% comment %} Main Content {% endcomment %}
     <div class="p-4 lg:ml-72">
         {% block main-content %}{% endblock main-content %}
     </div>
@@ -209,18 +178,16 @@
            const sidebar = document.getElementById('logo-sidebar');
            const sidebarToggle = document.getElementById('sidebarToggle');
            
-           // Toggle sidebar on button click
            sidebarToggle.addEventListener('click', function() {
                  sidebar.classList.toggle('-translate-x-full');
            });
   
-           // Close sidebar when clicking outside on mobile
            document.addEventListener('click', function(event) {
                  const isClickInside = sidebar.contains(event.target) || 
                                    sidebarToggle.contains(event.target);
                  
                  if (!isClickInside && !sidebar.classList.contains('-translate-x-full')) {
-                    if (window.innerWidth < 640) { // sm breakpoint
+                    if (window.innerWidth < 640) {
                        sidebar.classList.add('-translate-x-full');
                     }
                  }

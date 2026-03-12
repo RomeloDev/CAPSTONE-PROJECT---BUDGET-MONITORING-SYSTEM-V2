@@ -223,7 +223,6 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    // === AJAX Upload Logic (Prevent JSON Redirect) ===
     const form = document.getElementById('ad-form');
     
     // Helper for AJAX Form Submission
@@ -284,16 +283,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Attach listeners to Remove Buttons (Supporting Docs)
-    // Note: Multiple remove buttons might exist, so we delegate or queryAll
     document.querySelectorAll('button[value="remove_supporting"]').forEach(btn => {
         btn.addEventListener('click', (e) => {
             // The onclick in HTML sets the hidden input 'doc_id', so FormData will pick it up automatically
             handleAjaxUpload(e, 'remove_supporting');
         });
     });
-    
-    // === File Feedback (Cloned from PR) ===
-    // === File Feedback (Cloned from PR) ===
     const adInput = document.getElementById('ad_document');
     if (adInput) {
         adInput.addEventListener('change', function() {
@@ -324,12 +319,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
-    // === Funding Logic (Multi-Source) ===
     const allocationId = document.getElementById('budget_allocation').value;
     const selectEl = document.getElementById('line_item_select');
     let lineItemsMap = new Map();
-    // Initialize from Session Data (Server Persisted)
     let allocations = {{ draft_allocations|default:"[]"|safe }};
 
     const choices = new Choices(selectEl, {

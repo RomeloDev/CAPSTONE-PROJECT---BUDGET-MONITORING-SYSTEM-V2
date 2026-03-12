@@ -248,40 +248,47 @@ class ApprovedBudgetListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
             budget_id = request.POST.get('budget_id')
             budget = get_object_or_404(ApprovedBudget, pk=budget_id)
             
-            # Update Fields
-            budget.title = request.POST.get('title')
-            budget.fiscal_year = request.POST.get('fiscal_year')
+            try:
+                with transaction.atomic():
+                    # Update Fields
+                    budget.title = request.POST.get('title')
+                    budget.fiscal_year = request.POST.get('fiscal_year')
+                    
+                    #Handle amount carefully (check if it changed, might affect logic)
+                    new_amount = request.POST.get('amount')
+                    if new_amount:
+                        # Calculate difference if you track remaining budget logic
+                        # For now, simplistic update:
+                        budget.amount = new_amount
+                    
+                    budget.description = request.POST.get('description')
+                    budget.save()
+                    
+                    # Handle NEW files (Append Them)
+                    files = request.FILES.getlist('supporting_documents')
+                    from apps.budgets.models import SupportingDocument
+                    for f in files:
+                        SupportingDocument.objects.create(
+                            approved_budget=budget,
+                            document=f,
+                            uploaded_by=request.user,
+                            file_name=f.name
+                        )
+                        
+                    log_activity(
+                        user=request.user,
+                        action='EDIT_APPROVED_BUDGET',
+                        detail=f'Edited Approved Budget ID {budget.id}',
+                        model_name='ApprovedBudget',
+                        record_id=budget.id
+                    )
+                    
+                    messages.success(request, 'Budget updated successfully!')
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                messages.error(request, f'Error updating budget: {str(e)}')
             
-            #Handle amount carefully (check if it changed, might affect logic)
-            new_amount = request.POST.get('amount')
-            if new_amount:
-                # Calculate difference if you track remaining budget logic
-                # For now, simplistic update:
-                budget.amount = new_amount
-            
-            budget.description = request.POST.get('description')
-            budget.save()
-            
-            # Handle NEW files (Append Them)
-            files = request.FILES.getlist('supporting_documents')
-            from apps.budgets.models import SupportingDocument
-            for f in files:
-                SupportingDocument.objects.create(
-                    approved_budget=budget,
-                    document=f,
-                    uploaded_by=request.user,
-                    file_name=f.name
-                )
-                
-            log_activity(
-                user=request.user,
-                action='EDIT_APPROVED_BUDGET',
-                detail=f'Edited Approved Budget ID {budget.id}',
-                model_name='ApprovedBudget',
-                record_id=budget.id
-            )
-                
-            messages.success(request, 'Budget updated successfully!')
             return redirect('approved_budget')
         
         else: 
@@ -289,41 +296,44 @@ class ApprovedBudgetListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
             form = ApprovedBudgetForm(request.POST, request.FILES)
             if form.is_valid():
                 try:
-                    # 1. Start Validation: Check if files are uploaded (since it's required)
-                    files = request.FILES.getlist('budget_files')
-                    if not files:
-                        messages.error(request, "Supporting Documents: At least one file is required.")
-                        return redirect('approved_budget')
+                    with transaction.atomic():
+                        # 1. Start Validation: Check if files are uploaded (since it's required)
+                        files = request.FILES.getlist('budget_files')
+                        if not files:
+                            messages.error(request, "Supporting Documents: At least one file is required.")
+                            return redirect('approved_budget')
 
-                    # 2. Save the Budget
-                    budget = form.save(commit=False)
-                    budget.created_by = request.user
-                    budget.remaining_budget = budget.amount 
-                    budget.save()
-                    
-                    # 3. Handle Multiple File Uploads
-                    from apps.budgets.models import SupportingDocument
-                    
-                    for f in files:
-                        SupportingDocument.objects.create(
-                            approved_budget=budget,
-                            document=f,
-                            uploaded_by=request.user,
-                            file_name=f.name, # Model auto-populates format/size in save()
-                            description="Initial supporting document"
+                        # 2. Save the Budget
+                        budget = form.save(commit=False)
+                        budget.created_by = request.user
+                        budget.remaining_budget = budget.amount 
+                        budget.save()
+                        
+                        # 3. Handle Multiple File Uploads
+                        from apps.budgets.models import SupportingDocument
+                        
+                        for f in files:
+                            SupportingDocument.objects.create(
+                                approved_budget=budget,
+                                document=f,
+                                uploaded_by=request.user,
+                                file_name=f.name, # Model auto-populates format/size in save()
+                                description="Initial supporting document"
+                            )
+                            
+                        log_activity(
+                            user=request.user,
+                            action='CREATE_APPROVED_BUDGET',
+                            detail=f'Created Approved Budget ID {budget.id}',
+                            model_name='ApprovedBudget',
+                            record_id=budget.id
                         )
                         
-                    log_activity(
-                        user=request.user,
-                        action='CREATE_APPROVED_BUDGET',
-                        detail=f'Created Approved Budget ID {budget.id}',
-                        model_name='ApprovedBudget',
-                        record_id=budget.id
-                    )
-                    
-                    messages.success(request, f'Approved Budget "{budget.title}" added successfully with {len(files)} document(s)!')
-                    return redirect('approved_budget')
+                        messages.success(request, f'Approved Budget "{budget.title}" added successfully with {len(files)} document(s)!')
+                        return redirect('approved_budget')
                 except Exception as e:
+                    import traceback
+                    traceback.print_exc()
                     # Catch unexpected server errors during save
                     messages.error(request, f'Error saving budget: {str(e)}')
                     return redirect('approved_budget')

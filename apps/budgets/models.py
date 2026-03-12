@@ -132,6 +132,7 @@ class SupportingDocument(models.Model):
     
     document = models.FileField(
         upload_to=supporting_document_upload_path,
+        storage=RawMediaCloudinaryStorage(),
         validators=[FileExtensionValidator(allowed_extensions=['pdf', 'docx', 'doc', 'xlsx', 'xls'])],
         help_text="Supporting document (PDF, Word, Excel)"
     )

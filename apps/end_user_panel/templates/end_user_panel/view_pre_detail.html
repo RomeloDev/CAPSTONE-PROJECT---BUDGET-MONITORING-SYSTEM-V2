@@ -522,8 +522,6 @@
         
         // Google Docs Viewer logic
         const encodedUrl = encodeURIComponent(url);
-        // const viewerUrl = `https://docs.google.com/viewer?url=${encodedUrl}&embedded=true`;
-        // Using gview specific URL structure which is often more reliable for embedding
         const viewerUrl = `https://docs.google.com/gview?url=${encodedUrl}&embedded=true`;
         
         frame.src = viewerUrl;

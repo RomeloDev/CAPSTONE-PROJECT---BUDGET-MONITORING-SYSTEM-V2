@@ -239,7 +239,6 @@
         const frame = document.getElementById('previewFrame');
         document.getElementById('previewModalTitle').textContent = title;
         
-        // Use Google Docs Viewer for consistency
         const encodedUrl = encodeURIComponent(url);
         frame.src = `https://docs.google.com/gview?url=${encodedUrl}&embedded=true`;
         

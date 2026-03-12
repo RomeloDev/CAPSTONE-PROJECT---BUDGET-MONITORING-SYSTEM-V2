@@ -58,7 +58,6 @@
                         </label>
                         {{ form.source_category }}
                         <script>
-                            // Add Tailwind classes to the select widget manually rendered or updated via script if simpler
                             document.getElementById('{{ form.source_category.id_for_label }}').className = "w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
                         </script>
                     </div>
@@ -93,7 +92,6 @@
                                 {{ field }}
                                 <script>
                                     document.getElementById('{{ field.id_for_label }}').className = "w-full border border-gray-300 rounded px-2 py-1 text-sm amount-input";
-                                    // Initially disabled until source loaded? Or JS handles validation
                                 </script>
                             </div>
                             {% endif %}
@@ -192,14 +190,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const inputs = document.querySelectorAll('.amount-input');
     inputs.forEach(input => {
         input.addEventListener('input', function() {
-            // Get quarter from name 'q1_amount' -> 'q1'
             const q = this.name.split('_')[0]; 
             const val = parseFloat(this.value) || 0;
             const max = quarterLimits[q] || 0;
 
             if(val > max) {
                 this.classList.add('border-red-500');
-                // You could add a helper text error here
             } else {
                 this.classList.remove('border-red-500');
             }

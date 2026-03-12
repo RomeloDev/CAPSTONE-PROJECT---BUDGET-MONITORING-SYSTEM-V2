@@ -38,7 +38,6 @@
             <div class="p-6">
                 
                 {% if active_tab == 'budget' %}
-                <!-- ================= BUDGET CHANGES TAB ================= -->
                 
                 <!-- Filter Section -->
                 <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-6">
@@ -57,16 +56,6 @@
                             </select>
                         </div>
                         
-                        <!-- Transaction Type -->
-                        {% comment %} <div>
-                            <label class="block text-xs font-medium text-gray-500 mb-1">Transaction Type</label>
-                            <select name="transaction_type" class="w-full text-sm border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">All Types</option>
-                                {% for code, label in transaction_types %}
-                                    <option value="{{ code }}" {% if request.GET.transaction_type == code %}selected{% endif %}>{{ label }}</option>
-                                {% endfor %}
-                            </select>
-                        </div> {% endcomment %}
                         
                         <!-- Date Range -->
                         <div>
@@ -129,7 +118,6 @@
                 </div>
 
                 {% else %}
-                <!-- ================= USER ACTIVITY TAB ================= -->
                 
                  <!-- Filter Section -->
                 <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-6">

@@ -45,12 +45,6 @@
 
                         <!-- Download Options -->
                         <div class="flex gap-2">
-                            {% comment %} <button onclick="alert('Export to Excel coming soon!')" class="flex-1 inline-flex items-center justify-center px-3 py-2 bg-emerald-50 text-emerald-700 text-sm font-medium rounded-lg hover:bg-emerald-100 transition border border-emerald-200">
-                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3"></path>
-                                </svg>
-                                Excel
-                            </button> {% endcomment %}
                             <a href="#" onclick="openPdfPreview('{% url 'export_budget_summary_pdf' %}'); return false;" class="flex-1 inline-flex items-center justify-center px-3 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 transition border border-red-200">
                                 <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3"></path>
@@ -94,9 +88,6 @@
                         </button>
 
                         <div class="flex gap-2">
-                            {% comment %} <button onclick="exportQuarterly('excel')" class="flex-1 inline-flex items-center justify-center px-3 py-2 bg-emerald-50 text-emerald-700 text-sm font-medium rounded-lg hover:bg-emerald-100 transition border border-emerald-200">
-                                Excel
-                            </button> {% endcomment %}
                             <button onclick="exportQuarterly('pdf')" class="flex-1 inline-flex items-center justify-center px-3 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 transition border border-red-200">
                                 PDF
                             </button>
@@ -129,9 +120,6 @@
                         </a>
 
                         <div class="flex gap-2">
-                            {% comment %} <button onclick="alert('Export coming soon!')" class="flex-1 inline-flex items-center justify-center px-3 py-2 bg-emerald-50 text-emerald-700 text-sm font-medium rounded-lg hover:bg-emerald-100 transition border border-emerald-200">
-                                Excel
-                            </button> {% endcomment %}
                             <a href="#" onclick="openPdfPreview('{% url 'export_category_report_pdf' %}'); return false;" class="flex-1 inline-flex items-center justify-center px-3 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 transition border border-red-200">
                                 PDF
                             </a>
@@ -174,9 +162,6 @@
                         </button>
 
                         <div class="flex gap-2">
-                            {% comment %} <button onclick="exportTransaction('excel')" class="flex-1 inline-flex items-center justify-center px-3 py-2 bg-emerald-50 text-emerald-700 text-sm font-medium rounded-lg hover:bg-emerald-100 transition border border-emerald-200">
-                                Excel
-                            </button> {% endcomment %}
                             <button onclick="exportTransaction('pdf')" class="flex-1 inline-flex items-center justify-center px-3 py-2 bg-red-50 text-red-700 text-sm font-medium rounded-lg hover:bg-red-100 transition border border-red-200">
                                 PDF
                             </button>

@@ -228,9 +228,6 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <a href="{% url "admin_pre_detail" pre.id %}" class="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors">View Details</a>
-                                {% comment "" %}
-                                 NOTE: Update '#' to {% url 'admin_pre_detail' pre.id %} once implemented
-                                {% endcomment %}
                             </td>
                         </tr>
                         {% endif %}
@@ -299,7 +296,6 @@ function previewPreReport() {
     const deptSelect = document.getElementById('department');
     const statusSelect = document.getElementById('status');
     const dateFromInput = document.getElementById('date_from');
-    // Note: date_to is not in the form shown in file view but view logic handles it. 
     // Assuming modifying existing form or just using what's available.
     
     const search = searchInput ? searchInput.value : '';

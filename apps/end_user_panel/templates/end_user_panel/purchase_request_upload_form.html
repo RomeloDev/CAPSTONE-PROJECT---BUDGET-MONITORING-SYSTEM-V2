@@ -129,7 +129,7 @@
                     </p>
                     <p class="mt-1 text-xs text-gray-500">PDF, DOC, DOCX, JPG, PNG up to 10MB each</p>
                     <div id="supporting-file-list" class="mt-2 text-left space-y-1 hidden">
-                        <!-- File list will be populated here -->
+                        
                     </div>
                 </label>
                 <button type="submit" name="action" value="upload_supporting" formnovalidate class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700">Optional: Upload Now</button>
@@ -383,8 +383,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function simplifyDisplayText(text) {
-        // Simplification logic consistent with legacy if needed
-        // Format: "Category - Subcategory - Item" -> "Category - Item"
         const parts = text.split(' - ');
         if (parts.length === 3) {
             return `${parts[0]} - ${parts[2]}`;
@@ -397,24 +395,10 @@ document.addEventListener('DOMContentLoaded', function() {
              { value: '', label: 'Select approved PRE line item and quarter', selected: true, disabled: false }
         ];
 
-        // Grouping logic (optional, but good for UX)
-        // We will flatten it for simplicity as per legacy script logic, or replicate the grouping.
-        // Legacy script grouped by "PRE | Item" then listed quarters.
-        
-        // Let's assume the backend returns flat list of quarters for simplicity in this migration step
-        // or adapt the legacy grouping if data struct matches.
-        
-        // NOTE: The legacy backend returned a specific structure. The new backend guide 
-        // will ensure the JSON structure is compatible.
-        
-        // For now, let's assume a flat list of choices for robustness
         lineItems.forEach(item => {
-             // simplified display
              let label = item.display; 
-             // If backend returns 'display' we use it.
-             
              choices.push({
-                 value: item.value, // e.g., "pre_id|line_item_id|quarter"
+                 value: item.value, 
                  label: `${item.display} - ${item.quarter} (Available: ₱${parseFloat(item.available).toLocaleString('en-US', {minimumFractionDigits: 2})})`,
                  customProperties: {
                      available: item.available
@@ -427,7 +411,6 @@ document.addEventListener('DOMContentLoaded', function() {
         sourceOfFundChoice.enable();
     }
 
-    // === Currency Input ===
     const totalAmountDisplay = document.getElementById('total_amount_display');
     const totalAmountRaw = document.getElementById('total_amount_raw');
 
@@ -456,13 +439,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function validateAmount() {
         const amount = parseFloat(totalAmountRaw.value) || 0;
         const selectedOption = sourceOfFundSelect.options[sourceOfFundSelect.selectedIndex];
-        // Note: Choices.js hides the real select, but we can access custom props via the choices instance if needed.
-        // Or better, rely on the backend validation + simple client side check.
-        // Accessing custom props from hidden native select is tricky with Choices.js.
-        // Instead, we can look up the value in the sourceOfFundChoice instance or stored data.
-        
-        // Improved approach: store available amount in a map or look it up
-        // For now, basic > 0 check. Backend validation is the source of truth.
         
         if (amount <= 0 && totalAmountRaw.value !== '') {
             totalAmountDisplay.setCustomValidity('Amount must be greater than zero');
