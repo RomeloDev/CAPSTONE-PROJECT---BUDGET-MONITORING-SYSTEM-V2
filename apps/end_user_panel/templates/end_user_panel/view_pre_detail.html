@@ -56,7 +56,7 @@
         <!-- Grand Total -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <h3 class="text-sm font-medium text-gray-500 mb-1">Grand Total</h3>
-            <p class="text-2xl font-bold text-blue-600">₱{{ pre.total_amount|intcomma }}</p>
+            <p class="text-2xl font-bold text-blue-600">₱{{ pre.total_amount|floatformat:2|intcomma }}</p>
             <p class="text-xs text-gray-500 mt-1">Total Requested Amount</p>
         </div>
 
@@ -71,7 +71,7 @@
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <h3 class="text-sm font-medium text-gray-500 mb-1">Remaining Balance</h3>
             {% if pre.status == 'Approved' %}
-                <p class="text-2xl font-bold text-green-600">₱{{ pre.total_remaining|intcomma }}</p>
+                <p class="text-2xl font-bold text-green-600">₱{{ pre.total_remaining|floatformat:2|intcomma }}</p>
                 <div class="w-full bg-gray-200 rounded-full h-1.5 mt-2">
                     <div class="bg-green-500 h-1.5 rounded-full" style="width: {% widthratio pre.total_remaining pre.total_amount 100 %}%"></div>
                 </div>
@@ -188,18 +188,18 @@
                                     {% for q_data in item_data.quarters %}
                                         <tr class="hover:bg-gray-50 transition-colors">
                                             <td class="px-6 py-3 pl-10 text-sm font-medium text-gray-600">{{ q_data.quarter }}</td>
-                                            <td class="px-6 py-3 text-right text-sm text-gray-900">₱{{ q_data.original|intcomma }}</td>
+                                            <td class="px-6 py-3 text-right text-sm text-gray-900">₱{{ q_data.original|floatformat:2|intcomma }}</td>
                                             <td class="px-6 py-3 align-middle">
                                                 <div class="w-full">
                                                     <div class="flex justify-between text-xs mb-1">
                                                         <span class="text-gray-500">{{ q_data.utilization_percent }}% Used</span>
-                                                        <span class="text-gray-700">₱{{ q_data.total_consumed|intcomma }}</span>
+                                                        <span class="text-gray-700">₱{{ q_data.total_consumed|floatformat:2|intcomma }}</span>
                                                     </div>
                                                     <div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
                                                         <!-- PR Portion -->
-                                                        <div class="bg-blue-500 h-2.5 rounded-l-full float-left" style="width: {% widthratio q_data.pr_consumed q_data.original 100 %}%" title="PR: ₱{{ q_data.pr_consumed|intcomma }}"></div>
+                                                        <div class="bg-blue-500 h-2.5 rounded-l-full float-left" style="width: {% widthratio q_data.pr_consumed q_data.original 100 %}%" title="PR: ₱{{ q_data.pr_consumed|floatformat:2|intcomma }}"></div>
                                                         <!-- AD Portion -->
-                                                        <div class="bg-purple-500 h-2.5 float-left" style="width: {% widthratio q_data.ad_consumed q_data.original 100 %}%" title="AD: ₱{{ q_data.ad_consumed|intcomma }}"></div>
+                                                        <div class="bg-purple-500 h-2.5 float-left" style="width: {% widthratio q_data.ad_consumed q_data.original 100 %}%" title="AD: ₱{{ q_data.ad_consumed|floatformat:2|intcomma }}"></div>
                                                     </div>
                                                     <div class="flex gap-4 mt-1">
                                                         <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-full bg-blue-500"></div><span class="text-[10px] text-gray-500">PR</span></div>
@@ -208,7 +208,7 @@
                                                 </div>
                                             </td>
                                             <td class="px-6 py-3 text-right text-sm font-bold {% if q_data.available < 0 %}text-red-600{% else %}text-green-600{% endif %}">
-                                                ₱{{ q_data.available|intcomma }}
+                                                ₱{{ q_data.available|floatformat:2|intcomma }}
                                             </td>
                                         </tr>
                                     {% endfor %}
@@ -243,11 +243,11 @@
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ item.item_name }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.category.name }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500">₱{{ item.q1_amount|intcomma }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500">₱{{ item.q2_amount|intcomma }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500">₱{{ item.q3_amount|intcomma }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500">₱{{ item.q4_amount|intcomma }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-gray-900">₱{{ item.get_total|intcomma }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500">₱{{ item.q1_amount|floatformat:2|intcomma }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500">₱{{ item.q2_amount|floatformat:2|intcomma }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500">₱{{ item.q3_amount|floatformat:2|intcomma }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500">₱{{ item.q4_amount|floatformat:2|intcomma }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-gray-900">₱{{ item.get_total|floatformat:2|intcomma }}</td>
                                 </tr>
                                 {% empty %}
                                 <tr>

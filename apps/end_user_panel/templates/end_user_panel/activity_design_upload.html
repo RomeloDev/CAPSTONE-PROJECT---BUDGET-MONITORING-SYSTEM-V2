@@ -87,7 +87,7 @@
                 </div>
             {% endif %}
 
-            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 bg-gray-50">
+            <div class="flex flex-col items-center border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 bg-gray-50">
                 <input type="file" name="supporting_documents" id="supporting_documents" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" multiple class="hidden">
                 <label for="supporting_documents" class="cursor-pointer">
                     <svg class="mx-auto h-10 w-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -161,7 +161,7 @@
                     <div class="md:col-span-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Amount</label>
                         <div class="flex space-x-2">
-                             <input type="number" id="alloc_amount" class="w-full rounded-md border-gray-300" placeholder="0.00" step="0.01">
+                             <input type="text" id="alloc_amount" class="w-full rounded-md border-gray-300" placeholder="0.00">
                              <button type="button" id="add-alloc-btn" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Add</button>
                         </div>
                     </div>
@@ -202,7 +202,7 @@
             <div class="grid grid-cols-1 gap-6">
                 <div>
                      <label class="block text-sm font-medium text-gray-700 mb-2">Purpose</label>
-                    <textarea name="purpose" rows="3" class="w-full rounded-lg border-gray-300 bg-gray-50" required></textarea>
+                    <textarea name="purpose" rows="3" class="w-full rounded-lg border-gray-300 bg-gray-50 p-2" required></textarea>
                 </div>
             </div>
         </section>
@@ -396,10 +396,46 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     }
 
+    // --- Currency Formatting for Amount Input ---
+    const allocAmountInput = document.getElementById('alloc_amount');
+    if (allocAmountInput) {
+        allocAmountInput.addEventListener('input', function(e) {
+            let val = this.value.replace(/[^0-9.]/g, '');
+            if ((val.match(/\./g) || []).length > 1) {
+                val = val.replace(/\.+$/, '');
+            }
+            if (val) {
+                let parts = val.split('.');
+                let intPart = parts[0];
+                if (intPart.length > 0) {
+                    intPart = parseInt(intPart, 10).toLocaleString('en-US');
+                }
+                if (parts.length > 1) {
+                    this.value = intPart + '.' + parts[1].substring(0, 2);
+                } else {
+                    this.value = intPart;
+                }
+            } else {
+                this.value = '';
+            }
+        });
+
+        allocAmountInput.addEventListener('blur', function(e) {
+            let val = this.value.replace(/[^0-9.]/g, '');
+            if (val) {
+                this.value = parseFloat(val).toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
+        });
+    }
+
     // Add Allocation
     document.getElementById('add-alloc-btn').addEventListener('click', async () => {
         const itemId = selectEl.value;
-        const amount = parseFloat(document.getElementById('alloc_amount').value);
+        const rawAmountStr = document.getElementById('alloc_amount').value.replace(/,/g, '');
+        const amount = parseFloat(rawAmountStr);
         const btn = document.getElementById('add-alloc-btn');
         
         if (!itemId || !amount || amount <= 0) {

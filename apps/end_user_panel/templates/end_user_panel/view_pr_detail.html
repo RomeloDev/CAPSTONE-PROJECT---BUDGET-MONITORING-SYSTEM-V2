@@ -67,7 +67,8 @@
                 </a>
 
                 <!-- Preview & Print Documents Button -->
-                {% if pr.status != 'Draft' %}
+                 
+                {% comment %} {% if pr.status != 'Draft' %}
                     {% if pr.uploaded_document %}
                     <button type="button"
                     class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-md hover:from-blue-700 hover:to-indigo-700 transition-colors font-medium shadow-md gap-2"
@@ -79,7 +80,7 @@
                         Preview PR
                     </button>
                     {% endif %}
-                {% endif %}
+                {% endif %} {% endcomment %}
             </div>
         </div>
         

@@ -249,41 +249,50 @@ class ApprovedBudgetListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
             budget = get_object_or_404(ApprovedBudget, pk=budget_id)
             
             try:
-                with transaction.atomic():
-                    # Update Fields
-                    budget.title = request.POST.get('title')
-                    budget.fiscal_year = request.POST.get('fiscal_year')
-                    
-                    #Handle amount carefully (check if it changed, might affect logic)
-                    new_amount = request.POST.get('amount')
-                    if new_amount:
-                        # Calculate difference if you track remaining budget logic
-                        # For now, simplistic update:
-                        budget.amount = new_amount
-                    
-                    budget.description = request.POST.get('description')
-                    budget.save()
-                    
-                    # Handle NEW files (Append Them)
-                    files = request.FILES.getlist('supporting_documents')
-                    from apps.budgets.models import SupportingDocument
+                # Update Fields
+                budget.title = request.POST.get('title')
+                budget.fiscal_year = request.POST.get('fiscal_year')
+                
+                #Handle amount carefully (check if it changed, might affect logic)
+                new_amount = request.POST.get('amount')
+                if new_amount:
+                    # Calculate difference if you track remaining budget logic
+                    # For now, simplistic update:
+                    budget.amount = new_amount
+                
+                budget.description = request.POST.get('description')
+                budget.save()
+                
+                # Handle NEW files (Append Them)
+                files = request.FILES.getlist('supporting_documents')
+                from apps.budgets.models import SupportingDocument
+                
+                uploaded_docs = []
+                try:
                     for f in files:
-                        SupportingDocument.objects.create(
+                        doc = SupportingDocument.objects.create(
                             approved_budget=budget,
                             document=f,
                             uploaded_by=request.user,
                             file_name=f.name
                         )
-                        
-                    log_activity(
-                        user=request.user,
-                        action='EDIT_APPROVED_BUDGET',
-                        detail=f'Edited Approved Budget ID {budget.id}',
-                        model_name='ApprovedBudget',
-                        record_id=budget.id
-                    )
+                        uploaded_docs.append(doc)
+                except Exception as upload_error:
+                    # If an upload fails, we don't rollback the whole budget edit, 
+                    # but we should probably delete the partially uploaded docs
+                    for doc in uploaded_docs:
+                        doc.delete()
+                    raise upload_error
                     
-                    messages.success(request, 'Budget updated successfully!')
+                log_activity(
+                    user=request.user,
+                    action='EDIT_APPROVED_BUDGET',
+                    detail=f'Edited Approved Budget ID {budget.id}',
+                    model_name='ApprovedBudget',
+                    record_id=budget.id
+                )
+                
+                messages.success(request, 'Budget updated successfully!')
             except Exception as e:
                 import traceback
                 traceback.print_exc()
@@ -296,41 +305,49 @@ class ApprovedBudgetListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
             form = ApprovedBudgetForm(request.POST, request.FILES)
             if form.is_valid():
                 try:
-                    with transaction.atomic():
-                        # 1. Start Validation: Check if files are uploaded (since it's required)
-                        files = request.FILES.getlist('budget_files')
-                        if not files:
-                            messages.error(request, "Supporting Documents: At least one file is required.")
-                            return redirect('approved_budget')
+                    # 1. Start Validation: Check if files are uploaded (since it's required)
+                    files = request.FILES.getlist('budget_files')
+                    if not files:
+                        messages.error(request, "Supporting Documents: At least one file is required.")
+                        return redirect('approved_budget')
 
-                        # 2. Save the Budget
-                        budget = form.save(commit=False)
-                        budget.created_by = request.user
-                        budget.remaining_budget = budget.amount 
-                        budget.save()
-                        
-                        # 3. Handle Multiple File Uploads
-                        from apps.budgets.models import SupportingDocument
-                        
+                    # 2. Save the Budget
+                    budget = form.save(commit=False)
+                    budget.created_by = request.user
+                    budget.remaining_budget = budget.amount 
+                    budget.save()
+                    
+                    # 3. Handle Multiple File Uploads
+                    from apps.budgets.models import SupportingDocument
+                    
+                    uploaded_docs = []
+                    try:
                         for f in files:
-                            SupportingDocument.objects.create(
+                            doc = SupportingDocument.objects.create(
                                 approved_budget=budget,
                                 document=f,
                                 uploaded_by=request.user,
                                 file_name=f.name, # Model auto-populates format/size in save()
                                 description="Initial supporting document"
                             )
-                            
-                        log_activity(
-                            user=request.user,
-                            action='CREATE_APPROVED_BUDGET',
-                            detail=f'Created Approved Budget ID {budget.id}',
-                            model_name='ApprovedBudget',
-                            record_id=budget.id
-                        )
+                            uploaded_docs.append(doc)
+                    except Exception as upload_error:
+                        # Manual rollback if upload fails
+                        for doc in uploaded_docs:
+                            doc.delete()
+                        budget.delete()
+                        raise upload_error
                         
-                        messages.success(request, f'Approved Budget "{budget.title}" added successfully with {len(files)} document(s)!')
-                        return redirect('approved_budget')
+                    log_activity(
+                        user=request.user,
+                        action='CREATE_APPROVED_BUDGET',
+                        detail=f'Created Approved Budget ID {budget.id}',
+                        model_name='ApprovedBudget',
+                        record_id=budget.id
+                    )
+                    
+                    messages.success(request, f'Approved Budget "{budget.title}" added successfully with {len(files)} document(s)!')
+                    return redirect('approved_budget')
                 except Exception as e:
                     import traceback
                     traceback.print_exc()
@@ -1029,7 +1046,16 @@ def admin_verify_and_approve_pre(request, pre_id):
         if pre.budget_allocation:
             # Assuming budget_allocation has logic to update balances
             # pre.budget_allocation.update_balance(pre.total_amount) 
-            pass 
+            
+            # Log the Allocation Budget Transaction for Audit Trail
+            log_budget_transaction(
+                allocation=pre.budget_allocation,
+                amount=pre.total_amount, # Positive amount because it's allocating funds for use
+                transaction_type='Allocation - PRE Approved',
+                user=request.user,
+                remarks=f'Approved PRE {str(pre.id)[:8]}',
+                update_allocation=False # False because PREs define the initial allocated amount, not consume it
+            )
         RequestApproval.objects.create(
             content_type='pre',
             object_id=pre.id,
@@ -1360,7 +1386,7 @@ def handle_pr_action(request, pr_id):
                 action='PARTIALLY_APPROVED_PR',
                 detail=f'PR {pr.pr_number} has been Partially Approved status.',
                 model_name='PurchaseRequest',
-                model_id=pr.id,
+                record_id=pr.id,
             )
             
             messages.success(request, f"PR {pr.pr_number} successfully approved! It is now 'Partially Approved'.")
@@ -1390,7 +1416,7 @@ def handle_pr_action(request, pr_id):
             action='REJECTED_PR',
             detail=f'PR {pr.pr_number} has been Rejected.',
             model_name='PurchaseRequest',
-            model_id=pr.id,
+            record_id=pr.id,
         )
         
         messages.error(request, f"PR {pr.pr_number} has been rejected.")
@@ -1460,18 +1486,17 @@ def admin_verify_and_approve_pr(request, pr_id):
             action='FULLY_APPROVED_PR',
             detail=f'PR {pr.pr_number} has been fully Approved.',
             model_name='PurchaseRequest',
-            model_id=pr.id,
+            record_id=pr.id,
         )
         
-        if pr.budget_allocation:
-            log_budget_transaction(
-                allocation=pr.budget_allocation,
-                amount=-pr.total_amount, # Negative for Expense
-                transaction_type='Expense - PR',
-                user=request.user,
-                remarks=f'Approved PR-{pr.pr_number}',
-                update_allocation=False # Usage is already updated by pr.update_budget_usage()
-            )
+        log_budget_transaction(
+            allocation=pr.budget_allocation,
+            amount=-pr.total_amount, # Negative for Expense
+            transaction_type='Expense - PR',
+            user=request.user,
+            remarks=f'Approved PR-{pr.pr_number}',
+            update_allocation=False # Usage is already updated by pr.update_budget_usage()
+        )
         
         messages.success(request, f"PR {pr.pr_number} has been verified and fully APPROVED.")
         
@@ -1490,7 +1515,7 @@ def admin_verify_and_approve_pr(request, pr_id):
             action='REJECTED_PR',
             detail=f'PR {pr.pr_number} has been Rejected.',
             model_name='PurchaseRequest',
-            model_id=pr.id,
+            record_id=pr.id,
         )
         
         messages.warning(request, f"Verification rejected. PR returned to user for correction. Reason: {reason}")
@@ -1839,9 +1864,28 @@ def handle_admin_realignment_action(request, pk):
                     if realignment.q3_amount: target_item.q3_amount += realignment.q3_amount
                     if realignment.q4_amount: target_item.q4_amount += realignment.q4_amount
                     target_item.save()
-                    # 5. Log Transaction (Optional but recommended)
-                    # BudgetTransactionLog.objects.create(...) for source (negative)
-                    # BudgetTransactionLog.objects.create(...) for target (positive)
+                    # 5. Log Transaction for Audit Trail
+                    total_transfer_amount = (realignment.q1_amount or 0) + (realignment.q2_amount or 0) + (realignment.q3_amount or 0) + (realignment.q4_amount or 0)
+                    
+                    if total_transfer_amount > 0:
+                        log_budget_transaction(
+                            allocation=realignment.source_pre.budget_allocation,
+                            amount=-total_transfer_amount,
+                            transaction_type='Realignment - Transfer Out',
+                            user=request.user,
+                            remarks=f'Budget Realignment #{pk} (Deducted)',
+                            update_allocation=False
+                        )
+                        
+                        log_budget_transaction(
+                            allocation=realignment.target_pre.budget_allocation,
+                            amount=total_transfer_amount,
+                            transaction_type='Realignment - Transfer In',
+                            user=request.user,
+                            remarks=f'Budget Realignment #{pk} (Added)',
+                            update_allocation=False
+                        )
+                        
                     # 6. Update Realignment Status
                     realignment.status = 'Approved'
                     realignment.approved_by = request.user

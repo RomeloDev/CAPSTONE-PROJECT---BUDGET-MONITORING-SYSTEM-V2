@@ -206,7 +206,7 @@
                             {{ ad.purpose }}
                         </td>
                         <td class="px-6 py-4 text-gray-600">
-                            <span class="block text-gray-900 font-medium">{{ ad.department }}</span>
+                            <span class="block text-gray-900 font-medium">{{ ad.department|default:ad.budget_allocation.department }}</span>
                             <span class="text-xs">{{ ad.submitted_by.get_full_name }}</span>
                         </td>
                         <td class="px-6 py-4 text-gray-900 font-medium text-right">

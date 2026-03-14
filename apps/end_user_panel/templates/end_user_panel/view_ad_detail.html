@@ -84,7 +84,7 @@
             </div>
             <div>
                 <p class="text-sm text-gray-500">Department</p>
-                <p class="text-lg font-semibold text-gray-900">{{ ad.department }}</p>
+                <p class="text-lg font-semibold text-gray-900">{{ ad.department|default:ad.budget_allocation.department }}</p>
             </div>
             <div>
                 <p class="text-sm text-gray-500">Submitted By</p>

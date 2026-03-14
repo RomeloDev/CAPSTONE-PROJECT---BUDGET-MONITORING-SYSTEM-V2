@@ -195,7 +195,7 @@
 
                     <!-- Department -->
                     <td class="px-4 py-2 text-left">
-                        <div class="font-medium">{{ ad.department }}</div>
+                        <div class="font-medium">{{ ad.department|default:ad.budget_allocation.department }}</div>
                         <div class="text-xs text-gray-500">{{ ad.submitted_by.get_full_name }}</div>
                     </td>
 

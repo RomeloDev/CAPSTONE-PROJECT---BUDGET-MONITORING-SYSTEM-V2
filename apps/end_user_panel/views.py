@@ -1832,7 +1832,9 @@ def activity_design_upload(request):
                     
                     # Link Budget Allocation
                     alloc_id = details_form.cleaned_data['budget_allocation']
-                    ad.budget_allocation_id = alloc_id
+                    allocation = BudgetAllocation.objects.get(id=alloc_id)
+                    ad.budget_allocation = allocation
+                    ad.department = allocation.department
                     
                     # Handle main file if uploaded during final submit (fallback)
                     if 'ad_document' in request.FILES:
