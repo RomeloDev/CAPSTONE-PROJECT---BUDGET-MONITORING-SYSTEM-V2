@@ -2168,11 +2168,19 @@ class PREBudgetRealignmentView(LoginRequiredMixin, UserPassesTestMixin, FormView
                 record_id=realignment.id
             )
             
+            # Calculate total amount being transferred
+            total_transfer_amount = sum([
+                form.cleaned_data.get('q1_amount') or Decimal('0.00'),
+                form.cleaned_data.get('q2_amount') or Decimal('0.00'),
+                form.cleaned_data.get('q3_amount') or Decimal('0.00'),
+                form.cleaned_data.get('q4_amount') or Decimal('0.00')
+            ])
+
             # Log OUT from Source
             if source_pre.budget_allocation:
                 log_budget_transaction(
                     allocation=source_pre.budget_allocation,
-                    amount=-Decimal(realignment.total_amount or 0), # Debit
+                    amount=-total_transfer_amount, # Debit
                     transaction_type='Realignment Out (Pending)',
                     user=user,
                     remarks=f'Realignment Request #{realignment.id} to {target_pre.department}',
@@ -2182,7 +2190,7 @@ class PREBudgetRealignmentView(LoginRequiredMixin, UserPassesTestMixin, FormView
             if target_pre.budget_allocation:
                 log_budget_transaction(
                     allocation=target_pre.budget_allocation,
-                    amount=Decimal(realignment.total_amount or 0), # Credit
+                    amount=total_transfer_amount, # Credit
                     transaction_type='Realignment In (Pending)',
                     user=user,
                     remarks=f'Realignment Request #{realignment.id} from {source_pre.department}',

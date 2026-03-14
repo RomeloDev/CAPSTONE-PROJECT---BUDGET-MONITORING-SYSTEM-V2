@@ -91,7 +91,10 @@
                                 </div>
                                 {{ field }}
                                 <script>
-                                    document.getElementById('{{ field.id_for_label }}').className = "w-full border border-gray-300 rounded px-2 py-1 text-sm amount-input";
+                                    var inputField = document.getElementById('{{ field.id_for_label }}');
+                                    inputField.className = "w-full border border-gray-300 rounded px-2 py-1 text-sm amount-input";
+                                    inputField.type = "text"; // Change to text to allow commas
+                                    inputField.placeholder = "0.00";
                                 </script>
                             </div>
                             {% endif %}
@@ -186,26 +189,75 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Validations on Amount Inputs
+    // Validations, Formatting, and Total Calculation on Amount Inputs
     const inputs = document.querySelectorAll('.amount-input');
-    inputs.forEach(input => {
-        input.addEventListener('input', function() {
-            const q = this.name.split('_')[0]; 
-            const val = parseFloat(this.value) || 0;
-            const max = quarterLimits[q] || 0;
+    
+    function calculateTotal() {
+        let total = 0;
+        inputs.forEach(i => {
+            const val = parseFloat(i.value.replace(/,/g, '')) || 0;
+            total += val;
+        });
+        totalDisplay.textContent = `₱${total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    }
 
-            if(val > max) {
+    inputs.forEach(input => {
+        // --- Formatting logic (commas while typing) ---
+        input.addEventListener('input', function(e) {
+            // Validate against max limit
+            const q = this.name.split('_')[0]; 
+            const max = quarterLimits[q] || 0;
+            const rawVal = parseFloat(this.value.replace(/,/g, '')) || 0;
+            if (rawVal > max) {
                 this.classList.add('border-red-500');
             } else {
                 this.classList.remove('border-red-500');
             }
+
+            // Currency formatting
+            let val = this.value.replace(/[^0-9.]/g, '');
+            if ((val.match(/\./g) || []).length > 1) {
+                val = val.replace(/\.+$/, '');
+            }
+            if (val) {
+                let parts = val.split('.');
+                let intPart = parts[0];
+                if (intPart.length > 0) {
+                    intPart = parseInt(intPart, 10).toLocaleString('en-US');
+                }
+                if (parts.length > 1) {
+                    this.value = intPart + '.' + parts[1].substring(0, 2);
+                } else {
+                    this.value = intPart;
+                }
+            } else {
+                this.value = '';
+            }
             
-            // Calc Total
-            let total = 0;
-            inputs.forEach(i => total += (parseFloat(i.value) || 0));
-            totalDisplay.textContent = `₱${total.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+            calculateTotal();
+        });
+
+        // --- Formatting logic (pad decimals on blur) ---
+        input.addEventListener('blur', function(e) {
+            let val = this.value.replace(/[^0-9.]/g, '');
+            if (val) {
+                this.value = parseFloat(val).toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
         });
     });
+
+    // Intercept form submission to strip commas before sending to backend
+    const formVar = document.getElementById('realignmentForm');
+    if (formVar) {
+        formVar.addEventListener('submit', function(e) {
+            inputs.forEach(input => {
+                input.value = input.value.replace(/,/g, '');
+            });
+        });
+    }
 });
 </script>
 {% endblock %}
