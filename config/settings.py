@@ -86,13 +86,19 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 # Database
 # Uses dj-database-url for clean switching between SQLite (dev) and Postgres (prod)
+import os
+
 DATABASES = {
     'default': dj_database_url.config(
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
         conn_max_age=600,
-        ssl_require=True
+        conn_health_checks=True,
     )
 }
+
+# Add sslmode wrapper safely if working with postgres
+if 'postgres' in DATABASES['default']['ENGINE']:
+    DATABASES['default']['OPTIONS'] = {'sslmode': 'require'}
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
