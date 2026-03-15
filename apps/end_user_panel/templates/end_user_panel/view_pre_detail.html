@@ -95,7 +95,7 @@
                         <span class="block text-sm font-medium text-gray-500">{{ cat.category__name }}</span>
                         <span class="block text-xs text-gray-400">{{ cat.category__category_type }}</span>
                     </div>
-                    <span class="text-lg font-bold text-gray-900">₱{{ cat.total|intcomma }}</span>
+                    <span class="text-lg font-bold text-gray-900">₱{{ cat.total|floatformat:2|intcomma }}</span>
                 </div>
                 {% empty %}
                 <div class="col-span-3 text-center py-4 text-gray-500">No categories found.</div>
