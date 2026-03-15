@@ -104,7 +104,7 @@
                 Remaining
               </p>
               <p class="font-bold">
-                ₱{{ allocation.remaining_balance|intcomma }}
+                ₱{{ allocation.remaining_balance|floatformat:2|intcomma }}
               </p>
             </div>
           </div>
@@ -165,7 +165,7 @@
               <p
                 class="text-3xl font-bold {% if grand_total > allocation.remaining_balance %}text-red-600{% else %}text-emerald-600{% endif %}"
               >
-                ₱{{ grand_total|intcomma }}
+                ₱{{ grand_total|floatformat:2|intcomma }}
               </p>
               {% if grand_total > allocation.remaining_balance %}
               <span
