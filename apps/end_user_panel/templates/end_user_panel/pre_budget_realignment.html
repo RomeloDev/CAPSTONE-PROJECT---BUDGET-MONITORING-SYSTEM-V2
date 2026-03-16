@@ -72,10 +72,19 @@
                     </div>
                 </div>
 
-                <!-- Source Available Info -->
-                <div id="source_quarterly_info" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h3 class="font-medium text-gray-900 mb-3">Available Budget by Quarter</h3>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="source_quarters_display"></div>
+                <!-- Available Info (Source & Target) -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Source Available Info -->
+                    <div id="source_quarterly_info" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h3 class="font-medium text-gray-900 mb-3">Source Line Item Balance (FROM)</h3>
+                        <div class="grid grid-cols-2 gap-3" id="source_quarters_display"></div>
+                    </div>
+                    
+                    <!-- Target Available Info -->
+                    <div id="target_quarterly_info" class="hidden bg-green-50 border border-green-200 rounded-lg p-4">
+                        <h3 class="font-medium text-gray-900 mb-3">Target Line Item Balance (TO)</h3>
+                        <div class="grid grid-cols-2 gap-3" id="target_quarters_display"></div>
+                    </div>
                 </div>
 
                 <!-- Quarterly Amounts Inputs -->
@@ -139,6 +148,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const sourceSelect = document.getElementById('{{ form.source_category.id_for_label }}');
     const displayDiv = document.getElementById('source_quarters_display');
     const infoDiv = document.getElementById('source_quarterly_info');
+    
+    const targetSelect = document.getElementById('{{ form.target_category.id_for_label }}');
+    const targetDisplayDiv = document.getElementById('target_quarters_display');
+    const targetInfoDiv = document.getElementById('target_quarterly_info');
+
     const amountSection = document.getElementById('quarterly_amounts_section');
     const totalDisplay = document.getElementById('total_amount_display');
     
@@ -186,6 +200,43 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch(e) {
             console.error(e);
             displayDiv.innerHTML = 'Error loading data.';
+        }
+    });
+
+    targetSelect.addEventListener('change', async function() {
+        const val = this.value;
+        if(!val) {
+            targetInfoDiv.classList.add('hidden');
+            return;
+        }
+
+        const [preId, itemKey] = val.split('|');
+        
+        // Show loading
+        targetDisplayDiv.innerHTML = 'Loading...';
+        targetInfoDiv.classList.remove('hidden');
+
+        try {
+            const res = await fetch(`/user/api/get-realtime-amounts/?pre_id=${preId}&item_key=${itemKey}`);
+            const data = await res.json();
+            
+            if(data.success) {
+                targetDisplayDiv.innerHTML = '';
+                
+                ['q1', 'q2', 'q3', 'q4'].forEach(q => {
+                    const qData = data.quarters[q];
+                    const remaining = qData.remaining;
+
+                    // Update Info Display
+                    const span = document.createElement('div');
+                    span.className = 'text-sm text-green-800';
+                    span.innerHTML = `<span class="font-bold">${q.toUpperCase()}:</span> ₱${remaining.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+                    targetDisplayDiv.appendChild(span);
+                });
+            }
+        } catch(e) {
+            console.error(e);
+            targetDisplayDiv.innerHTML = 'Error loading data.';
         }
     });
 
