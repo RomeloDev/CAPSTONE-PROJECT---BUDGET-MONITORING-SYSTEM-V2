@@ -79,7 +79,7 @@
                         <p class="mt-1 text-xs text-gray-500">PDF, DOC, DOCX up to 10MB</p>
                         <p id="pr-file-name" class="mt-2 text-sm font-semibold text-gray-900 hidden"></p>
                     </label>
-                    <button type="submit" name="action" value="upload_pr" formnovalidate class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700">Optional: Upload Now</button>
+                    <button type="submit" name="action" value="upload_pr" formnovalidate class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700">Upload Now</button>
                 </div>
             {% endif %}
         </section>
@@ -132,7 +132,7 @@
                         
                     </div>
                 </label>
-                <button type="submit" name="action" value="upload_supporting" formnovalidate class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700">Optional: Upload Now</button>
+                <button type="submit" name="action" value="upload_supporting" formnovalidate class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700">Upload Now</button>
             </div>
         </section>
 
@@ -445,6 +445,31 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             totalAmountDisplay.setCustomValidity('');
         }
+    }
+
+    // === Upload Button Interactivity ===
+    const prForm = document.querySelector('form');
+    if (prForm) {
+        prForm.addEventListener('submit', function(e) {
+            const submitter = e.submitter;
+            // Check if the submit was triggered by an upload button
+            if (submitter && (submitter.value === 'upload_pr' || submitter.value === 'upload_supporting')) {
+                // Change visually
+                submitter.innerHTML = `
+                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Uploading...
+                `;
+                submitter.classList.add('opacity-75', 'cursor-wait');
+
+                // Delay disabling to ensure the submitter's name/value is sent in the POST request
+                setTimeout(() => {
+                    submitter.disabled = true;
+                }, 50);
+            }
+        });
     }
 });
 </script>
