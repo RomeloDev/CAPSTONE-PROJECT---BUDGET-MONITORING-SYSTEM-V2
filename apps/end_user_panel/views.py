@@ -1534,21 +1534,17 @@ class ViewPRDetailView(LoginRequiredMixin, DetailView):
         if pr.budget_allocation:
             budget_alloc = pr.budget_allocation
             
-            # Calculate Total Consumed by *ALL* PRs for this budget allocation
-            total_pr_consumed = budget_alloc.purchase_requests.exclude(
-                status__in=['Rejected', 'Draft']
-            ).aggregate(total=Coalesce(Sum('total_amount'), Decimal('0.00')))['total']
+            # Use the official recorded consumption fields to ensure 100% accuracy
+            # (Matches the logic used in the Activity Design detail view)
+            total_pr_consumed = budget_alloc.pr_amount_used
+            total_ad_consumed = budget_alloc.ad_amount_used
             
-            # Calculate Total Consumed by *ALL* Activity Designs (if linked to same budget)
-            # Assuming ActivityDesign model exists and links to BudgetAllocation
-            # total_ad_consumed = budget_alloc.activity_designs.exclude(...).aggregate(...)
-            total_ad_consumed = Decimal('0.00') # Placeholder until AD is fully integrated
             total_used = total_pr_consumed + total_ad_consumed
-            remaining = budget_alloc.allocated_amount - total_used
+            
             context['budget_summary'] = {
                 'allocated': budget_alloc.allocated_amount,
                 'total_used': total_used,
-                'remaining': remaining,
+                'remaining': budget_alloc.remaining_balance,
                 'pr_used': total_pr_consumed,
                 'ad_used': total_ad_consumed
             }
