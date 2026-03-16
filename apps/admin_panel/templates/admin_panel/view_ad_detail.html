@@ -42,21 +42,36 @@
             <!-- Left Column: Content & Docs -->
             <div class="lg:col-span-2 space-y-6">
                 <!-- Purpose Card -->
-                <div class="bg-white rounded-lg shadow p-6">
-                    <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Information & Purpose</h2>
-                     <div class="grid grid-cols-2 gap-4 mb-4 text-sm">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <h2 class="text-lg font-bold text-gray-900 mb-5 border-b border-gray-100 pb-2">Information & Purpose</h2>
+                     
+                    <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6 mb-6">
                         <div>
-                            <span class="block text-gray-500">Activity Title</span>
-                            <span class="font-medium text-gray-900">{{ ad.activity_title|default:"N/A" }}</span>
+                            <dt class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Department</dt>
+                            <dd class="mt-1 text-sm font-medium text-gray-900">{{ ad.department|default:ad.budget_allocation.department }}</dd>
                         </div>
                         <div>
-                            <span class="block text-gray-500">Total Requested Amount</span>
-                            <span class="font-bold text-blue-600 text-lg">₱{{ ad.total_amount|floatformat:2|intcomma }}</span>
+                            <dt class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Submitted By</dt>
+                            <dd class="mt-1 text-sm font-medium text-gray-900">{{ ad.submitted_by.get_full_name }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Date Submitted</dt>
+                            <dd class="mt-1 text-sm font-medium text-gray-900">{{ ad.created_at|date:"M d, Y g:i A" }}</dd>
+                        </div>
+                    </dl>
+
+                    <div class="mb-6 bg-blue-50 border border-blue-100 rounded-lg p-4 flex items-center justify-between">
+                        <div>
+                            <span class="block text-xs font-bold text-blue-800 uppercase tracking-widest mb-1">Total Requested Amount</span>
+                        </div>
+                        <div>
+                            <span class="text-2xl font-black text-blue-700">₱{{ ad.total_amount|floatformat:2|intcomma }}</span>
                         </div>
                     </div>
-                    <div class="mt-4">
-                        <span class="block text-gray-500 text-sm mb-1">Make a case / Purpose:</span>
-                        <div class="p-4 bg-gray-50 rounded border border-gray-200 text-gray-800  text-sm leading-relaxed">
+                    
+                    <div>
+                        <span class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Make a case / Purpose:</span>
+                        <div class="p-4 bg-gray-50 rounded-lg border border-gray-100 text-gray-800 text-sm leading-relaxed shadow-inner">
                             {{ ad.purpose }}
                         </div>
                     </div>
@@ -143,6 +158,11 @@
                         <p class="text-xs text-gray-500 uppercase tracking-wide">Budget Source</p>
                         <p class="text-sm font-medium text-gray-900">{{ ad.budget_allocation.approved_budget.title }}</p>
                          <p class="text-xs text-gray-500 mt-1">{{ ad.department|default:ad.budget_allocation.department }} Department Budget</p>
+                    </div>
+
+                    <div class="mb-4">
+                        <p class="text-xs text-gray-500 uppercase tracking-wide">Total Remaining Balance</p>
+                        <p class="text-sm font-bold text-green-600">₱{{ budget_summary.remaining|default:"0.00"|floatformat:2|intcomma }}</p>
                     </div>
 
                     <div class="space-y-3">

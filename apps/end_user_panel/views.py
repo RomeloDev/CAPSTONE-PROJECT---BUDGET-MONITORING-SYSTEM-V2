@@ -1387,15 +1387,20 @@ def purchase_request_upload(request):
                 return redirect('purchase_request_upload')
                 
             form = PurchaseRequestDetailsForm(request.POST)
-            if form.is_valid():
+            if form.is_valid(): 
                 data = form.cleaned_data
                 try:
                     with transaction.atomic():
                         # Parse Source
                         pre_id, line_item_id, quarter = data['source_of_fund'].split('|')
-                        
                         budget_allocation = BudgetAllocation.objects.get(id=data['budget_allocation'])
                         pre_line_item = PRELineItem.objects.get(id=line_item_id)
+                        
+                        # Validate Amount vs Available Balance
+                        available_balance = pre_line_item.get_quarter_available(quarter)
+                        if getattr(data['total_amount'], 'amount', data['total_amount']) > available_balance:
+                            messages.error(request, f"Amount exceeds available balance (₱{available_balance:,.2f}) for this line item in {quarter}.")
+                            return redirect('purchase_request_upload')
                         
                         # Create Real PR
                         pr = PurchaseRequest.objects.create(

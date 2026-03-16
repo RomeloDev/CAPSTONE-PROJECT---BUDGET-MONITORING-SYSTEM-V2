@@ -438,10 +438,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function validateAmount() {
         const amount = parseFloat(totalAmountRaw.value) || 0;
-        const selectedOption = sourceOfFundSelect.options[sourceOfFundSelect.selectedIndex];
+        const selectedOption = sourceOfFundChoice.getValue(true); // Get selected value from Choices.js
         
         if (amount <= 0 && totalAmountRaw.value !== '') {
             totalAmountDisplay.setCustomValidity('Amount must be greater than zero');
+        } else if (selectedOption && amount > 0) {
+            // Get the full choice object to access custom properties
+            const choice = sourceOfFundChoice._store.choices.find(c => c.value === selectedOption);
+            if (choice && choice.customProperties && choice.customProperties.available) {
+                const available = parseFloat(choice.customProperties.available);
+                if (amount > available) {
+                    totalAmountDisplay.setCustomValidity(`Amount exceeds available balance (₱${available.toLocaleString('en-US', {minimumFractionDigits: 2})})`);
+                } else {
+                    totalAmountDisplay.setCustomValidity('');
+                }
+            } else {
+                 totalAmountDisplay.setCustomValidity('');
+            }
         } else {
             totalAmountDisplay.setCustomValidity('');
         }

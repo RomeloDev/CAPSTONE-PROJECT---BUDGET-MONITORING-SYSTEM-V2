@@ -1444,8 +1444,17 @@ class AdminPRDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
         # Retrieve the relevant allocation if it exists
         if pr.budget_allocation:
              context['allocation'] = pr.budget_allocation
-             # If you have PRE Line Item info, it might be accessible via the allocation or directly if linked
-             # context['pre_line_item'] = pr.source_line_item 
+             context['total_remaining_balance'] = pr.budget_allocation.remaining_balance
+             
+             # Attempt to get the specific line item allocation for this PR
+             pr_allocations = pr.pre_allocations.all()
+             if pr_allocations.exists():
+                 pr_alloc = pr_allocations.first()
+                 context['pr_allocation'] = pr_alloc
+                 context['pre_line_item'] = pr_alloc.pre_line_item
+                 context['allocated_quarter'] = pr_alloc.quarter
+                 context['quarter_total_amount'] = pr_alloc.pre_line_item.get_quarter_amount(pr_alloc.quarter)
+                 context['available_balance'] = pr_alloc.pre_line_item.get_quarter_available(pr_alloc.quarter)
         
         return context
     
@@ -1528,7 +1537,8 @@ class DepartmentADRequestView(LoginRequiredMixin, UserPassesTestMixin, ListView)
     context_object_name = 'ads'
     ordering = ['-created_at']
     def get_queryset(self):
-        queryset = super().get_queryset()
+        # Exclude Draft ADs so they do not show up as submitted requests
+        queryset = super().get_queryset().exclude(status='Draft')
         
         # Filter by Year (via related Budget Allocation -> ApprovedBudget)
         year = self.request.GET.get('summary_year', 'all')
