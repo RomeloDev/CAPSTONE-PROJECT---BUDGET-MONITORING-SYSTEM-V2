@@ -2853,32 +2853,36 @@ class PREBudgetRealignment(models.Model):
 
     # Document fields (following PRE/PR pattern)
     partially_approved_pdf = models.FileField(
+        storage=RawMediaCloudinaryStorage(),
         upload_to='br_pdfs/%Y/%m/',
         null=True,
         blank=True,
         help_text="PDF generated from uploaded documents when partially approved"
     )
     approved_documents = models.FileField(
+        storage=RawMediaCloudinaryStorage(),
         upload_to='br_approved_docs/%Y/%m/',
         null=True,
         blank=True,
-        validators=[FileExtensionValidator(allowed_extensions=['pdf', 'jpg', 'jpeg', 'png'])],
+        validators=[FileExtensionValidator(allowed_extensions=['pdf', 'docx', 'doc', 'xlsx', 'xls', 'jpg', 'jpeg', 'png'])],
         help_text="Scanned approved documents uploaded by admin"
     )
     final_approved_scan = models.FileField(
+        storage=RawMediaCloudinaryStorage(),
         upload_to='br_scanned/%Y/%m/',
         null=True,
         blank=True,
-        validators=[FileExtensionValidator(allowed_extensions=['pdf', 'jpg', 'jpeg', 'png'])],
+        validators=[FileExtensionValidator(allowed_extensions=['pdf', 'docx', 'doc', 'xlsx', 'xls', 'jpg', 'jpeg', 'png'])],
         help_text="Scanned copy of signed budget realignment"
     )
 
     # End user uploaded document (NEW - follows PR workflow)
     end_user_uploaded_document = models.FileField(
+        storage=RawMediaCloudinaryStorage(),
         upload_to='br_end_user_uploads/%Y/%m/',
         null=True,
         blank=True,
-        validators=[FileExtensionValidator(allowed_extensions=['pdf', 'jpg', 'jpeg', 'png'])],
+        validators=[FileExtensionValidator(allowed_extensions=['pdf', 'docx', 'doc', 'xlsx', 'xls', 'jpg', 'jpeg', 'png'])],
         help_text="Signed document uploaded by end user after partial approval"
     )
     end_user_uploaded_at = models.DateTimeField(null=True, blank=True)
@@ -3171,12 +3175,14 @@ class BudgetRealignmentSupportingDocument(models.Model):
         related_name='supporting_documents'
     )
     document = models.FileField(
+        storage=RawMediaCloudinaryStorage(),
         upload_to='br_supporting_docs/%Y/%m/',
         validators=[FileExtensionValidator(
             allowed_extensions=['pdf', 'docx', 'doc', 'xlsx', 'xls', 'jpg', 'jpeg', 'png']
         )]
     )
     converted_pdf = models.FileField(
+        storage=RawMediaCloudinaryStorage(),
         upload_to='br_converted_pdfs/%Y/%m/',
         null=True,
         blank=True,

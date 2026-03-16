@@ -2115,6 +2115,34 @@ class PREBudgetRealignmentView(LoginRequiredMixin, UserPassesTestMixin, FormView
         try:
             source_pre = DepartmentPRE.objects.get(id=source_pre_id, submitted_by=user)
             target_pre = DepartmentPRE.objects.get(id=target_pre_id, submitted_by=user)
+            source_item = source_pre.line_items.get(id=source_item_id)
+            
+            # --- BACKEND VALIDATION: Check Available Amounts ---
+            quarters_to_check = {
+                'Q1': data.get('q1_amount') or 0,
+                'Q2': data.get('q2_amount') or 0,
+                'Q3': data.get('q3_amount') or 0,
+                'Q4': data.get('q4_amount') or 0,
+            }
+            
+            for quarter, amount in quarters_to_check.items():
+                if amount > 0:
+                    available = source_item.get_quarter_available(quarter)
+                    # We must also factor in pending realignments from this very source so they can't double spend
+                    pending_realign = PREBudgetRealignment.objects.filter(
+                        source_item_key=str(source_item.id),
+                        source_pre=source_pre,
+                        status__in=['Pending', 'Partially Approved', 'Awaiting Admin Verification']
+                    ).aggregate(
+                        total=Coalesce(Sum(f'{quarter.lower()}_amount'), Decimal('0'))
+                    )['total']
+                    
+                    actual_available = available - pending_realign
+                    
+                    if amount > actual_available:
+                        messages.error(self.request, f"Error: Requested amount for {quarter} (₱{amount:,.2f}) exceeds the actual available balance (₱{actual_available:,.2f}).")
+                        return self.form_invalid(form)
+            # --- END VALIDATION ---
             
             # Create Realignment Record
             realignment = PREBudgetRealignment.objects.create(

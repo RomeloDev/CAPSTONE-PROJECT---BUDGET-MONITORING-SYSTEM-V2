@@ -249,13 +249,37 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Intercept form submission to strip commas before sending to backend
+    // Intercept form submission to strip commas before sending to backend and validate total
     const formVar = document.getElementById('realignmentForm');
     if (formVar) {
         formVar.addEventListener('submit', function(e) {
+            let hasError = false;
+            let totalAmount = 0;
+            
             inputs.forEach(input => {
-                input.value = input.value.replace(/,/g, '');
+                const q = input.name.split('_')[0]; 
+                const max = quarterLimits[q] || 0;
+                const rawVal = parseFloat(input.value.replace(/,/g, '')) || 0;
+                
+                if (rawVal > max) {
+                    hasError = true;
+                    input.classList.add('border-red-500');
+                }
+                
+                totalAmount += rawVal;
+                input.value = rawVal;
             });
+            
+            if (hasError) {
+                e.preventDefault();
+                alert('Cannot submit request: One or more quarter amounts exceed the available line item balance.');
+                return;
+            }
+            if (totalAmount <= 0) {
+                e.preventDefault();
+                alert('Please enter a valid amount greater than zero to realign.');
+                return;
+            }
         });
     }
 });
