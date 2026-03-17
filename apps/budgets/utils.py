@@ -17,17 +17,10 @@ def log_budget_transaction(allocation, amount, transaction_type, user, remarks='
                                   or if this transaction affects a different field (like only remaining_balance).
     """
     with transaction.atomic():
-        # 1. Capture Previous Snapshot (Force fresh DB read for safety if needed, 
-        # but using the instance provided is standard if it's locked properly)
-        # For strict accuracy, we use the value currently on the object.
-        previous_balance = allocation.allocated_amount
-        
-        # 2. Calculate New Balance
-        # Ensure amount is Decimal to avoid float errors
         amount_decimal = Decimal(str(amount))
-        new_balance = previous_balance + amount_decimal
+        new_balance = allocation.allocated_amount 
+        previous_balance = allocation.allocated_amount - amount_decimal
         
-        # 3. Create Atomic Audit Record
         BudgetTransaction.objects.create(
             allocation=allocation,
             transaction_type=transaction_type,
@@ -38,7 +31,6 @@ def log_budget_transaction(allocation, amount, transaction_type, user, remarks='
             created_by=user
         )
         
-        # 4. Update Parent (Optional Side Effect)
         if update_allocation:
             allocation.allocated_amount = new_balance
             
