@@ -18,4 +18,19 @@ if [ -n "$SUPERUSER_USERNAME" ] && [ -n "$SUPERUSER_EMAIL" ] && [ -n "$SUPERUSER
 fi
 
 echo "Starting Gunicorn Server..."
-exec gunicorn config.wsgi:application --bind 0.0.0.0:8000
+
+# Render-friendly Gunicorn defaults (override via environment variables if needed)
+PORT="${PORT:-8000}"
+GUNICORN_WORKERS="${GUNICORN_WORKERS:-1}"
+GUNICORN_THREADS="${GUNICORN_THREADS:-2}"
+GUNICORN_TIMEOUT="${GUNICORN_TIMEOUT:-120}"
+GUNICORN_MAX_REQUESTS="${GUNICORN_MAX_REQUESTS:-500}"
+GUNICORN_MAX_REQUESTS_JITTER="${GUNICORN_MAX_REQUESTS_JITTER:-50}"
+
+exec gunicorn config.wsgi:application \
+    --bind "0.0.0.0:${PORT}" \
+    --workers "${GUNICORN_WORKERS}" \
+    --threads "${GUNICORN_THREADS}" \
+    --timeout "${GUNICORN_TIMEOUT}" \
+    --max-requests "${GUNICORN_MAX_REQUESTS}" \
+    --max-requests-jitter "${GUNICORN_MAX_REQUESTS_JITTER}"
