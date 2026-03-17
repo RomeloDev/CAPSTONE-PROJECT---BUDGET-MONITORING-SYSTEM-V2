@@ -499,6 +499,7 @@ class BudgetAllocationListView(ListView):
     def handle_edit(self, request):
         allocation_id = request.POST.get('allocation_id')
         allocation = get_object_or_404(BudgetAllocation, id=allocation_id)
+        old_amount = allocation.allocated_amount
         
         # Pass instance to form for update context
         form = BudgetAllocationForm(request.POST, instance=allocation)
@@ -506,7 +507,6 @@ class BudgetAllocationListView(ListView):
         if form.is_valid():
             try:                      
                 new_amount = form.cleaned_data['allocated_amount']
-                old_amount = allocation.allocated_amount # Pre-update value (from DB)
                 
                 # Delta is still useful for audit logging.
                 difference = new_amount - old_amount
