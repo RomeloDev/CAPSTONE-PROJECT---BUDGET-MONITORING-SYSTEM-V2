@@ -467,10 +467,7 @@ class BudgetAllocationListView(ListView):
                 allocation.department = form.end_user.department
                 allocation.remaining_balance = allocation.allocated_amount
                 allocation.save()
-                # Update Approved Budget
-                approved_budget = allocation.approved_budget
-                approved_budget.remaining_budget -= allocation.allocated_amount
-                approved_budget.save()
+                # Parent ApprovedBudget remaining balance is synced by BudgetAllocation signals.
                 
                 log_activity(
                     user=request.user,
@@ -511,13 +508,9 @@ class BudgetAllocationListView(ListView):
                 new_amount = form.cleaned_data['allocated_amount']
                 old_amount = allocation.allocated_amount # Pre-update value (from DB)
                 
-                # Logic to update parent budget based on difference
+                # Delta is still useful for audit logging.
                 difference = new_amount - old_amount
-                approved_budget = allocation.approved_budget
-                
-                if difference != 0:
-                    approved_budget.remaining_budget -= difference
-                    approved_budget.save()
+
                 # Save allocation with new amount
                 allocation = form.save(commit=False)
                 allocation.remaining_balance = new_amount - allocation.get_total_used()
@@ -537,7 +530,7 @@ class BudgetAllocationListView(ListView):
                     transaction_type='Manual Adjustment',
                     user=request.user,
                     remarks='Admin edited budget amount',
-                    update_allocation=True # This will apply the new amount to the model
+                    update_allocation=False # Allocation already saved above
                 )
                 
                 messages.success(request, "Budget allocation updated successfully.")

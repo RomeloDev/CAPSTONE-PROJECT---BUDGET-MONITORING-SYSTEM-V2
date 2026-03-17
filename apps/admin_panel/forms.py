@@ -2,12 +2,14 @@ from django import forms
 from apps.budgets.models import BudgetAllocation, ApprovedBudget, DepartmentPRE
 from apps.user_accounts.models import User
 from django.contrib.auth.hashers import make_password
+from decimal import Decimal
 
 class BudgetAllocationForm(forms.ModelForm):
     # Field to select Approved Budget (for dropdown selection)
     approved_budget = forms.ModelChoiceField(
         queryset=ApprovedBudget.objects.filter(is_active=True, remaining_budget__gt=0),
         empty_label="--Select Approved Budget--",
+        required=False, # We handle requirements and instance fallback in the clean() method
         widget=forms.Select(attrs={
             'class': 'w-full border border-gray-300 rounded px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500'
         })
@@ -31,19 +33,31 @@ class BudgetAllocationForm(forms.ModelForm):
         approved_budget = cleaned_data.get('approved_budget')
         end_user_id = cleaned_data.get('end_user_id')
         
+        # Fallback to instance's approved_budget if not in cleaned_data (e.g., during edit)
+        if not approved_budget and self.instance.pk:
+            approved_budget = self.instance.approved_budget
+            # Keep the relation when ModelForm saves the instance during edit.
+            cleaned_data['approved_budget'] = approved_budget
+            
         if not allocated_amount or allocated_amount <= 0:
             self.add_error('allocated_amount', "Allocation amount must be greater than 0.")
-            return
+            return cleaned_data
+            
+        if not approved_budget:
+            self.add_error('approved_budget', "Approved Budget is required.")
+            return cleaned_data
         
         # --- Context Handling (Create vs Edit) ---
         # If instance.pk exists, we are EDITING
         if self.instance.pk:
             current_allocation = self.instance
-            total_used = current_allocation.get_total_used()
+            
+            # Need a safe fallback if get_total_used doesn't exist on the model
+            total_used = getattr(current_allocation, 'get_total_used', lambda: Decimal('0.00'))()
             
             if allocated_amount < total_used:
                 self.add_error('allocated_amount', f"Cannot reduce allocation below amount already used (₱{total_used:,.2f})")
-                return
+                return cleaned_data
             
             # Check if we are increasing the budget, do we have enough?
             difference = allocated_amount - current_allocation.allocated_amount
