@@ -308,9 +308,7 @@ static %} {% block title %}PR Details - {{ pr.pr_number }}{% endblock title %}
                   Overall Balance
                 </p>
                 <p class="mt-1 text-lg font-semibold text-green-600">
-                  ₱{{
-                  total_remaining_balance|default:"0.00"|floatformat:2|intcomma
-                  }}
+                  ₱{{ total_remaining_balance|default:"0.00"|floatformat:2|intcomma }}
                 </p>
               </div>
             </div>
@@ -344,8 +342,7 @@ static %} {% block title %}PR Details - {{ pr.pr_number }}{% endblock title %}
                 Line Item Total
               </p>
               <p class="mt-1 text-base font-semibold text-gray-700">
-                ₱{{ quarter_total_amount|default:"0.00"|floatformat:2|intcomma
-                }}
+                ₱{{ quarter_total_amount|default:"0.00"|floatformat:2|intcomma }}
               </p>
             </div>
             <div>
@@ -356,9 +353,7 @@ static %} {% block title %}PR Details - {{ pr.pr_number }}{% endblock title %}
                 Available (Before PR)
               </p>
               <p class="mt-1 text-base font-bold text-blue-600">
-                ₱{{
-                line_item_available_before_pr|default:"0.00"|floatformat:2|intcomma
-                }}
+                ₱{{ line_item_available_before_pr|default:"0.00"|floatformat:2|intcomma }}
               </p>
             </div>
             <div>

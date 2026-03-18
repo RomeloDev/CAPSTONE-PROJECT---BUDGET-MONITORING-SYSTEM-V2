@@ -1,6 +1,8 @@
-{% extends "admin_base_template/dashboard.html" %} {% load humanize %} {% load
-static %} {% block title %}Admin View: Activity Design {{ ad.ad_number }}{%
-endblock %} {% block main-content %}
+{% extends "admin_base_template/dashboard.html" %} 
+{% load humanize %} 
+{% load static %} 
+{% block title %}Admin View: Activity Design {{ ad.ad_number }} {% endblock %} 
+{% block main-content %}
 <div class="flex flex-col w-full min-h-screen bg-gray-100">
   <!-- Header / Breadcrumb -->
   <header
@@ -285,8 +287,7 @@ endblock %} {% block main-content %}
               Total Remaining Balance
             </p>
             <p class="text-sm font-bold text-green-600">
-              ₱{{ budget_summary.remaining|default:"0.00"|floatformat:2|intcomma
-              }}
+              ₱{{ budget_summary.remaining|default:"0.00"|floatformat:2|intcomma }}
             </p>
           </div>
 
@@ -318,8 +319,7 @@ endblock %} {% block main-content %}
                     Available (Before)
                   </p>
                   <p class="font-semibold text-blue-700">
-                    ₱{{ detail.quarter_available_before|floatformat:2|intcomma
-                    }}
+                    ₱{{ detail.quarter_available_before|floatformat:2|intcomma }}
                   </p>
                 </div>
                 <div>
@@ -332,7 +332,8 @@ endblock %} {% block main-content %}
                 </div>
               </div>
             </div>
-            {% endwith %} {% empty %}
+            {% endwith %} 
+            {% empty %}
             <p class="text-sm text-gray-500 italic">No allocations found.</p>
             {% endfor %}
           </div>
