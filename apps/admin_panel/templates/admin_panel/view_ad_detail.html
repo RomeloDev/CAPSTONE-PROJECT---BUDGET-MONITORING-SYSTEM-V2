@@ -18,9 +18,8 @@
         </span>
       </h1>
       <p class="text-sm text-gray-500 mt-1">
-        Submitted by <strong>{{ ad.submitted_by.get_full_name }}</strong> ({{
-        ad.department|default:ad.budget_allocation.department }}) on {{
-        ad.created_at|date:"F d, Y g:i A" }}
+        Submitted by <strong>{{ ad.submitted_by.get_full_name }}</strong> ({{ ad.department|default:ad.budget_allocation.department }}) on 
+        {{ ad.created_at|date:"F d, Y g:i A" }}
       </p>
     </div>
     <div>

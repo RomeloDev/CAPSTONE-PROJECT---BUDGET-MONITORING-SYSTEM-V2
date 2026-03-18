@@ -895,6 +895,12 @@ class PREDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         pre = self.object
+
+        if pre.budget_allocation:
+            remaining = pre.budget_allocation.remaining_balance
+            context['pre_budget_remaining'] = remaining
+            context['pre_is_within_budget'] = pre.total_amount <= remaining
+            context['pre_excess_amount'] = pre.total_amount - remaining if pre.total_amount > remaining else 0
         
         # 1. Approval History
         # If RequestApproval model exists, fetch history
