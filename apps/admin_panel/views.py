@@ -1447,7 +1447,9 @@ class AdminPRDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
                  context['pre_line_item'] = pr_alloc.pre_line_item
                  context['allocated_quarter'] = pr_alloc.quarter
                  context['quarter_total_amount'] = pr_alloc.pre_line_item.get_quarter_amount(pr_alloc.quarter)
-                 context['available_balance'] = pr_alloc.pre_line_item.get_quarter_available(pr_alloc.quarter)
+                 quarter_available_after_pr = pr_alloc.pre_line_item.get_quarter_available(pr_alloc.quarter)
+                 context['available_balance'] = quarter_available_after_pr
+                 context['line_item_available_before_pr'] = quarter_available_after_pr + pr_alloc.allocated_amount
         
         return context
     
@@ -1706,10 +1708,21 @@ class AdminADDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
         
         # 1. Get all funding allocations for this AD
         # This allows the admin to see exactly which lines are funding this activity
-        context['allocations'] = ad.pre_allocations.select_related(
+        allocations = ad.pre_allocations.select_related(
             'pre_line_item', 
             'pre_line_item__category'
         ).all()
+        context['allocations'] = allocations
+
+        allocation_details = []
+        for alloc in allocations:
+            quarter_available_after = alloc.pre_line_item.get_quarter_available(alloc.quarter)
+            allocation_details.append({
+                'alloc': alloc,
+                'quarter_available_after': quarter_available_after,
+                'quarter_available_before': quarter_available_after + alloc.allocated_amount,
+            })
+        context['allocation_details'] = allocation_details
         
         # 2. Add Budget Summaries (Optional context for Admin to check specific budget health)
         if ad.budget_allocation:
