@@ -2022,8 +2022,7 @@ class PREBudgetRealignmentView(LoginRequiredMixin, UserPassesTestMixin, FormView
         """Helper to get available source line items"""
         approved_pres = DepartmentPRE.objects.filter(
             submitted_by=self.request.user,
-            status='Approved',  # Only fully approved PREs
-            fiscal_year=str(timezone.now().year)
+            status='Approved'  # Only fully approved PREs
         )
         
         choices = []
@@ -2067,8 +2066,7 @@ class PREBudgetRealignmentView(LoginRequiredMixin, UserPassesTestMixin, FormView
         """Helper to get all possible target line items"""
         approved_pres = DepartmentPRE.objects.filter(
             submitted_by=self.request.user,
-            status='Approved',
-            fiscal_year=str(timezone.now().year)    
+            status='Approved'
         )
         choices = []
         for pre in approved_pres:
