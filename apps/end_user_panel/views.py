@@ -2498,8 +2498,7 @@ def export_quarterly_report_pdf(request):
     # We want PREs that are active for this fiscal year
     pres = DepartmentPRE.objects.filter(
         submitted_by=request.user,
-        status='Approved',
-        fiscal_year=current_year
+        status='Approved'
     ).prefetch_related('line_items', 'line_items__category')
     
     # 2. Prepare Data
@@ -2711,8 +2710,7 @@ def export_category_report_pdf(request):
     # 1. Fetch Approved PREs for the user
     approved_pres = DepartmentPRE.objects.filter(
         submitted_by=request.user,
-        status='Approved',
-        fiscal_year=current_year
+        status='Approved'
     ).prefetch_related('line_items', 'line_items__category')
     
     # 2. Aggregate Data by Category
