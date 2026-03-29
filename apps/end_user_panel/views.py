@@ -2680,8 +2680,8 @@ def export_pre_budget_details_pdf(request):
     if pdf:
         response = HttpResponse(pdf, content_type='application/pdf')
         filename = f"PRE_Details_Report_{selected_year}_{datetime.now().strftime('%Y%m%d')}.pdf"
-        # ATTACHMENT = Download Only
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        # INLINE = Preview in Browser
+        response['Content-Disposition'] = f'inline; filename="{filename}"'
         
         log_activity(
             user=request.user,
