@@ -33,6 +33,7 @@ from django.views.decorators.http import require_POST
 from apps.admin_panel.utils import log_activity
 from django.db import transaction
 from apps.budgets.utils import log_budget_transaction
+from apps.budgets.notifications import notify_admins_new_request, notify_user_status_change
 
 class AdminDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     """Dashboard for Budget Officers/Admins"""
@@ -980,6 +981,8 @@ def admin_handle_pre_action(request, pre_id):
                 record_id=pre.id
             )
             
+            # Email end-user: partially approved
+            notify_user_status_change(pre, 'pre', 'Partially Approved')
             messages.success(request, f'PRE {str(pre.id)[:8]} has been partially approved.')
         else:
             messages.warning(request, 'This PRE cannot be approved in its current status.')
@@ -1017,6 +1020,8 @@ def admin_handle_pre_action(request, pre_id):
                 record_id=pre.id
             )
             
+            # Email end-user: rejected
+            notify_user_status_change(pre, 'pre', 'Rejected')
             messages.success(request, 'PRE has been rejected.')
         else:
             messages.warning(request, 'This PRE cannot be rejected in its current status.')
@@ -1079,6 +1084,8 @@ def admin_verify_and_approve_pre(request, pre_id):
             record_id=pre.id
         )
         
+        # Email end-user: fully approved
+        notify_user_status_change(pre, 'pre', 'Approved')
         messages.success(request, 'PRE verified and fully approved!')
     elif action == 'reject':
         # Revert to Partially Approved, require re-upload
@@ -1388,6 +1395,8 @@ def handle_pr_action(request, pr_id):
                 record_id=pr.id,
             )
             
+            # Email end-user: partially approved
+            notify_user_status_change(pr, 'pr', 'Partially Approved')
             messages.success(request, f"PR {pr.pr_number} successfully approved! It is now 'Partially Approved'.")
         
         # elif pr.status == 'Awaiting Admin Verification':
@@ -1407,17 +1416,21 @@ def handle_pr_action(request, pr_id):
              messages.warning(request, f"PR {pr.pr_number} cannot be approved from its current status: {pr.status}")
 
     elif action == 'reject':
+        rejection_reason = request.POST.get('rejection_reason', '').strip()
         pr.status = 'Rejected'
+        pr.rejection_reason = rejection_reason
         pr.save()
         
         log_activity(
             user=request.user,
             action='REJECTED_PR',
-            detail=f'PR {pr.pr_number} has been Rejected.',
+            detail=f'PR {pr.pr_number} has been Rejected. Reason: {rejection_reason}',
             model_name='PurchaseRequest',
             record_id=pr.id,
         )
         
+        # Email end-user: rejected
+        notify_user_status_change(pr, 'pr', 'Rejected')
         messages.error(request, f"PR {pr.pr_number} has been rejected.")
         
     return redirect('admin_pr_list')
@@ -1508,6 +1521,8 @@ def admin_verify_and_approve_pr(request, pr_id):
             update_allocation=False # Usage is already updated by pr.update_budget_usage()
         )
         
+        # Email end-user: fully approved
+        notify_user_status_change(pr, 'pr', 'Approved')
         messages.success(request, f"PR {pr.pr_number} has been verified and fully APPROVED.")
         
     elif action == 'reject':
@@ -1628,6 +1643,8 @@ class HandleADRequestView(LoginRequiredMixin, UserPassesTestMixin, View):
                         record_id=ad.id
                     )
                     
+                    # Email end-user: partially approved
+                    notify_user_status_change(ad, 'ad', 'Partially Approved')
                     messages.success(request, f"AD-{ad.ad_number} Partially Approved. Waiting for signed docs.")
                 elif action == 'approve_final':
                     # 1. Lock the allocation row so no other request can touch it yet (Isolation)
@@ -1667,6 +1684,8 @@ class HandleADRequestView(LoginRequiredMixin, UserPassesTestMixin, View):
                         update_allocation=False # Do NOT change the Total Allocated Amount
                     )
                     
+                    # Email end-user: fully approved
+                    notify_user_status_change(ad, 'ad', 'Approved')
                     messages.success(request, f"AD-{ad.ad_number} Fully Approved!")
                 elif action == 'reject':
                     ad.status = 'Rejected'
@@ -1683,6 +1702,8 @@ class HandleADRequestView(LoginRequiredMixin, UserPassesTestMixin, View):
                         model_name='ActivityDesign',
                         record_id=ad.id
                     )
+                    # Email end-user: rejected
+                    notify_user_status_change(ad, 'ad', 'Rejected')
                     messages.warning(request, f"AD-{ad.ad_number} Rejected.")
                     
         except Exception as e:
@@ -1922,6 +1943,8 @@ def handle_admin_realignment_action(request, pk):
                         record_id=realignment.id
                     )
                     
+                    # Email end-user: realignment approved
+                    notify_user_status_change(realignment, 'realignment', 'Approved')
                     messages.success(request, f"Request #{pk} Fully Approved and Budget Transferred.")
                     
                 elif action == 'reject':
@@ -1938,6 +1961,8 @@ def handle_admin_realignment_action(request, pk):
                         record_id=realignment.id
                     )
                     
+                    # Email end-user: realignment rejected
+                    notify_user_status_change(realignment, 'realignment', 'Rejected')
                     messages.warning(request, f"Request #{pk} Rejected.")
         except Exception as e:
             messages.error(request, f"Error: {str(e)}")

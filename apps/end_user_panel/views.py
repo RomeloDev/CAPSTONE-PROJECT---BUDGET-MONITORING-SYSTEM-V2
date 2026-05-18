@@ -57,6 +57,7 @@ from django.http import JsonResponse, HttpResponse, FileResponse, Http404
 from django.views.decorators.http import require_POST
 from apps.admin_panel.utils import log_activity
 from apps.budgets.utils import log_budget_transaction
+from apps.budgets.notifications import notify_admins_new_request, notify_user_status_change
 
 class EndUserDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     """Dashboard for regular staff/end users"""
@@ -450,6 +451,8 @@ class PreviewPREView(LoginRequiredMixin, UserPassesTestMixin, View):
                         record_id=pre.id
                     )
                     
+                    # Notify admins of new PRE submission
+                    notify_admins_new_request(pre, 'pre')
                     messages.success(request, f"PRE Submitted Successfully! Reference ID: {pre.id}")
                     return redirect('department_pre_page')
             except Exception as e:
@@ -1444,6 +1447,8 @@ def purchase_request_upload(request):
                             record_id=pr.id
                         )
                         
+                        # Notify admins of new PR submission
+                        notify_admins_new_request(pr, 'pr')
                         messages.success(request, "Purchase Request submitted successfully!")
                         return redirect('pr_ad_list')
                 except Exception as e:
@@ -1880,6 +1885,8 @@ def activity_design_upload(request):
                         record_id=ad.id
                     )
                         
+                    # Notify admins of new AD submission
+                    notify_admins_new_request(ad, 'ad')
                     messages.success(request, "Activity Design submitted successfully!")
                     return redirect('pr_ad_list') 
             else:
@@ -2194,6 +2201,8 @@ class PREBudgetRealignmentView(LoginRequiredMixin, UserPassesTestMixin, FormView
                 model_name='PREBudgetRealignment',
                 record_id=realignment.id
             )
+            # Notify admins of new Realignment submission
+            notify_admins_new_request(realignment, 'realignment')
             
             # Calculate total amount being transferred
             total_transfer_amount = sum([

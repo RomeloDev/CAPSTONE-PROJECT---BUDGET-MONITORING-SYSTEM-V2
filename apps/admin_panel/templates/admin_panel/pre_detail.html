@@ -1677,11 +1677,8 @@
       // Reset loading state
       if (loading) loading.classList.remove("hidden");
 
-      // Google Docs Viewer logic
-      const encodedUrl = encodeURIComponent(url);
-      const viewerUrl = `https://docs.google.com/gview?url=${encodedUrl}&embedded=true`;
-
-      frame.src = viewerUrl;
+      // Local preview - browser renders PDF/images natively
+      frame.src = url;
 
       modal.classList.remove("hidden");
       document.body.style.overflow = "hidden";

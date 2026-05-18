@@ -490,12 +490,8 @@
           </svg>
         </button>
       </div>
-      <div class="flex-1 relative bg-gray-200">
-        <iframe
-          id="previewFrame"
-          src=""
-          class="w-full h-full border-0"
-        ></iframe>
+      <div class="flex-1 relative bg-gray-200" id="previewContent">
+        <!-- Content injected by openAdminPreview() -->
       </div>
     </div>
   </div>
@@ -504,11 +500,19 @@
 <script>
   function openAdminPreview(url, title) {
     const modal = document.getElementById("previewModal");
-    const frame = document.getElementById("previewFrame");
-    document.getElementById("previewModalTitle").textContent = title;
+    const container = document.getElementById("previewContent");
+    document.getElementById("previewModalTitle").textContent = title || "Document Preview";
 
-    const encodedUrl = encodeURIComponent(url);
-    frame.src = `https://docs.google.com/gview?url=${encodedUrl}&embedded=true`;
+    const ext = url.split("?")[0].split(".").pop().toLowerCase();
+    container.innerHTML = "";
+
+    if (ext === "pdf") {
+      container.innerHTML = `<iframe src="${url}" class="w-full h-full border-0" title="${title || "Document"}"></iframe>`;
+    } else if (["jpg","jpeg","png","gif","webp"].includes(ext)) {
+      container.innerHTML = `<div class="flex items-center justify-center w-full h-full bg-gray-100 p-4"><img src="${url}" class="max-h-full max-w-full object-contain rounded shadow-lg" alt="${title || "Image"}" /></div>`;
+    } else {
+      container.innerHTML = `<div class="flex flex-col items-center justify-center h-full gap-4 text-gray-500 p-8"><svg class="w-16 h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg><p class="text-sm font-medium text-gray-600">Preview not available for <strong>.${ext}</strong> files.</p><a href="${url}" download class="inline-flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">Download File</a></div>`;
+    }
 
     modal.classList.remove("hidden");
     document.body.style.overflow = "hidden";
@@ -517,7 +521,7 @@
   function closeAdminPreview() {
     const modal = document.getElementById("previewModal");
     modal.classList.add("hidden");
-    document.getElementById("previewFrame").src = "";
+    document.getElementById("previewContent").innerHTML = "";
     document.body.style.overflow = "auto";
   }
 </script>

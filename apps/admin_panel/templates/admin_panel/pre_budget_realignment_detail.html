@@ -140,10 +140,10 @@
                                     </div>
                                     <a href="{{ doc.document.url }}" target="_blank" class="text-blue-600 text-xs hover:underline">Download</a>
                                 </div>
-                                <div class="h-64 bg-gray-100">
-                                    <iframe 
-                                        src="https://docs.google.com/gview?url={{ doc.document.url|urlencode }}&embedded=true" 
-                                        class="w-full h-full border-none">
+                                <div class="h-64 bg-gray-100 flex items-center justify-center">
+                                    <iframe src="{{ doc.document.url }}"
+                                        class="w-full h-full border-none"
+                                        title="{{ doc.file_name }}">
                                     </iframe>
                                 </div>
                             </div>

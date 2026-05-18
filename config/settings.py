@@ -43,8 +43,6 @@ INSTALLED_APPS = [
     
     # Third-party
     'django_tailwind_cli', # Simpler Tailwind setup
-    'cloudinary_storage',
-    'cloudinary',
     
     # Local Apps (Migrate these one by one)
     'apps.user_accounts', 
@@ -96,9 +94,10 @@ DATABASES = {
     )
 }
 
-# Add sslmode wrapper safely if working with postgres
-if 'postgres' in DATABASES['default']['ENGINE']:
-    DATABASES['default']['OPTIONS'] = {'sslmode': 'require'}
+# On-premise deployments usually don't need sslmode.
+# Set DATABASE_SSL=true in .env only if your DBA has configured SSL on PostgreSQL.
+if 'postgres' in DATABASES['default']['ENGINE'] and os.getenv('DATABASE_SSL', 'false').lower() == 'true':
+    DATABASES['default'].setdefault('OPTIONS', {})['sslmode'] = 'require'
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -119,22 +118,20 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# Modern Storage Configuration
+# Storage Configuration
+# Uses local filesystem storage for media files (served via Nginx in production)
 STORAGES = {
     "default": {
-        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
     },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
 
-# Cloudinary Configuration
-CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME'),
-    'API_KEY': os.getenv('CLOUDINARY_API_KEY'),
-    'API_SECRET': os.getenv('CLOUDINARY_API_SECRET'),
-}
+# File Upload Size Limits (50MB)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800
+FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800
 
 # Media Files
 MEDIA_URL = '/media/'
@@ -170,3 +167,6 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 # Password Reset Configuration
 # This ensures links point to the correct domain automatically (Localhost or PythonAnywhere)
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+# Human-readable system name used in email notifications
+SYSTEM_NAME = 'Budget Monitoring System'

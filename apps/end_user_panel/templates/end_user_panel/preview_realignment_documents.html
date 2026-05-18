@@ -78,7 +78,7 @@
                     <div class="h-96 bg-gray-100">
                         <!-- Google Docs Viewer -->
                         <iframe 
-                            src="https://docs.google.com/gview?url={{ doc.document.url|urlencode }}&embedded=true" 
+                            src="{{ doc.document.url }}" 
                             class="w-full h-full border-none"
                             title="Document Preview">
                         </iframe>
@@ -127,7 +127,7 @@
                      </div>
                      <div class="h-96 bg-gray-100">
                          <iframe 
-                             src="https://docs.google.com/gview?url={{ doc.document.url|urlencode }}&embedded=true" 
+                             src="{{ doc.document.url }}" 
                              class="w-full h-full border-none">
                          </iframe>
                      </div>
@@ -143,7 +143,7 @@
                 </div>
                 <div class="h-96 bg-gray-100">
                     <iframe 
-                        src="https://docs.google.com/gview?url={{ realignment.end_user_uploaded_document.url|urlencode }}&embedded=true" 
+                        src="{{ realignment.end_user_uploaded_document.url }}" 
                         class="w-full h-full border-none">
                     </iframe>
                 </div>
@@ -165,7 +165,7 @@
                  </div>
                  <div class="h-96 bg-gray-100">
                      <iframe 
-                         src="https://docs.google.com/gview?url={{ doc.document.url|urlencode }}&embedded=true" 
+                         src="{{ doc.document.url }}" 
                          class="w-full h-full border-none">
                      </iframe>
                  </div>
