@@ -1689,7 +1689,7 @@ class HandleADRequestView(LoginRequiredMixin, UserPassesTestMixin, View):
                     messages.success(request, f"AD-{ad.ad_number} Fully Approved!")
                 elif action == 'reject':
                     ad.status = 'Rejected'
-                    ad.rejection_reason = request.POST.get('rejection_reason', 'Admin Rejected')
+                    ad.rejection_reason = request.POST.get('rejection_reason', '').strip()
                     ad.save()
                     # If budget was reserved, clear it? 
                     # AD allocations usually sum up dynamically, so changing status to Rejected might be enough
