@@ -15,6 +15,7 @@ from .models import (
     BudgetRealignmentSupportingDocument,
     PurchaseRequestApprovedDocument,
     ActivityDesignApprovedDocument,
+    SupportingDocument,
 )
 from .utils import attach_converted_pdf
 
@@ -30,6 +31,7 @@ DOCUMENT_TYPE_MAP = {
     'br_supporting_doc':  (BudgetRealignmentSupportingDocument,'document','converted_pdf',        False),
     'pr_approved_doc':    (PurchaseRequestApprovedDocument,   'document', 'converted_pdf',        False),
     'ad_approved_doc':    (ActivityDesignApprovedDocument,    'document', 'converted_pdf',        False),
+    'ab_supporting_doc':  (SupportingDocument,                'document', 'converted_pdf',        False),
     'pre_main':           (DepartmentPRE,   'uploaded_excel_file', 'uploaded_excel_pdf',          True),
     'pr_main':            (PurchaseRequest, 'uploaded_document',   'uploaded_document_pdf',       True),
     'ad_main':            (ActivityDesign,  'uploaded_document',   'uploaded_document_pdf',       True),

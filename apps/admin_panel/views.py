@@ -373,8 +373,10 @@ def approved_budget_detail(request, pk):
     documents = []
     for doc in budget.supporting_documents.all():
         documents.append({
+            'id': doc.id,
             'name': doc.file_name,
             'url': doc.document.url,
+            'converted_pdf_url': doc.converted_pdf.url if doc.converted_pdf else '',
             'size': f"{doc.file_size / 1024:.2f} KB" if doc.file_size else "N/A",
         })
     

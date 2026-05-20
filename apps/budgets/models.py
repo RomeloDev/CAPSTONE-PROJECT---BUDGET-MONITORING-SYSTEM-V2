@@ -134,7 +134,14 @@ class SupportingDocument(models.Model):
         validators=[FileExtensionValidator(allowed_extensions=['pdf', 'docx', 'doc', 'xlsx', 'xls'])],
         help_text="Supporting document (PDF, Word, Excel)"
     )
-    
+
+    converted_pdf = models.FileField(
+        upload_to='ab_converted_pdfs/%Y/%m/',
+        null=True,
+        blank=True,
+        help_text="Auto-converted PDF for office document uploads"
+    )
+
     file_name = models.CharField(max_length=255)
     file_format = models.CharField(max_length=10, editable=False)
     file_size = models.BigIntegerField(help_text="File size in bytes", editable=False)

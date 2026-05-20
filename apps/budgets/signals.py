@@ -15,6 +15,7 @@ from .models import (
     BudgetRealignmentSupportingDocument,
     PurchaseRequestApprovedDocument,
     ActivityDesignApprovedDocument,
+    SupportingDocument,
 )
 
 
@@ -163,5 +164,12 @@ def cleanup_pr_approved_doc_pdf(sender, instance, **kwargs):
 @receiver(post_delete, sender=ActivityDesignApprovedDocument)
 def cleanup_ad_approved_doc_pdf(sender, instance, **kwargs):
     """Remove converted PDF when an AD approved document is deleted."""
+    if instance.converted_pdf:
+        instance.converted_pdf.delete(save=False)
+
+
+@receiver(post_delete, sender=SupportingDocument)
+def cleanup_ab_supporting_doc_pdf(sender, instance, **kwargs):
+    """Remove converted PDF when an approved-budget supporting document is deleted."""
     if instance.converted_pdf:
         instance.converted_pdf.delete(save=False)

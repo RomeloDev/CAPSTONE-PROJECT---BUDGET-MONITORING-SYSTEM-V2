@@ -121,7 +121,19 @@
                                     <svg class="w-5 h-5 text-red-500 mr-2" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a2 2 0 00-2 2v8a2 2 0 002 2h6a2 2 0 002-2V6.414A2 2 0 0016.414 5L14 2.586A2 2 0 0012.586 2H9z"/></svg>
                                     <span class="text-sm text-gray-700 truncate max-w-[200px]" title="{{ doc.file_name }}">{{ doc.file_name }}</span>
                                 </div>
-                                <a href="{{ doc.document.url }}" target="_blank" class="text-blue-600 text-xs hover:underline">View</a>
+                                <div class="flex items-center gap-2">
+                                    <button
+                                        onclick="openPreview(
+                                            '{{ doc.document.url }}',
+                                            '{% if doc.converted_pdf %}{{ doc.converted_pdf.url }}{% else %}{% endif %}',
+                                            '{{ doc.id }}',
+                                            'br_supporting_doc',
+                                            '{{ doc.file_name }}'
+                                        )"
+                                        class="text-blue-600 text-xs hover:underline font-medium"
+                                    >Preview</button>
+                                    <a href="{{ doc.document.url }}" target="_blank" class="text-gray-500 text-xs hover:underline">Download</a>
+                                </div>
                             </li>
                             {% endfor %}
                         </ul>
