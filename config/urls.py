@@ -26,9 +26,9 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('django/admin/', admin.site.urls),
     path('', include('apps.user_accounts.urls')),
-    path('user/', include('apps.end_user_panel.urls')), 
+    path('user/', include('apps.end_user_panel.urls')),
     path('admin-panel/', include('apps.admin_panel.urls')),
-    # path('', home)
+    path('budgets/', include('apps.budgets.urls')),
 ]
 
 # Serve media files in development (DEBUG=True only).

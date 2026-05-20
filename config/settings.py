@@ -137,6 +137,9 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# LibreOffice Headless — used for server-side DOCX/XLSX to PDF conversion
+LIBREOFFICE_PATH = os.getenv('LIBREOFFICE_PATH', r'C:\Program Files\LibreOffice\program\soffice.exe')
+
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -170,3 +173,5 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # Human-readable system name used in email notifications
 SYSTEM_NAME = 'Budget Monitoring System'
+
+X_FRAME_OPTIONS = 'SAMEORIGIN'

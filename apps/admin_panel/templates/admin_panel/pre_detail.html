@@ -790,8 +790,14 @@
                 </div>
               </div>
               <div class="flex items-center gap-2 shrink-0">
-                <button
-                  onclick="openGoogleDocsPreview('{{ pre.uploaded_excel_file.url }}', 'Original PRE Excel')"
+                 <button
+                   onclick="openPreview(
+                     '{{ pre.uploaded_excel_file.url }}',
+                     '{% if pre.uploaded_excel_pdf %}{{ pre.uploaded_excel_pdf.url }}{% else %}{% endif %}',
+                     '{{ pre.id }}',
+                     'pre_main',
+                     'Original PRE Excel'
+                   )"
                   class="text-xs font-medium text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-md transition-colors flex items-center gap-1"
                 >
                   <svg
@@ -938,7 +944,13 @@
                   </div>
                   <div class="flex items-center gap-2 shrink-0">
                     <button
-                      onclick="openGoogleDocsPreview('{{ doc.document.url }}', '{{ doc.file_name }}')"
+                      onclick="openPreview(
+                        '{{ doc.document.url }}',
+                        '{% if doc.converted_pdf %}{{ doc.converted_pdf.url }}{% else %}{% endif %}',
+                        '{{ doc.id }}',
+                        'pre_supporting_doc',
+                        '{{ doc.file_name }}'
+                      )"
                       class="text-xs font-medium text-purple-700 hover:text-purple-900 bg-purple-100 hover:bg-purple-200 px-2.5 py-1.5 rounded-md transition-colors flex items-center gap-1"
                     >
                       <svg
@@ -1004,7 +1016,13 @@
                   >
                   <div class="flex items-center gap-2">
                     <button
-                      onclick="openGoogleDocsPreview('{{ doc.document.url }}', '{{ doc.file_name|default:doc.document.name }}')"
+                      onclick="openPreview(
+                        '{{ doc.document.url }}',
+                        '{% if doc.converted_pdf %}{{ doc.converted_pdf.url }}{% else %}{% endif %}',
+                        '{{ doc.id }}',
+                        'pre_supporting_doc',
+                        '{{ doc.file_name|default:doc.document.name }}'
+                      )"
                       class="text-xs font-medium text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded transition-colors flex items-center gap-1"
                     >
                       <svg
@@ -1592,106 +1610,31 @@
   <!-- PREVIEW MODAL -->
   <div
     id="previewModal"
-    class="hidden fixed inset-0 z-50 overflow-y-auto"
-    aria-labelledby="modal-title"
-    role="dialog"
-    aria-modal="true"
+    class="fixed inset-0 bg-black/80 hidden z-50 items-center justify-center p-4 backdrop-blur-sm"
+    onclick="if(event.target===this) closePreviewModal()"
   >
-    <div
-      class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0"
-    >
-      <div
-        class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-        aria-hidden="true"
-        onclick="closePreviewModal()"
-      ></div>
-      <span
-        class="hidden sm:inline-block sm:align-middle sm:h-screen"
-        aria-hidden="true"
-        >&#8203;</span
-      >
-      <div
-        class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-5xl sm:w-full"
-      >
-        <div
-          class="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center"
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden">
+      <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
+        <h3 class="text-lg leading-6 font-medium text-gray-900" id="previewModalTitle">
+          Document Preview
+        </h3>
+        <button
+          type="button"
+          class="text-gray-400 hover:text-gray-500 focus:outline-none"
+          onclick="closePreviewModal()"
         >
-          <h3
-            class="text-lg leading-6 font-medium text-gray-900"
-            id="previewModalTitle"
-          >
-            Document Preview
-          </h3>
-          <button
-            type="button"
-            class="text-gray-400 hover:text-gray-500 focus:outline-none"
-            onclick="closePreviewModal()"
-          >
-            <span class="sr-only">Close</span>
-            <svg
-              class="h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-        </div>
-        <div class="bg-white p-0 h-[80vh] relative">
-          <div
-            id="previewLoading"
-            class="absolute inset-0 flex items-center justify-center bg-gray-50 z-0"
-          >
-            <div
-              class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"
-            ></div>
-          </div>
-          <iframe
-            id="previewFrame"
-            src=""
-            class="w-full h-full border-0 relative z-10"
-            onload="
-              document.getElementById('previewLoading').classList.add('hidden')
-            "
-          ></iframe>
-        </div>
+          <span class="sr-only">Close</span>
+          <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div class="flex-1 relative" id="previewContent">
+        <!-- Content injected by document-preview.js -->
       </div>
     </div>
   </div>
 
-  <script>
-    function openGoogleDocsPreview(url, title) {
-      const modal = document.getElementById("previewModal");
-      const frame = document.getElementById("previewFrame");
-      const modalTitle = document.getElementById("previewModalTitle");
-      const loading = document.getElementById("previewLoading");
-
-      modalTitle.textContent = title || "Document Preview";
-
-      // Reset loading state
-      if (loading) loading.classList.remove("hidden");
-
-      // Local preview - browser renders PDF/images natively
-      frame.src = url;
-
-      modal.classList.remove("hidden");
-      document.body.style.overflow = "hidden";
-    }
-
-    function closePreviewModal() {
-      const modal = document.getElementById("previewModal");
-      const frame = document.getElementById("previewFrame");
-
-      modal.classList.add("hidden");
-      frame.src = "";
-      document.body.style.overflow = "auto";
-    }
-  </script>
+  <script src="{% static 'js/document-preview.js' %}"></script>
   {% endblock %}
 </div>

@@ -65,7 +65,13 @@
                 {% if ad.status != 'Draft' and ad.uploaded_document %}
                     <button type="button"
                     class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-md hover:from-blue-700 hover:to-indigo-700 transition-colors font-medium shadow-md gap-2"
-                    onclick="openGoogleDocsPreview('{{ ad.uploaded_document.url }}', 'Activity Design Document')">
+                    onclick="openPreview(
+                        '{{ ad.uploaded_document.url }}',
+                        '{% if ad.uploaded_document_pdf %}{{ ad.uploaded_document_pdf.url }}{% else %}{% endif %}',
+                        '{{ ad.id }}',
+                        'ad_main',
+                        'Activity Design Document'
+                    )">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
@@ -209,7 +215,13 @@
                             <div>
                                 <p class="font-medium text-gray-900">Main AD Document</p>
                                 <div class="flex items-center gap-3 mt-1">
-                                    <button onclick="openGoogleDocsPreview('{{ ad.uploaded_document.url }}', 'Main AD Document')" class="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1">
+                                    <button onclick="openPreview(
+                                        '{{ ad.uploaded_document.url }}',
+                                        '{% if ad.uploaded_document_pdf %}{{ ad.uploaded_document_pdf.url }}{% else %}{% endif %}',
+                                        '{{ ad.id }}',
+                                        'ad_main',
+                                        'Main AD Document'
+                                    )" class="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                                         Preview
                                     </button>
@@ -233,7 +245,13 @@
                         <div class="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg">
                             <span class="text-gray-900 text-sm truncate max-w-xs" title="{{ doc.file_name }}">{{ doc.file_name }}</span>
                             <div class="flex items-center gap-3 flex-shrink-0">
-                                <button onclick="openGoogleDocsPreview('{{ doc.document.url }}', '{{ doc.file_name }}')" class="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1">
+                                <button onclick="openPreview(
+                                    '{{ doc.document.url }}',
+                                    '{% if doc.converted_pdf %}{{ doc.converted_pdf.url }}{% else %}{% endif %}',
+                                    '{{ doc.id }}',
+                                    'ad_supporting_doc',
+                                    '{{ doc.file_name }}'
+                                )" class="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1">
                                     Preview
                                 </button>
                                 <span class="text-gray-300">|</span>
@@ -254,7 +272,13 @@
                         <div class="flex items-center justify-between p-3 bg-indigo-50 border border-indigo-100 rounded-lg">
                             <span class="text-indigo-900 text-sm font-medium">{{ doc.file_name }}</span>
                             <div class="flex items-center gap-3">
-                                <button onclick="openGoogleDocsPreview('{{ doc.document.url }}', '{{ doc.file_name }}')" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
+                                <button onclick="openPreview(
+                                    '{{ doc.document.url }}',
+                                    '{% if doc.converted_pdf %}{{ doc.converted_pdf.url }}{% else %}{% endif %}',
+                                    '{{ doc.id }}',
+                                    'ad_approved_doc',
+                                    '{{ doc.file_name }}'
+                                )" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
                                     Preview
                                 </button>
                                 <span class="text-indigo-300">|</span>
@@ -333,61 +357,26 @@
 </main>
 
 <!-- PREVIEW MODAL -->
-<div id="previewModal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closePreviewModal()"></div>
-        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-5xl sm:w-full">
-            <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
-                <h3 class="text-lg leading-6 font-medium text-gray-900" id="previewModalTitle">Document Preview</h3>
-                <button type="button" class="text-gray-400 hover:text-gray-500 focus:outline-none" onclick="closePreviewModal()">
-                    <span class="sr-only">Close</span>
-                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-            <div class="bg-white p-0 h-[80vh] relative">
-                 <div id="previewLoading" class="absolute inset-0 flex items-center justify-center bg-gray-50 z-0">
-                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                </div>
-                <!-- Google Docs Viewer Iframe -->
-                <iframe id="previewFrame" src="" class="w-full h-full border-0 relative z-10" onload="document.getElementById('previewLoading').classList.add('hidden')"></iframe>
-            </div>
-        </div>
+<div
+  id="previewModal"
+  class="fixed inset-0 bg-black/80 hidden z-50 items-center justify-center p-4 backdrop-blur-sm"
+  onclick="if(event.target===this) closePreviewModal()"
+>
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden">
+    <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
+      <h3 class="text-lg leading-6 font-medium text-gray-900" id="previewModalTitle">Document Preview</h3>
+      <button type="button" class="text-gray-400 hover:text-gray-500 focus:outline-none" onclick="closePreviewModal()">
+        <span class="sr-only">Close</span>
+        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
     </div>
+    <div class="flex-1 relative" id="previewContent">
+      <!-- Content injected by document-preview.js -->
+    </div>
+  </div>
 </div>
 
-<script>
-    function openGoogleDocsPreview(url, title) {
-        const modal = document.getElementById('previewModal');
-        const frame = document.getElementById('previewFrame');
-        const modalTitle = document.getElementById('previewModalTitle');
-        const loading = document.getElementById('previewLoading');
-
-        modalTitle.textContent = title || 'Document Preview';
-        
-        // Reset loading state
-        if(loading) loading.classList.remove('hidden');
-        
-        // Google Docs Viewer logic
-        const encodedUrl = encodeURIComponent(url);
-        // Local preview - browser renders PDF/images natively
-        const viewerUrl = decodeURIComponent(encodedUrl);
-        
-        frame.src = viewerUrl;
-        
-        modal.classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
-    }
-
-    function closePreviewModal() {
-        const modal = document.getElementById('previewModal');
-        const frame = document.getElementById('previewFrame');
-        
-        modal.classList.add('hidden');
-        frame.src = '';
-        document.body.style.overflow = 'auto';
-    }
-</script>
+<script src="{% static 'js/document-preview.js' %}"></script>
 {% endblock main-content %}

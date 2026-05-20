@@ -1,5 +1,8 @@
-{% extends "admin_base_template/dashboard.html" %} {% load humanize %} {% load
-static %} {% block title %}PR Details - {{ pr.pr_number }}{% endblock title %}
+{% extends "admin_base_template/dashboard.html" %} 
+{% load humanize %} 
+{% load static %} 
+{% block title %}PR Details - {{ pr.pr_number }}{% endblock title %}
+
 {% block main-content %}
 <div class="max-w-7xl mx-auto px-4 py-3 space-y-6">
   <!-- Header -->
@@ -126,7 +129,13 @@ static %} {% block title %}PR Details - {{ pr.pr_number }}{% endblock title %}
             </div>
             <button
               type="button"
-              onclick="openPreviewModal('{{ pr.uploaded_document.url }}', '{{ pr.uploaded_document.name }}')"
+              onclick="openPreview(
+                '{{ pr.uploaded_document.url }}',
+                '{% if pr.uploaded_document_pdf %}{{ pr.uploaded_document_pdf.url }}{% else %}{% endif %}',
+                '{{ pr.id }}',
+                'pr_main',
+                '{{ pr.uploaded_document.name }}'
+              )"
               class="ml-4 px-3 py-1.5 bg-white text-blue-700 border border-blue-200 rounded text-xs font-semibold hover:bg-blue-50 flex items-center gap-1"
             >
               <svg
@@ -182,7 +191,13 @@ static %} {% block title %}PR Details - {{ pr.pr_number }}{% endblock title %}
             >
             <button
               type="button"
-              onclick="openPreviewModal('{{ doc.document.url }}', '{{ doc.file_name }}')"
+              onclick="openPreview(
+                '{{ doc.document.url }}',
+                '{% if doc.converted_pdf %}{{ doc.converted_pdf.url }}{% else %}{% endif %}',
+                '{{ doc.id }}',
+                'pr_supporting_doc',
+                '{{ doc.file_name }}'
+              )"
               class="text-blue-600 hover:underline text-xs font-medium mr-3"
             >
               Preview
@@ -233,7 +248,13 @@ static %} {% block title %}PR Details - {{ pr.pr_number }}{% endblock title %}
                 </div>
                 <button
                   type="button"
-                  onclick="openPreviewModal('{{ doc.document.url }}', '{{ doc.file_name }}')"
+                  onclick="openPreview(
+                    '{{ doc.document.url }}',
+                    '{% if doc.converted_pdf %}{{ doc.converted_pdf.url }}{% else %}{% endif %}',
+                    '{{ doc.id }}',
+                    'pr_approved_doc',
+                    '{{ doc.file_name }}'
+                  )"
                   class="px-3 py-1.5 bg-white text-purple-700 border border-purple-200 rounded text-xs font-semibold hover:bg-purple-50 flex items-center gap-1"
                 >
                   <svg
@@ -539,36 +560,9 @@ static %} {% block title %}PR Details - {{ pr.pr_number }}{% endblock title %}
   </div>
 </div>
 {% endblock main-content %} {% block scripts %}
+<script src="{% static 'js/document-preview.js' %}"></script>
 <script>
-  function openPreviewModal(url, title) {
-    const modal = document.getElementById("previewModal");
-    const iframe = document.getElementById("previewFrame");
-    const modalTitle = document.getElementById("previewTitle");
-    const downloadLink = document.getElementById("downloadLink");
-
-    iframe.src = url;
-    modalTitle.textContent = title;
-    downloadLink.href = url;
-
-    modal.classList.remove("hidden");
-    modal.classList.add("flex");
-  }
-
-  function closePreviewModal() {
-    const modal = document.getElementById("previewModal");
-    const iframe = document.getElementById("previewFrame");
-
-    modal.classList.add("hidden");
-    modal.classList.remove("flex");
-    iframe.src = "";
-  }
-
-  // Close on Escape header
-  document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") {
-      closePreviewModal();
-    }
-  });
+  // Escape key handled by document-preview.js
 </script>
 {% endblock scripts %} {% block modals %}
 
@@ -711,12 +705,8 @@ static %} {% block title %}PR Details - {{ pr.pr_number }}{% endblock title %}
     </div>
 
     <!-- Content -->
-    <div class="flex-1 bg-gray-100 relative w-full h-full">
-      <iframe
-        id="previewFrame"
-        class="w-full h-full border-0"
-        allow="autoplay"
-      ></iframe>
+    <div class="flex-1 bg-gray-100 relative w-full h-full" id="previewContent">
+      <!-- Content injected by document-preview.js -->
     </div>
   </div>
 </div>

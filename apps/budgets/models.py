@@ -417,6 +417,12 @@ class DepartmentPRE(models.Model):
         validators=[FileExtensionValidator(allowed_extensions=['xlsx', 'xls'])],
         help_text="Upload PRE Excel file"
     )
+    uploaded_excel_pdf = models.FileField(
+        upload_to='pre_converted_pdfs/%Y/%m/',
+        null=True,
+        blank=True,
+        help_text="Auto-converted PDF of the uploaded Excel file (generated on first preview)"
+    )
     
     # Status workflow
     STATUS_CHOICES = [
@@ -720,6 +726,12 @@ class PurchaseRequest(models.Model):
         blank=True,
         validators=[FileExtensionValidator(allowed_extensions=['docx', 'doc', 'pdf'])],
         help_text="Uploaded PR document"
+    )
+    uploaded_document_pdf = models.FileField(
+        upload_to='pr_converted_pdfs/%Y/%m/',
+        null=True,
+        blank=True,
+        help_text="Auto-converted PDF of the uploaded document (generated on first preview)"
     )
     
     # Status Workflow
@@ -1028,6 +1040,12 @@ class ActivityDesign(models.Model):
         upload_to='ad_uploads/%Y/%m/',
         validators=[FileExtensionValidator(allowed_extensions=['docx', 'doc'])],
         help_text="Upload Activity Design document (.docx format)"
+    )
+    uploaded_document_pdf = models.FileField(
+        upload_to='ad_converted_pdfs/%Y/%m/',
+        null=True,
+        blank=True,
+        help_text="Auto-converted PDF of the uploaded document (generated on first preview)"
     )
 
     # Status and workflow (same as PR)
