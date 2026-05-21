@@ -17,11 +17,11 @@ from apps.budgets.models import (
     DepartmentPREApprovedDocument,
     PREBudgetRealignment,
     PRELineItem,
-    BudgetRealignmentSupportingDocument
+    BudgetRealignmentSupportingDocument,
+    BudgetTransaction
 )
 from django.contrib import messages
 from apps.admin_panel.models import AuditTrail
-from apps.budgets.models import ApprovedBudget, BudgetTransaction
 from apps.budgets.forms import ApprovedBudgetForm
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_http_methods

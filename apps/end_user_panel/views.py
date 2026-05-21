@@ -212,9 +212,10 @@ class DepartmentPREPageView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user = self.request.user
+
         # 1. Get Budget Allocations for this user
         allocations = BudgetAllocation.objects.filter(
-            end_user=user, 
+            end_user=user,
             is_active=True
         ).select_related('approved_budget').annotate(
             has_submitted_pre=Exists(
@@ -228,20 +229,25 @@ class DepartmentPREPageView(LoginRequiredMixin, TemplateView):
                 )
             )
         ).order_by('-allocated_at')
-        
+
         context['budget_allocations'] = allocations
         context['has_budget'] = allocations.exists()
-        # 2. Get Submitted PREs
-        # PREs are linked to allocations, which are linked to the user.
-        # OR if you have a direct 'submitted_by' field on DepartmentPRE:
+
+        # 2. Get Submitted PREs (exclude Drafts so pagination counts are accurate)
         pres = DepartmentPRE.objects.filter(
             submitted_by=user
-        ).order_by('-created_at')
-        
-        context['pres'] = pres
-        
-        # 3. Partially Approved Count (for the Alert)
+        ).exclude(status='Draft').order_by('-created_at')
+
+        # 3. Paginate the PREs list
+        paginator = Paginator(pres, 10)
+        page_number = self.request.GET.get('page', 1)
+        pres_page = paginator.get_page(page_number)
+
+        context['pres_page'] = pres_page
+
+        # 4. Partially Approved Count (for the Alert — computed from full queryset)
         context['partially_approved_count'] = pres.filter(status='Partially Approved').count()
+
         return context
     
     
@@ -1249,31 +1255,43 @@ def pr_ad_list(request):
     Purchase Requests & Activity Designs List Page
     Lists all PRs and ADs submitted by the user's department(s)
     """
-    
+
     # 1. Get user's active budget allocations to identify relevant departments/scopes
     budget_allocations = BudgetAllocation.objects.filter(
         end_user=request.user,
         is_active=True
     )
+
     # 2. Fetch Purchase Requests (PRs)
-    # Filter PRs linked to user's allocations or submitted by user (adjust logic based on precise requirements)
     purchase_requests = PurchaseRequest.objects.filter(
         budget_allocation__in=budget_allocations
     ).order_by('-created_at')
+
     # 3. Fetch Activity Designs (ADs)
     activity_designs = ActivityDesign.objects.filter(
         budget_allocation__in=budget_allocations
     ).order_by('-created_at')
-    # 4. Calculate Summary Statistics
+
+    # 4. Calculate Summary Statistics (from full querysets before pagination)
     pr_pending_count = purchase_requests.filter(status='Pending').count()
     pr_approved_count = purchase_requests.filter(status='Approved').count()
-    
     ad_pending_count = activity_designs.filter(status='Pending').count()
     ad_approved_count = activity_designs.filter(status='Approved').count()
-    # 5. Context
+
+    # 5. Paginate PR list (independent of AD pagination)
+    pr_paginator = Paginator(purchase_requests, 10)
+    pr_page_number = request.GET.get('pr_page', 1)
+    page_obj_pr = pr_paginator.get_page(pr_page_number)
+
+    # 6. Paginate AD list (independent of PR pagination)
+    ad_paginator = Paginator(activity_designs, 10)
+    ad_page_number = request.GET.get('ad_page', 1)
+    page_obj_ad = ad_paginator.get_page(ad_page_number)
+
+    # 7. Context
     context = {
-        'purchase_requests': purchase_requests,
-        'activity_designs': activity_designs,
+        'page_obj_pr': page_obj_pr,
+        'page_obj_ad': page_obj_ad,
         'pr_pending_count': pr_pending_count,
         'pr_approved_count': pr_approved_count,
         'ad_pending_count': ad_pending_count,
