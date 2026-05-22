@@ -761,8 +761,8 @@ def bulk_user_action(request):
     
 class AuditTrailListView(LoginRequiredMixin, ListView):
     template_name = 'admin_panel/audit_trail.html'
-    paginate_by = 20
-    context_object_name = 'page_obj'
+    paginate_by = 10
+    context_object_name = 'records'
     def get_queryset(self):
         tab = self.request.GET.get('tab', 'activity')
         
@@ -1168,7 +1168,7 @@ class AdminPRListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     model = PurchaseRequest
     template_name = 'admin_panel/pr_list.html'
     context_object_name = 'purchase_requests'
-    paginate_by = 20
+    paginate_by = 10
     
     def test_func(self):
         return self.request.user.is_superuser or self.request.user.is_staff
@@ -1400,6 +1400,7 @@ class DepartmentADRequestView(LoginRequiredMixin, UserPassesTestMixin, ListView)
     model = ActivityDesign
     template_name = 'admin_panel/departments_ad_request.html'
     context_object_name = 'ads'
+    paginate_by = 10
     ordering = ['-created_at']
     def get_queryset(self):
         # Exclude Draft ADs so they do not show up as submitted requests
