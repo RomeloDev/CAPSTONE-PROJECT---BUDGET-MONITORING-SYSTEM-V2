@@ -1,5 +1,6 @@
 {% extends "admin_base_template/dashboard.html" %}
 {% load humanize %}
+{% load static %}
 
 {% block title %}Realignment Request Details{% endblock title %}
 
@@ -120,7 +121,19 @@
                                     <svg class="w-5 h-5 text-red-500 mr-2" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a2 2 0 00-2 2v8a2 2 0 002 2h6a2 2 0 002-2V6.414A2 2 0 0016.414 5L14 2.586A2 2 0 0012.586 2H9z"/></svg>
                                     <span class="text-sm text-gray-700 truncate max-w-[200px]" title="{{ doc.file_name }}">{{ doc.file_name }}</span>
                                 </div>
-                                <a href="{{ doc.document.url }}" target="_blank" class="text-blue-600 text-xs hover:underline">View</a>
+                                <div class="flex items-center gap-2">
+                                    <button
+                                        onclick="openPreview(
+                                            '{{ doc.document.url }}',
+                                            '{% if doc.converted_pdf %}{{ doc.converted_pdf.url }}{% else %}{% endif %}',
+                                            '{{ doc.id }}',
+                                            'br_supporting_doc',
+                                            '{{ doc.file_name }}'
+                                        )"
+                                        class="text-blue-600 text-xs hover:underline font-medium"
+                                    >Preview</button>
+                                    <a href="{{ doc.document.url }}" target="_blank" class="text-gray-500 text-xs hover:underline">Download</a>
+                                </div>
                             </li>
                             {% endfor %}
                         </ul>
@@ -132,19 +145,23 @@
                         <h4 class="text-xs font-bold text-gray-500 uppercase mb-2">Signed Copies</h4>
                         <div class="space-y-4">
                             {% for doc in signed_documents %}
-                            <div class="border rounded-lg overflow-hidden bg-white">
-                                <div class="bg-green-50 px-3 py-2 border-b text-sm font-medium flex justify-between items-center bg-green-50">
-                                    <div class="flex items-center truncate">
-                                        <svg class="w-4 h-4 text-green-600 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-                                        <span class="truncate max-w-[150px]" title="{{ doc.file_name }}">{{ doc.file_name }}</span>
-                                    </div>
-                                    <a href="{{ doc.document.url }}" target="_blank" class="text-blue-600 text-xs hover:underline">Download</a>
+                            <div class="flex items-center justify-between bg-white p-2 rounded border hover:bg-green-50 transition">
+                                <div class="flex items-center truncate">
+                                    <svg class="w-4 h-4 text-green-600 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                                    <span class="text-sm text-gray-700 truncate max-w-[150px]" title="{{ doc.file_name }}">{{ doc.file_name }}</span>
                                 </div>
-                                <div class="h-64 bg-gray-100">
-                                    <iframe 
-                                        src="https://docs.google.com/gview?url={{ doc.document.url|urlencode }}&embedded=true" 
-                                        class="w-full h-full border-none">
-                                    </iframe>
+                                <div class="flex items-center gap-2">
+                                    <button
+                                        onclick="openPreview(
+                                            '{{ doc.document.url }}',
+                                            '{% if doc.converted_pdf %}{{ doc.converted_pdf.url }}{% else %}{% endif %}',
+                                            '{{ doc.id }}',
+                                            'br_supporting_doc',
+                                            '{{ doc.file_name }}'
+                                        )"
+                                        class="text-blue-600 text-xs hover:underline font-medium"
+                                    >Preview</button>
+                                    <a href="{{ doc.document.url }}" target="_blank" class="text-gray-500 text-xs hover:underline">Download</a>
                                 </div>
                             </div>
                             {% endfor %}
@@ -249,4 +266,31 @@ function closeModal(modalId) {
     document.getElementById(modalId).classList.add('hidden');
 }
 </script>
+<script src="{% static 'js/document-preview.js' %}"></script>
+
+<!-- Document Preview Modal -->
+<div
+  id="previewModal"
+  class="fixed inset-0 bg-black/80 hidden z-[60] items-center justify-center p-4 backdrop-blur-sm"
+>
+  <div
+    class="bg-white rounded-xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden relative"
+  >
+    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-white">
+      <h3 class="text-lg font-bold text-gray-900" id="previewModalTitle">Document Preview</h3>
+      <button
+        type="button"
+        onclick="closePreviewModal()"
+        class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition"
+      >
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="flex-1 bg-gray-100 relative w-full h-full" id="previewContent">
+      <!-- Content injected by document-preview.js -->
+    </div>
+  </div>
+</div>
 {% endblock main-content %}

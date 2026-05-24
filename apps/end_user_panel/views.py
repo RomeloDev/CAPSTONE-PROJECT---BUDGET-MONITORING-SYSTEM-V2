@@ -57,6 +57,7 @@ from django.http import JsonResponse, HttpResponse, FileResponse, Http404
 from django.views.decorators.http import require_POST
 from apps.admin_panel.utils import log_activity
 from apps.budgets.utils import log_budget_transaction
+from apps.budgets.notifications import notify_admins_new_request, notify_user_status_change
 
 class EndUserDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     """Dashboard for regular staff/end users"""
@@ -211,9 +212,10 @@ class DepartmentPREPageView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user = self.request.user
+
         # 1. Get Budget Allocations for this user
         allocations = BudgetAllocation.objects.filter(
-            end_user=user, 
+            end_user=user,
             is_active=True
         ).select_related('approved_budget').annotate(
             has_submitted_pre=Exists(
@@ -227,20 +229,25 @@ class DepartmentPREPageView(LoginRequiredMixin, TemplateView):
                 )
             )
         ).order_by('-allocated_at')
-        
+
         context['budget_allocations'] = allocations
         context['has_budget'] = allocations.exists()
-        # 2. Get Submitted PREs
-        # PREs are linked to allocations, which are linked to the user.
-        # OR if you have a direct 'submitted_by' field on DepartmentPRE:
+
+        # 2. Get Submitted PREs (exclude Drafts so pagination counts are accurate)
         pres = DepartmentPRE.objects.filter(
             submitted_by=user
-        ).order_by('-created_at')
-        
-        context['pres'] = pres
-        
-        # 3. Partially Approved Count (for the Alert)
+        ).exclude(status='Draft').order_by('-created_at')
+
+        # 3. Paginate the PREs list
+        paginator = Paginator(pres, 10)
+        page_number = self.request.GET.get('page', 1)
+        pres_page = paginator.get_page(page_number)
+
+        context['pres_page'] = pres_page
+
+        # 4. Partially Approved Count (for the Alert — computed from full queryset)
         context['partially_approved_count'] = pres.filter(status='Partially Approved').count()
+
         return context
     
     
@@ -450,6 +457,8 @@ class PreviewPREView(LoginRequiredMixin, UserPassesTestMixin, View):
                         record_id=pre.id
                     )
                     
+                    # Notify admins of new PRE submission
+                    notify_admins_new_request(pre, 'pre')
                     messages.success(request, f"PRE Submitted Successfully! Reference ID: {pre.id}")
                     return redirect('department_pre_page')
             except Exception as e:
@@ -1246,31 +1255,43 @@ def pr_ad_list(request):
     Purchase Requests & Activity Designs List Page
     Lists all PRs and ADs submitted by the user's department(s)
     """
-    
+
     # 1. Get user's active budget allocations to identify relevant departments/scopes
     budget_allocations = BudgetAllocation.objects.filter(
         end_user=request.user,
         is_active=True
     )
+
     # 2. Fetch Purchase Requests (PRs)
-    # Filter PRs linked to user's allocations or submitted by user (adjust logic based on precise requirements)
     purchase_requests = PurchaseRequest.objects.filter(
         budget_allocation__in=budget_allocations
     ).order_by('-created_at')
+
     # 3. Fetch Activity Designs (ADs)
     activity_designs = ActivityDesign.objects.filter(
         budget_allocation__in=budget_allocations
     ).order_by('-created_at')
-    # 4. Calculate Summary Statistics
+
+    # 4. Calculate Summary Statistics (from full querysets before pagination)
     pr_pending_count = purchase_requests.filter(status='Pending').count()
     pr_approved_count = purchase_requests.filter(status='Approved').count()
-    
     ad_pending_count = activity_designs.filter(status='Pending').count()
     ad_approved_count = activity_designs.filter(status='Approved').count()
-    # 5. Context
+
+    # 5. Paginate PR list (independent of AD pagination)
+    pr_paginator = Paginator(purchase_requests, 10)
+    pr_page_number = request.GET.get('pr_page', 1)
+    page_obj_pr = pr_paginator.get_page(pr_page_number)
+
+    # 6. Paginate AD list (independent of PR pagination)
+    ad_paginator = Paginator(activity_designs, 10)
+    ad_page_number = request.GET.get('ad_page', 1)
+    page_obj_ad = ad_paginator.get_page(ad_page_number)
+
+    # 7. Context
     context = {
-        'purchase_requests': purchase_requests,
-        'activity_designs': activity_designs,
+        'page_obj_pr': page_obj_pr,
+        'page_obj_ad': page_obj_ad,
         'pr_pending_count': pr_pending_count,
         'pr_approved_count': pr_approved_count,
         'ad_pending_count': ad_pending_count,
@@ -1444,6 +1465,8 @@ def purchase_request_upload(request):
                             record_id=pr.id
                         )
                         
+                        # Notify admins of new PR submission
+                        notify_admins_new_request(pr, 'pr')
                         messages.success(request, "Purchase Request submitted successfully!")
                         return redirect('pr_ad_list')
                 except Exception as e:
@@ -1767,12 +1790,28 @@ def activity_design_upload(request):
         elif action == 'add_draft_allocation':
             try:
                 allocations = request.session.get('ad_draft_allocations', [])
+                full_value = request.POST.get('full_value')
+                
+                # Validation 1: Prevent duplicates
+                if any(alloc.get('full_value') == full_value for alloc in allocations):
+                    return JsonResponse({'success': False, 'error': 'This funding source and quarter is already selected.'})
+                
+                line_item_id = request.POST.get('line_item_id')
+                quarter = request.POST.get('quarter')
+                amount = float(request.POST.get('amount'))
+                
+                # Validation 2: Enforce budget limit securely
+                line_item = PRELineItem.objects.get(id=line_item_id)
+                available = float(line_item.get_quarter_available(quarter) or 0)
+                if amount > available:
+                    return JsonResponse({'success': False, 'error': f'Amount exceeds available balance (₱{available:,.2f}).'})
+                
                 new_item = {
-                    'line_item_id': request.POST.get('line_item_id'),
-                    'quarter': request.POST.get('quarter'),
-                    'amount': float(request.POST.get('amount')),
+                    'line_item_id': line_item_id,
+                    'quarter': quarter,
+                    'amount': amount,
                     'text': request.POST.get('text'),
-                    'full_value': request.POST.get('full_value') # For filtering
+                    'full_value': full_value # For filtering
                 }
                 allocations.append(new_item)
                 request.session['ad_draft_allocations'] = allocations
@@ -1820,68 +1859,79 @@ def activity_design_upload(request):
             details_form = ActivityDesignDetailsForm(request.POST, instance=draft)
             
             if details_form.is_valid():
-                with transaction.atomic():
-                    ad = details_form.save(commit=False)
-                    ad.status = 'Pending'
-                    # Ensure total_amount is not None for DB constraint (re-calculated below)
-                    if ad.total_amount is None:
-                        ad.total_amount = Decimal('0.00')
-                    
-                    # Ensure real AD Number
-                    if not ad.ad_number.startswith('AD-'):
-                         ad.ad_number = f"AD-{uuid.uuid4().hex[:8].upper()}"
-                    
-                    # Link Budget Allocation
-                    alloc_id = details_form.cleaned_data['budget_allocation']
-                    allocation = BudgetAllocation.objects.get(id=alloc_id)
-                    ad.budget_allocation = allocation
-                    ad.department = allocation.department
-                    
-                    # Handle main file if uploaded during final submit (fallback)
-                    if 'ad_document' in request.FILES:
-                         ad.uploaded_document = request.FILES['ad_document']
-                    
-                    ad.save()
-                    
-                    # Process Allocations JSON
-                    line_items_json = details_form.cleaned_data['line_items_data']
-                    items_data = json.loads(line_items_json)
-                    total_allocated = Decimal('0')
-                    
-                    # Clear old allocations to prevent duplicates
-                    ad.pre_allocations.all().delete()
-                    
-                    for item in items_data:
-                        line_item = PRELineItem.objects.get(id=item['line_item_id'])
-                        amount = Decimal(str(item['amount']))
-                        ActivityDesignAllocation.objects.create(
-                            activity_design=ad,
-                            pre_line_item=line_item,
-                            quarter=item['quarter'],
-                            allocated_amount=amount
+                try:
+                    with transaction.atomic():
+                        ad = details_form.save(commit=False)
+                        ad.status = 'Pending'
+                        # Ensure total_amount is not None for DB constraint (re-calculated below)
+                        if ad.total_amount is None:
+                            ad.total_amount = Decimal('0.00')
+                        
+                        # Ensure real AD Number
+                        if not ad.ad_number.startswith('AD-'):
+                             ad.ad_number = f"AD-{uuid.uuid4().hex[:8].upper()}"
+                        
+                        # Link Budget Allocation
+                        alloc_id = details_form.cleaned_data['budget_allocation']
+                        allocation = BudgetAllocation.objects.get(id=alloc_id)
+                        ad.budget_allocation = allocation
+                        ad.department = allocation.department
+                        
+                        # Handle main file if uploaded during final submit (fallback)
+                        if 'ad_document' in request.FILES:
+                             ad.uploaded_document = request.FILES['ad_document']
+                        
+                        ad.save()
+                        
+                        # Process Allocations JSON
+                        line_items_json = details_form.cleaned_data['line_items_data']
+                        items_data = json.loads(line_items_json)
+                        total_allocated = Decimal('0')
+                        
+                        # Clear old allocations to prevent duplicates
+                        ad.pre_allocations.all().delete()
+                        
+                        for item in items_data:
+                            line_item = PRELineItem.objects.get(id=item['line_item_id'])
+                            amount = Decimal(str(item['amount']))
+                            
+                            # VALIDATION: Enforce budget limit securely
+                            available = line_item.get_quarter_available(item['quarter']) or Decimal('0.00')
+                            if amount > available:
+                                raise ValueError(f"Allocation for '{line_item.item_name}' ({item['quarter']}) exceeds available balance of ₱{available:,.2f}.")
+                            
+                            ActivityDesignAllocation.objects.create(
+                                activity_design=ad,
+                                pre_line_item=line_item,
+                                quarter=item['quarter'],
+                                allocated_amount=amount
+                            )
+                            total_allocated += amount
+                        
+                        # 3. Update Total Amount final check
+                        ad.total_amount = total_allocated
+                        ad.save()
+                        
+                        # Clear session
+                        if 'ad_draft_id' in request.session:
+                            del request.session['ad_draft_id']
+                        if 'ad_draft_allocations' in request.session:
+                            del request.session['ad_draft_allocations']
+                            
+                        log_activity(
+                            user=request.user,
+                            action='SUBMIT_AD',
+                            detail=f'Submitted Activity Design {ad.ad_number}',
+                            model_name='ActivityDesign',
+                            record_id=ad.id
                         )
-                        total_allocated += amount
-                    
-                    # 3. Update Total Amount final check
-                    ad.total_amount = total_allocated
-                    ad.save()
-                    
-                    # Clear session
-                    if 'ad_draft_id' in request.session:
-                        del request.session['ad_draft_id']
-                    if 'ad_draft_allocations' in request.session:
-                        del request.session['ad_draft_allocations']
-                        
-                    log_activity(
-                        user=request.user,
-                        action='SUBMIT_AD',
-                        detail=f'Submitted Activity Design {ad.ad_number}',
-                        model_name='ActivityDesign',
-                        record_id=ad.id
-                    )
-                        
-                    messages.success(request, "Activity Design submitted successfully!")
-                    return redirect('pr_ad_list') 
+                            
+                        # Notify admins of new AD submission
+                        notify_admins_new_request(ad, 'ad')
+                        messages.success(request, "Activity Design submitted successfully!")
+                        return redirect('pr_ad_list') 
+                except ValueError as e:
+                    messages.error(request, str(e))
             else:
                 messages.error(request, f"Form Errors: {details_form.errors}")
     
@@ -2194,6 +2244,8 @@ class PREBudgetRealignmentView(LoginRequiredMixin, UserPassesTestMixin, FormView
                 model_name='PREBudgetRealignment',
                 record_id=realignment.id
             )
+            # Notify admins of new Realignment submission
+            notify_admins_new_request(realignment, 'realignment')
             
             # Calculate total amount being transferred
             total_transfer_amount = sum([

@@ -8,7 +8,6 @@ import os
 from django.conf import settings
 from .managers import ArchiveManager
 from django.db.models import Sum
-from cloudinary_storage.storage import RawMediaCloudinaryStorage
 from django.db.models.functions import Coalesce
 
 def approved_budget_upload_path(instance, filename):
@@ -132,11 +131,17 @@ class SupportingDocument(models.Model):
     
     document = models.FileField(
         upload_to=supporting_document_upload_path,
-        storage=RawMediaCloudinaryStorage(),
         validators=[FileExtensionValidator(allowed_extensions=['pdf', 'docx', 'doc', 'xlsx', 'xls'])],
         help_text="Supporting document (PDF, Word, Excel)"
     )
-    
+
+    converted_pdf = models.FileField(
+        upload_to='ab_converted_pdfs/%Y/%m/',
+        null=True,
+        blank=True,
+        help_text="Auto-converted PDF for office document uploads"
+    )
+
     file_name = models.CharField(max_length=255)
     file_format = models.CharField(max_length=10, editable=False)
     file_size = models.BigIntegerField(help_text="File size in bytes", editable=False)
@@ -342,7 +347,6 @@ class PREDraft(models.Model):
     )
     uploaded_excel_file = models.FileField(
         upload_to='pre_drafts/%Y/%m/',
-        storage=RawMediaCloudinaryStorage(),
         null=True,
         blank=True,
         validators=[FileExtensionValidator(allowed_extensions=['xlsx', 'xls'])]
@@ -368,7 +372,6 @@ class PREDraftSupportingDocument(models.Model):
     )
     document = models.FileField(
         upload_to='pre_draft_docs/%Y/%m/',
-        storage=RawMediaCloudinaryStorage(),
         validators=[FileExtensionValidator(
             allowed_extensions=['pdf', 'docx', 'doc', 'xlsx', 'xls', 'jpg', 'jpeg', 'png']
         )]
@@ -416,11 +419,16 @@ class DepartmentPRE(models.Model):
     # File uploads
     uploaded_excel_file = models.FileField(
         upload_to='pre_uploads/%Y/%m/',
-        storage=RawMediaCloudinaryStorage(),
         null=True,
         blank=True,
         validators=[FileExtensionValidator(allowed_extensions=['xlsx', 'xls'])],
         help_text="Upload PRE Excel file"
+    )
+    uploaded_excel_pdf = models.FileField(
+        upload_to='pre_converted_pdfs/%Y/%m/',
+        null=True,
+        blank=True,
+        help_text="Auto-converted PDF of the uploaded Excel file (generated on first preview)"
     )
     
     # Status workflow
@@ -720,12 +728,17 @@ class PurchaseRequest(models.Model):
     
     # File Upload (for upload-based PR)
     uploaded_document = models.FileField(
-        storage=RawMediaCloudinaryStorage(),
         upload_to='pr_documents/%Y/%m/',
         null=True,
         blank=True,
         validators=[FileExtensionValidator(allowed_extensions=['docx', 'doc', 'pdf'])],
         help_text="Uploaded PR document"
+    )
+    uploaded_document_pdf = models.FileField(
+        upload_to='pr_converted_pdfs/%Y/%m/',
+        null=True,
+        blank=True,
+        help_text="Auto-converted PDF of the uploaded document (generated on first preview)"
     )
     
     # Status Workflow
@@ -1032,9 +1045,14 @@ class ActivityDesign(models.Model):
     # File uploads
     uploaded_document = models.FileField(
         upload_to='ad_uploads/%Y/%m/',
-        storage=RawMediaCloudinaryStorage(),
         validators=[FileExtensionValidator(allowed_extensions=['docx', 'doc'])],
         help_text="Upload Activity Design document (.docx format)"
+    )
+    uploaded_document_pdf = models.FileField(
+        upload_to='ad_converted_pdfs/%Y/%m/',
+        null=True,
+        blank=True,
+        help_text="Auto-converted PDF of the uploaded document (generated on first preview)"
     )
 
     # Status and workflow (same as PR)
@@ -1823,7 +1841,6 @@ class PRDraft(models.Model):
     
     # PR Document
     pr_file = models.FileField(
-        storage=RawMediaCloudinaryStorage(),
         upload_to='pr_drafts/%Y/%m/',
         null=True,
         blank=True,
@@ -1853,7 +1870,6 @@ class PRDraftSupportingDocument(models.Model):
         related_name='supporting_documents'
     )
     document = models.FileField(
-        storage=RawMediaCloudinaryStorage(),
         upload_to='pr_draft_supporting/%Y/%m/',
         help_text="Supporting document"
     )
@@ -1877,7 +1893,6 @@ class PurchaseRequestSupportingDocument(models.Model):
         related_name='supporting_documents'
     )
     document = models.FileField(
-        storage=RawMediaCloudinaryStorage(), 
         upload_to='pr_supporting_docs/%Y/%m/',
         help_text='Supporting document file'
     )
@@ -1947,7 +1962,6 @@ class PurchaseRequestApprovedDocument(models.Model):
         help_text='Link to PR submission'
     )
     document = models.FileField(
-        storage=RawMediaCloudinaryStorage(),
         upload_to='pr_signed_docs/',
         validators=[FileExtensionValidator(
             allowed_extensions=['pdf', 'jpg', 'jpeg', 'png']
@@ -2026,7 +2040,6 @@ class DepartmentPRESupportingDocument(models.Model):
     )
     document = models.FileField(
         upload_to='pre_supporting_docs/%Y/%m/',
-        storage=RawMediaCloudinaryStorage(),
         validators=[FileExtensionValidator(
             allowed_extensions=['pdf', 'docx', 'doc', 'xlsx', 'xls', 'jpg', 'jpeg', 'png']
         )],
@@ -2235,7 +2248,6 @@ class ActivityDesignSupportingDocument(models.Model):
     )
     document = models.FileField(
         upload_to='ad_supporting_docs/%Y/%m/',
-        storage=RawMediaCloudinaryStorage(),
         help_text='Supporting document file'
     )
     file_name = models.CharField(max_length=255)
@@ -2853,14 +2865,12 @@ class PREBudgetRealignment(models.Model):
 
     # Document fields (following PRE/PR pattern)
     partially_approved_pdf = models.FileField(
-        storage=RawMediaCloudinaryStorage(),
         upload_to='br_pdfs/%Y/%m/',
         null=True,
         blank=True,
         help_text="PDF generated from uploaded documents when partially approved"
     )
     approved_documents = models.FileField(
-        storage=RawMediaCloudinaryStorage(),
         upload_to='br_approved_docs/%Y/%m/',
         null=True,
         blank=True,
@@ -2868,7 +2878,6 @@ class PREBudgetRealignment(models.Model):
         help_text="Scanned approved documents uploaded by admin"
     )
     final_approved_scan = models.FileField(
-        storage=RawMediaCloudinaryStorage(),
         upload_to='br_scanned/%Y/%m/',
         null=True,
         blank=True,
@@ -2878,7 +2887,6 @@ class PREBudgetRealignment(models.Model):
 
     # End user uploaded document (NEW - follows PR workflow)
     end_user_uploaded_document = models.FileField(
-        storage=RawMediaCloudinaryStorage(),
         upload_to='br_end_user_uploads/%Y/%m/',
         null=True,
         blank=True,
@@ -3175,14 +3183,12 @@ class BudgetRealignmentSupportingDocument(models.Model):
         related_name='supporting_documents'
     )
     document = models.FileField(
-        storage=RawMediaCloudinaryStorage(),
         upload_to='br_supporting_docs/%Y/%m/',
         validators=[FileExtensionValidator(
             allowed_extensions=['pdf', 'docx', 'doc', 'xlsx', 'xls', 'jpg', 'jpeg', 'png']
         )]
     )
     converted_pdf = models.FileField(
-        storage=RawMediaCloudinaryStorage(),
         upload_to='br_converted_pdfs/%Y/%m/',
         null=True,
         blank=True,

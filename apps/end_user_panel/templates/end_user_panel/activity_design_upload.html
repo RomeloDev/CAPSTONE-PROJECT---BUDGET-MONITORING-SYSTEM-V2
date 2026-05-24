@@ -335,6 +335,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const allocatedKeys = new Set(allocations.map(a => a.full_value));
         const choicesData = [];
         
+        // Push placeholder option to prevent silent failure of setChoiceByValue('')
+        choicesData.push({
+            value: '',
+            label: 'Search funding source...',
+            placeholder: true
+        });
+        
         lineItemsMap.forEach((item, key) => {
             if (!allocatedKeys.has(key)) {
                 choicesData.push({
@@ -345,6 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         
+        choices.removeActiveItems();
         choices.setChoices(choicesData, 'value', 'label', true); 
     }
 

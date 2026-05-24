@@ -182,9 +182,7 @@
                      <p class="text-xs text-gray-500">Track the approval status of your submissions</p>
                 </div>
             </div>
-            {% if pres %}
-            <span class="bg-gray-100 text-gray-600 text-xs px-2.5 py-1 rounded-full font-medium">{{ pres.count }} Total</span>
-            {% endif %}
+            <span class="bg-gray-100 text-gray-600 text-xs px-2.5 py-1 rounded-full font-medium">{{ pres_page.paginator.count }} Total</span>
         </div>
 
         <div class="overflow-x-auto">
@@ -201,9 +199,8 @@
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-100">
-                    {% if pres %}
-                        {% for item in pres %}
-                        {% if item.status != 'Draft' %}
+                    {% if pres_page %}
+                        {% for item in pres_page %}
                         <tr class="group hover:bg-gray-50 {% if item.status == 'Partially Approved' and item.partially_approved_pdf %}bg-purple-50/50{% endif %} transition-colors">
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                 #{{ item.id|slice:":8"|upper }}
@@ -245,7 +242,7 @@
                                 {% endif %}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-center text-sm">
-                                <div class="flex items-center justify-center gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                <div class="flex items-center justify-center gap-2 opacity-100  transition-opacity">
                                     <a href="{% url 'view_pre_detail' item.id %}" 
                                        class="text-gray-600 hover:text-blue-600 font-medium px-3 py-1.5 rounded-md hover:bg-blue-50 transition border border-gray-200 hover:border-blue-200 text-xs">
                                         View Details
@@ -264,7 +261,6 @@
                                 </div>
                             </td>
                         </tr>
-                        {% endif %}
                         {% endfor %}
                     {% else %}
                         <tr>
@@ -282,6 +278,43 @@
                 </tbody>
             </table>
         </div>
+
+        {% if pres_page.has_other_pages %}
+        <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+            <div class="flex-1 flex justify-between sm:hidden">
+                {% if pres_page.has_previous %}
+                    <a href="?page={{ pres_page.previous_page_number }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Previous</a>
+                {% endif %}
+                {% if pres_page.has_next %}
+                    <a href="?page={{ pres_page.next_page_number }}" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Next</a>
+                {% endif %}
+            </div>
+            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-sm text-gray-700">
+                        Showing page <span class="font-medium">{{ pres_page.number }}</span> of <span class="font-medium">{{ pres_page.paginator.num_pages }}</span>
+                    </p>
+                </div>
+                <div>
+                    <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="PRE Submissions Pagination">
+                        {% if pres_page.has_previous %}
+                            <a href="?page={{ pres_page.previous_page_number }}" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Previous</a>
+                        {% endif %}
+                        {% for i in pres_page.paginator.page_range %}
+                            {% if pres_page.number == i %}
+                                <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-blue-50 text-sm font-medium text-blue-600">{{ i }}</span>
+                            {% else %}
+                                <a href="?page={{ i }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">{{ i }}</a>
+                            {% endif %}
+                        {% endfor %}
+                        {% if pres_page.has_next %}
+                            <a href="?page={{ pres_page.next_page_number }}" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Next</a>
+                        {% endif %}
+                    </nav>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 
     {% if partially_approved_count > 0 %}

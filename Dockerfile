@@ -27,9 +27,15 @@ COPY . /app/
 # Collect static files (Uses WhiteNoise & django-tailwind-cli)
 RUN python manage.py collectstatic --noinput
 
+# Create media directory for uploaded files (served by Nginx in production)
+RUN mkdir -p /app/media
+
 # Copy the custom start script and make it executable
 COPY start.sh /app/
 RUN chmod +x /app/start.sh
+
+# Declare media directory as a volume so uploads persist across container restarts
+VOLUME ["/app/media"]
 
 # Expose the port Gunicorn will listen on
 EXPOSE 8000

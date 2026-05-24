@@ -156,7 +156,13 @@
               </div>
               <div class="flex gap-2">
                 <button
-                  onclick="openAdminPreview('{{ ad.uploaded_document.url }}', 'Main AD')"
+                  onclick="openPreview(
+                    '{{ ad.uploaded_document.url }}',
+                    '{% if ad.uploaded_document_pdf %}{{ ad.uploaded_document_pdf.url }}{% else %}{% endif %}',
+                    '{{ ad.id }}',
+                    'ad_main',
+                    'Main AD'
+                  )"
                   class="text-xs bg-white border border-blue-200 text-blue-600 px-3 py-1 rounded hover:bg-blue-50 transition"
                 >
                   Preview
@@ -190,7 +196,13 @@
                 >
                 <div class="flex gap-2">
                   <button
-                    onclick="openAdminPreview('{{ doc.document.url }}', '{{ doc.file_name }}')"
+                    onclick="openPreview(
+                      '{{ doc.document.url }}',
+                      '{% if doc.converted_pdf %}{{ doc.converted_pdf.url }}{% else %}{% endif %}',
+                      '{{ doc.id }}',
+                      'ad_supporting_doc',
+                      '{{ doc.file_name }}'
+                    )"
                     class="text-xs text-blue-600 hover:underline"
                   >
                     Preview
@@ -240,7 +252,13 @@
                 </div>
                 <div class="flex gap-2">
                   <button
-                    onclick="openAdminPreview('{{ doc.document.url }}', '{{ doc.file_name }}')"
+                    onclick="openPreview(
+                      '{{ doc.document.url }}',
+                      '{% if doc.converted_pdf %}{{ doc.converted_pdf.url }}{% else %}{% endif %}',
+                      '{{ doc.id }}',
+                      'ad_approved_doc',
+                      '{{ doc.file_name }}'
+                    )"
                     class="text-xs text-green-700 hover:underline"
                   >
                     Preview
@@ -369,11 +387,9 @@
                   Partial Approve
                 </button>
                 <button
-                  type="submit"
-                  name="action"
-                  value="reject"
+                  type="button"
+                  onclick="document.getElementById('adRejectModal').classList.remove('hidden')"
                   class="bg-red-600 text-white py-2 rounded text-sm font-medium hover:bg-red-700 transition"
-                  onclick="return confirm('Reject this AD?');"
                 >
                   Reject
                 </button>
@@ -399,11 +415,6 @@
                   name="action"
                   value="approve_final"
                   class="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-2.5 rounded shadow hover:from-green-700 hover:to-emerald-700 transition text-sm font-bold flex items-center justify-center gap-2"
-                  onclick="
-                    return confirm(
-                      'Confirm Final Approval? This will deduct the amount from the budget.',
-                    );
-                  "
                 >
                   <svg
                     class="w-4 h-4"
@@ -418,21 +429,30 @@
                       d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                     ></path>
                   </svg>
-                  Verify & Final Approve
+                  Verify &amp; Final Approve
                 </button>
                 <button
-                  type="submit"
-                  name="action"
-                  value="reject"
+                  type="button"
+                  onclick="document.getElementById('adVerifyRejectModal').classList.remove('hidden')"
                   class="w-full bg-white border border-red-300 text-red-600 py-2 rounded text-sm font-medium hover:bg-red-50 transition"
-                  onclick="
-                    return confirm('Are you sure you want to REJECT this AD?');
-                  "
                 >
                   Reject / Return
                 </button>
               </div>
             </form>
+          </div>
+          {% endif %}
+
+          <!-- Rejection Reason Card (Admin View) -->
+          {% if ad.status == 'Rejected' and ad.rejection_reason %}
+          <div class="mt-6 pt-4 border-t border-gray-200">
+            <div class="bg-red-50 border border-red-200 rounded-xl p-4">
+              <div class="flex items-center gap-2 mb-2">
+                <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <p class="text-xs font-semibold text-red-700 uppercase tracking-wide">Rejection Reason</p>
+              </div>
+              <p class="text-sm text-red-800 leading-relaxed">{{ ad.rejection_reason }}</p>
+            </div>
           </div>
           {% endif %}
         </div>
@@ -441,84 +461,91 @@
   </main>
 </div>
 
-<!-- Preview Modal -->
-<div
-  id="previewModal"
-  class="hidden fixed inset-0 z-50 overflow-y-auto"
-  aria-labelledby="modal-title"
-  role="dialog"
-  aria-modal="true"
->
-  <!-- Overlay -->
-  <div
-    class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity"
-    aria-hidden="true"
-    onclick="closeAdminPreview()"
-  ></div>
-
-  <!-- Modal Container (Centered) -->
-  <div
-    class="flex items-center justify-center min-h-screen p-4 text-center sm:p-0"
-  >
-    <div
-      class="relative bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:max-w-6xl sm:w-full h-[85vh] flex flex-col"
-    >
-      <div
-        class="bg-gray-100 px-4 py-3 border-b flex justify-between items-center shrink-0"
-      >
-        <h3 class="text-lg font-medium text-gray-900" id="previewModalTitle">
-          Preview
-        </h3>
-        <button
-          type="button"
-          class="text-gray-500 hover:text-gray-700"
-          onclick="closeAdminPreview()"
-        >
-          <span class="sr-only">Close</span>
-          <svg
-            class="h-6 w-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
-      </div>
-      <div class="flex-1 relative bg-gray-200">
-        <iframe
-          id="previewFrame"
-          src=""
-          class="w-full h-full border-0"
-        ></iframe>
-      </div>
+<!-- AD Rejection Modal (Pending stage) -->
+<div id="adRejectModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+    <div class="bg-red-600 px-6 py-4 rounded-t-2xl flex items-center gap-3">
+      <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      <h3 class="text-lg font-bold text-white">Reject Activity Design</h3>
+    </div>
+    <div class="p-6">
+      <p class="text-sm text-gray-600 mb-4">Please provide a reason for rejection. This will be saved with the request and visible to the end user.</p>
+      <form method="post" action="{% url 'handle_activity_design_request' ad.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="reject">
+        <label class="block text-sm font-semibold text-gray-700 mb-2">Rejection Reason <span class="text-red-500">*</span></label>
+        <textarea
+          name="rejection_reason"
+          required
+          minlength="10"
+          rows="4"
+          class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 focus:ring-2 focus:ring-red-400 focus:outline-none resize-none"
+          placeholder="e.g. Insufficient budget documentation, missing supporting receipts..."
+        ></textarea>
+        <div class="flex gap-3 mt-5">
+          <button type="button" onclick="document.getElementById('adRejectModal').classList.add('hidden')" class="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-50 transition">Cancel</button>
+          <button type="submit" class="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition shadow-md">Confirm Rejection</button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
 
-<script>
-  function openAdminPreview(url, title) {
-    const modal = document.getElementById("previewModal");
-    const frame = document.getElementById("previewFrame");
-    document.getElementById("previewModalTitle").textContent = title;
+<!-- AD Verify Rejection Modal (Awaiting Admin Verification stage) -->
+<div id="adVerifyRejectModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+    <div class="bg-orange-600 px-6 py-4 rounded-t-2xl flex items-center gap-3">
+      <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+      <h3 class="text-lg font-bold text-white">Reject Signed Documents</h3>
+    </div>
+    <div class="p-6">
+      <p class="text-sm text-gray-600 mb-4">Describe why the uploaded documents are invalid. The user will be asked to re-upload corrected documents.</p>
+      <form method="post" action="{% url 'handle_activity_design_request' ad.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="reject">
+        <label class="block text-sm font-semibold text-gray-700 mb-2">Reason for Document Rejection <span class="text-red-500">*</span></label>
+        <textarea
+          name="rejection_reason"
+          required
+          minlength="10"
+          rows="4"
+          class="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 focus:ring-2 focus:ring-orange-400 focus:outline-none resize-none"
+          placeholder="e.g. Document is blurry, signature is missing, wrong document uploaded..."
+        ></textarea>
+        <div class="flex gap-3 mt-5">
+          <button type="button" onclick="document.getElementById('adVerifyRejectModal').classList.add('hidden')" class="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-50 transition">Cancel</button>
+          <button type="submit" class="flex-1 px-4 py-2.5 bg-orange-600 text-white rounded-xl text-sm font-bold hover:bg-orange-700 transition shadow-md">Reject Documents</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
-    const encodedUrl = encodeURIComponent(url);
-    frame.src = `https://docs.google.com/gview?url=${encodedUrl}&embedded=true`;
+<!-- Preview Modal -->
+<div
+  id="previewModal"
+  class="fixed inset-0 bg-black/80 hidden z-50 items-center justify-center p-4 backdrop-blur-sm"
+  onclick="if(event.target===this) closePreviewModal()"
+>
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-6xl h-[85vh] flex flex-col overflow-hidden">
+    <div class="bg-gray-100 px-4 py-3 border-b flex justify-between items-center shrink-0">
+      <h3 class="text-lg font-medium text-gray-900" id="previewModalTitle">Preview</h3>
+      <button
+        type="button"
+        class="text-gray-500 hover:text-gray-700"
+        onclick="closePreviewModal()"
+      >
+        <span class="sr-only">Close</span>
+        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+    <div class="flex-1 relative bg-gray-200" id="previewContent">
+      <!-- Content injected by document-preview.js -->
+    </div>
+  </div>
+</div>
 
-    modal.classList.remove("hidden");
-    document.body.style.overflow = "hidden";
-  }
-
-  function closeAdminPreview() {
-    const modal = document.getElementById("previewModal");
-    modal.classList.add("hidden");
-    document.getElementById("previewFrame").src = "";
-    document.body.style.overflow = "auto";
-  }
-</script>
+<script src="{% static 'js/document-preview.js' %}"></script>
 {% endblock %}
