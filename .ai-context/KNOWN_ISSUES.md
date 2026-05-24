@@ -198,3 +198,11 @@ These fields still exist in the database and may contain data from earlier submi
 - Both views pass `current_year` to the template context.
 - In both templates, the card filter dropdown defaults to the current year when loaded fresh without filters.
 - The templates were unified to both use `name="summary_year"` for the card filter and `name="fiscal_year"` for the filter modal, preventing the bug where the form filter would cancel out the card filter state.
+
+---
+
+## 18. Missing Modal Download Link
+
+**Issue:** PR detail admin template had missing download button href. Scenario B applied: The download button inside the preview modal header was hardcoded with `href="#"` and was not connected to the preview system JS.
+
+**Fix:** Fixed by updating `document-preview.js` to dynamically set the `href` of `downloadLink` to the `originalUrl` when `openPreview()` is called, ensuring it automatically provides the correct download link for all document types (main document, supporting documents, signed copies) sharing the same modal.

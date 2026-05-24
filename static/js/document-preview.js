@@ -122,6 +122,12 @@ function openPreview(originalUrl, convertedPdfUrl, docId, docType, title) {
     const titleEl = document.getElementById('previewModalTitle');
     if (titleEl && title) titleEl.textContent = title;
 
+    // Update the download link in the modal header
+    const downloadLink = document.getElementById('downloadLink');
+    if (downloadLink) {
+        downloadLink.href = originalUrl;
+    }
+
     // Show modal
     modal.classList.remove('hidden');
     modal.classList.add('flex');

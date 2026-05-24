@@ -115,6 +115,10 @@
 - [ ] Archive and restore testing
 - [ ] Cross-browser testing (Chrome, Firefox, Edge)
 
+### Bug Fixes
+
+- [x] Fixed missing `href` on the download button in the document preview modal header by dynamically updating it in `document-preview.js`.
+
 ### Final Deployment Tasks
 
 - [ ] PostgreSQL database setup on production server
