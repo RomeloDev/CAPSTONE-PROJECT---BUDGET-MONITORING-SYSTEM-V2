@@ -43,11 +43,11 @@
             </div>
             <form method="GET" action="" class="flex items-center gap-3">
                 <label for="fiscal_year" class="text-sm font-medium text-gray-700">Select Year:</label>
-                <select name="fiscal_year" 
+                <select name="summary_year" 
                         onchange="this.form.submit()" 
                         class="border border-gray-300 rounded px-4 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
                     <option value="all" {% if selected_year == 'all' %}selected{% endif %}>All Years</option>
-                    {% for year in fiscal_years %}
+                    {% for year in available_years %}
                         <option value="{{ year }}" {% if selected_year == year|stringformat:"s" %}selected{% endif %}>{{ year }}</option>
                     {% endfor %}
                 </select>

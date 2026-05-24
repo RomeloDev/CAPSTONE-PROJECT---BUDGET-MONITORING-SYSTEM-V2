@@ -186,3 +186,15 @@ The following fields on `ActivityDesign` are marked as deprecated in their `help
 - `final_approved_scan` — deprecated
 
 These fields still exist in the database and may contain data from earlier submissions. Don't add new code that writes to them.
+
+---
+
+## 17. Fiscal Year Default Filter
+
+**Issue:** By default, the `approved_budget` and `budget_allocation` list views now automatically pre-filter by the current fiscal year if no GET parameter is specified. This is to avoid showing all years by default, which can cause performance/visual clutter.
+
+**Implementation:**
+- `get_queryset` in both `ApprovedBudgetListView` and `BudgetAllocationListView` defaults `summary_year` to `str(date.today().year)` if `fiscal_year` and `summary_year` are absent from the request.
+- Both views pass `current_year` to the template context.
+- In both templates, the card filter dropdown defaults to the current year when loaded fresh without filters.
+- The templates were unified to both use `name="summary_year"` for the card filter and `name="fiscal_year"` for the filter modal, preventing the bug where the form filter would cancel out the card filter state.

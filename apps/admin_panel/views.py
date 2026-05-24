@@ -4,7 +4,7 @@ from django.views.generic import TemplateView, ListView, DetailView, View
 from django.db.models import Sum, Count, Q, F
 from django.utils import timezone
 from django.utils.decorators import method_decorator
-from datetime import datetime
+from datetime import datetime, date
 from apps.user_accounts.models import User
 from apps.budgets.models import (
     ApprovedBudget, 
@@ -172,10 +172,6 @@ class ApprovedBudgetListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     def get_queryset(self):
         queryset = super().get_queryset()
         
-        year = self.request.GET.get('summary_year')
-        if year and year != 'all':
-            queryset = queryset.filter(fiscal_year=year)
-            
         # GET Parameters from the URL
         # 'summary_year' is the Card Filter, 'fiscal_year' is from the filter Modal
         summary_year = self.request.GET.get('summary_year')
@@ -186,6 +182,10 @@ class ApprovedBudgetListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
         date_to = self.request.GET.get('date_to')
         search = self.request.GET.get('search')
         
+        current_year = str(date.today().year)
+        if summary_year is None and fiscal_year is None:
+            summary_year = current_year
+
         # Apply Filters
         if fiscal_year:
             queryset = queryset.filter(fiscal_year=fiscal_year)
@@ -237,7 +237,16 @@ class ApprovedBudgetListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
             
         # --- 3. Pass Filter Options ---
         context['available_years'] = ApprovedBudget.objects.values_list('fiscal_year', flat=True).distinct().order_by('-fiscal_year')
-        context['selected_year'] = self.request.GET.get('summary_year', 'all')
+        
+        current_year = str(date.today().year)
+        summary_year = self.request.GET.get('summary_year')
+        fiscal_year = self.request.GET.get('fiscal_year')
+        if summary_year is None and fiscal_year is None:
+            context['selected_year'] = current_year
+        else:
+            context['selected_year'] = summary_year if summary_year else 'all'
+            
+        context['current_year'] = current_year
         
         return context
     def post(self, request, *args, **kwargs):
@@ -410,10 +419,18 @@ class BudgetAllocationListView(ListView):
         self.mfo = self.request.GET.get('mfo')
         self.department = self.request.GET.get('department')
         self.search = self.request.GET.get('search')
-        self.summary_year = self.request.GET.get('summary_year', 'all')
+        self.summary_year = self.request.GET.get('summary_year')
         
+        current_year = str(date.today().year)
+        if self.fiscal_year is None and self.summary_year is None:
+            self.summary_year = current_year
+        elif self.summary_year is None:
+            self.summary_year = 'all'
+            
         if self.fiscal_year:
             queryset = queryset.filter(approved_budget__fiscal_year=self.fiscal_year)
+        elif self.summary_year and self.summary_year != 'all':
+            queryset = queryset.filter(approved_budget__fiscal_year=self.summary_year)
             
         if self.mfo:
             queryset = queryset.filter(end_user__mfo=self.mfo)
@@ -449,6 +466,7 @@ class BudgetAllocationListView(ListView):
         context['approved_budgets'] = ApprovedBudget.objects.filter(is_active=True, remaining_budget__gt=0)
         
         context['selected_year'] = self.summary_year
+        context['current_year'] = str(date.today().year)
         return context
     
     def post(self, request, *args, **kwargs):

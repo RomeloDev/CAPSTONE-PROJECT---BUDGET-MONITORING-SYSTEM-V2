@@ -95,6 +95,7 @@
 
 ### UI/UX Polish
 
+- [x] Default fiscal year filters to current year instead of "All Years" (approved_budget, budget_allocation)
 - [ ] Consistent styling across all templates (admin and end user)
 - [ ] Loading states on all form submissions
 - [ ] Empty state messages when no data exists (e.g., "No purchase requests found")
