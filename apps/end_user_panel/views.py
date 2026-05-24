@@ -1790,12 +1790,28 @@ def activity_design_upload(request):
         elif action == 'add_draft_allocation':
             try:
                 allocations = request.session.get('ad_draft_allocations', [])
+                full_value = request.POST.get('full_value')
+                
+                # Validation 1: Prevent duplicates
+                if any(alloc.get('full_value') == full_value for alloc in allocations):
+                    return JsonResponse({'success': False, 'error': 'This funding source and quarter is already selected.'})
+                
+                line_item_id = request.POST.get('line_item_id')
+                quarter = request.POST.get('quarter')
+                amount = float(request.POST.get('amount'))
+                
+                # Validation 2: Enforce budget limit securely
+                line_item = PRELineItem.objects.get(id=line_item_id)
+                available = float(line_item.get_quarter_available(quarter) or 0)
+                if amount > available:
+                    return JsonResponse({'success': False, 'error': f'Amount exceeds available balance (₱{available:,.2f}).'})
+                
                 new_item = {
-                    'line_item_id': request.POST.get('line_item_id'),
-                    'quarter': request.POST.get('quarter'),
-                    'amount': float(request.POST.get('amount')),
+                    'line_item_id': line_item_id,
+                    'quarter': quarter,
+                    'amount': amount,
                     'text': request.POST.get('text'),
-                    'full_value': request.POST.get('full_value') # For filtering
+                    'full_value': full_value # For filtering
                 }
                 allocations.append(new_item)
                 request.session['ad_draft_allocations'] = allocations
@@ -1843,70 +1859,79 @@ def activity_design_upload(request):
             details_form = ActivityDesignDetailsForm(request.POST, instance=draft)
             
             if details_form.is_valid():
-                with transaction.atomic():
-                    ad = details_form.save(commit=False)
-                    ad.status = 'Pending'
-                    # Ensure total_amount is not None for DB constraint (re-calculated below)
-                    if ad.total_amount is None:
-                        ad.total_amount = Decimal('0.00')
-                    
-                    # Ensure real AD Number
-                    if not ad.ad_number.startswith('AD-'):
-                         ad.ad_number = f"AD-{uuid.uuid4().hex[:8].upper()}"
-                    
-                    # Link Budget Allocation
-                    alloc_id = details_form.cleaned_data['budget_allocation']
-                    allocation = BudgetAllocation.objects.get(id=alloc_id)
-                    ad.budget_allocation = allocation
-                    ad.department = allocation.department
-                    
-                    # Handle main file if uploaded during final submit (fallback)
-                    if 'ad_document' in request.FILES:
-                         ad.uploaded_document = request.FILES['ad_document']
-                    
-                    ad.save()
-                    
-                    # Process Allocations JSON
-                    line_items_json = details_form.cleaned_data['line_items_data']
-                    items_data = json.loads(line_items_json)
-                    total_allocated = Decimal('0')
-                    
-                    # Clear old allocations to prevent duplicates
-                    ad.pre_allocations.all().delete()
-                    
-                    for item in items_data:
-                        line_item = PRELineItem.objects.get(id=item['line_item_id'])
-                        amount = Decimal(str(item['amount']))
-                        ActivityDesignAllocation.objects.create(
-                            activity_design=ad,
-                            pre_line_item=line_item,
-                            quarter=item['quarter'],
-                            allocated_amount=amount
+                try:
+                    with transaction.atomic():
+                        ad = details_form.save(commit=False)
+                        ad.status = 'Pending'
+                        # Ensure total_amount is not None for DB constraint (re-calculated below)
+                        if ad.total_amount is None:
+                            ad.total_amount = Decimal('0.00')
+                        
+                        # Ensure real AD Number
+                        if not ad.ad_number.startswith('AD-'):
+                             ad.ad_number = f"AD-{uuid.uuid4().hex[:8].upper()}"
+                        
+                        # Link Budget Allocation
+                        alloc_id = details_form.cleaned_data['budget_allocation']
+                        allocation = BudgetAllocation.objects.get(id=alloc_id)
+                        ad.budget_allocation = allocation
+                        ad.department = allocation.department
+                        
+                        # Handle main file if uploaded during final submit (fallback)
+                        if 'ad_document' in request.FILES:
+                             ad.uploaded_document = request.FILES['ad_document']
+                        
+                        ad.save()
+                        
+                        # Process Allocations JSON
+                        line_items_json = details_form.cleaned_data['line_items_data']
+                        items_data = json.loads(line_items_json)
+                        total_allocated = Decimal('0')
+                        
+                        # Clear old allocations to prevent duplicates
+                        ad.pre_allocations.all().delete()
+                        
+                        for item in items_data:
+                            line_item = PRELineItem.objects.get(id=item['line_item_id'])
+                            amount = Decimal(str(item['amount']))
+                            
+                            # VALIDATION: Enforce budget limit securely
+                            available = line_item.get_quarter_available(item['quarter']) or Decimal('0.00')
+                            if amount > available:
+                                raise ValueError(f"Allocation for '{line_item.item_name}' ({item['quarter']}) exceeds available balance of ₱{available:,.2f}.")
+                            
+                            ActivityDesignAllocation.objects.create(
+                                activity_design=ad,
+                                pre_line_item=line_item,
+                                quarter=item['quarter'],
+                                allocated_amount=amount
+                            )
+                            total_allocated += amount
+                        
+                        # 3. Update Total Amount final check
+                        ad.total_amount = total_allocated
+                        ad.save()
+                        
+                        # Clear session
+                        if 'ad_draft_id' in request.session:
+                            del request.session['ad_draft_id']
+                        if 'ad_draft_allocations' in request.session:
+                            del request.session['ad_draft_allocations']
+                            
+                        log_activity(
+                            user=request.user,
+                            action='SUBMIT_AD',
+                            detail=f'Submitted Activity Design {ad.ad_number}',
+                            model_name='ActivityDesign',
+                            record_id=ad.id
                         )
-                        total_allocated += amount
-                    
-                    # 3. Update Total Amount final check
-                    ad.total_amount = total_allocated
-                    ad.save()
-                    
-                    # Clear session
-                    if 'ad_draft_id' in request.session:
-                        del request.session['ad_draft_id']
-                    if 'ad_draft_allocations' in request.session:
-                        del request.session['ad_draft_allocations']
-                        
-                    log_activity(
-                        user=request.user,
-                        action='SUBMIT_AD',
-                        detail=f'Submitted Activity Design {ad.ad_number}',
-                        model_name='ActivityDesign',
-                        record_id=ad.id
-                    )
-                        
-                    # Notify admins of new AD submission
-                    notify_admins_new_request(ad, 'ad')
-                    messages.success(request, "Activity Design submitted successfully!")
-                    return redirect('pr_ad_list') 
+                            
+                        # Notify admins of new AD submission
+                        notify_admins_new_request(ad, 'ad')
+                        messages.success(request, "Activity Design submitted successfully!")
+                        return redirect('pr_ad_list') 
+                except ValueError as e:
+                    messages.error(request, str(e))
             else:
                 messages.error(request, f"Form Errors: {details_form.errors}")
     

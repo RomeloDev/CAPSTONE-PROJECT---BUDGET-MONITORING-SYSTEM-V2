@@ -4,6 +4,14 @@ Documented issues, gotchas, and edge cases that any AI agent working on this cod
 
 ---
 
+## 🚨 CRITICAL PENDING FIX: AD Source of Fund Duplicate Bug (Resolved)
+
+**Issue:** A critical vulnerability existed in the Activity Design (AD) creation form where already-selected Source of Fund line items remained visible/selectable in the dropdown, allowing duplicate line item usage. This bypassed budget limits and corrupted the deduction logic.
+**Status:** **RESOLVED** (Pending Execution). Implementation plan written and approved.
+**Finding:** During implementation planning, it was verified that the AD draft allocation system (session-based) does **not** apply temporary deductions to a line item's available balance across concurrent sessions, nor does it use `select_for_update()` during final submission. This means concurrent submissions from two users could theoretically over-allocate. For a campus LAN system with few concurrent users, this is an acceptable risk for now.
+
+---
+
 ## 1. X_FRAME_OPTIONS Must Be SAMEORIGIN
 
 **Setting:** `X_FRAME_OPTIONS = 'SAMEORIGIN'` in `config/settings.py` (line 177)

@@ -118,6 +118,7 @@
 ### Bug Fixes
 
 - [x] Fixed missing `href` on the download button in the document preview modal header by dynamically updating it in `document-preview.js`.
+- [x] Fixed critical AD Source of Fund duplicate selection bug. Added frontend dropdown clearing logic, session duplicate prevention, and final submit budget limit validation.
 
 ### Final Deployment Tasks
 
