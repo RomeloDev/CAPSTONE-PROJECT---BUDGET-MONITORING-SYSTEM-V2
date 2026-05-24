@@ -1400,6 +1400,7 @@ def admin_verify_and_approve_pr(request, pr_id):
         
         pr.status = 'Partially Approved' 
         # pr.admin_notes = f"Verification Rejected: {reason}" # Optional
+        pr.rejection_reason = f"Verification Rejected: {reason}" # Store reason in a dedicated field if you have one
         pr.save()
         
         log_activity(

@@ -120,6 +120,25 @@
     </div>
     {% endif %}
 
+    <!-- Rejection Banner for Rejection of Supporting docs -->
+    {% if pr.rejection_reason and pr.status == 'Partially Approved' %}
+    <div class="mb-6 bg-red-50 border-l-4 border-red-500 rounded-lg p-5 shadow-sm">
+        <div class="flex items-start gap-3">
+            <div class="bg-red-100 rounded-full p-2 mt-0.5">
+                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </div>
+            <div>
+                <h3 class="text-base font-bold text-red-800">This Request Has Been Rejected</h3>
+                {% if pr.rejection_reason %}
+                <p class="text-sm text-red-700 mt-1 leading-relaxed">{{ pr.rejection_reason }}</p>
+                {% else %}
+                <p class="text-sm text-red-600 mt-1 italic">No reason was provided by the admin.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Main Content Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
