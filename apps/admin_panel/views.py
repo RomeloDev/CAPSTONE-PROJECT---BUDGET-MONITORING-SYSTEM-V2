@@ -617,7 +617,7 @@ class ClientAccountsListView(ListView):
     model = User
     template_name = 'admin_panel/client_accounts.html'
     context_object_name = 'users'
-    paginate_by = 20
+    paginate_by = 10
     
     def get_queryset(self):
         queryset = User.objects.filter(is_superuser=False, is_admin=False).order_by('-created_at')
@@ -2331,13 +2331,45 @@ class ArchiveCenterView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
         if selected_year != 'all':
             realignments = realignments.filter(source_pre__budget_allocation__approved_budget__fiscal_year=selected_year)
             
+        from django.core.paginator import Paginator
+        
+        # Paginate Budgets
+        budgets_page = self.request.GET.get('budgets_page', 1)
+        paginator_budgets = Paginator(budgets, 10)
+        page_obj_budgets = paginator_budgets.get_page(budgets_page)
+        
+        # Paginate Allocations
+        allocations_page = self.request.GET.get('allocations_page', 1)
+        paginator_allocations = Paginator(allocations, 10)
+        page_obj_allocations = paginator_allocations.get_page(allocations_page)
+        
+        # Paginate PREs
+        pres_page = self.request.GET.get('pres_page', 1)
+        paginator_pres = Paginator(pres, 10)
+        page_obj_pres = paginator_pres.get_page(pres_page)
+        
+        # Paginate PRs
+        prs_page = self.request.GET.get('prs_page', 1)
+        paginator_prs = Paginator(prs, 10)
+        page_obj_prs = paginator_prs.get_page(prs_page)
+        
+        # Paginate ADs
+        ads_page = self.request.GET.get('ads_page', 1)
+        paginator_ads = Paginator(ads, 10)
+        page_obj_ads = paginator_ads.get_page(ads_page)
+        
+        # Paginate Realignments
+        realignments_page = self.request.GET.get('realignments_page', 1)
+        paginator_realignments = Paginator(realignments, 10)
+        page_obj_realignments = paginator_realignments.get_page(realignments_page)
+        
         context.update({
-            'archived_budgets': budgets,
-            'archived_allocations': allocations,
-            'archived_pres': pres,
-            'archived_prs': prs,
-            'archived_ads': ads,
-            'archived_realignments': realignments,
+            'archived_budgets': page_obj_budgets,
+            'archived_allocations': page_obj_allocations,
+            'archived_pres': page_obj_pres,
+            'archived_prs': page_obj_prs,
+            'archived_ads': page_obj_ads,
+            'archived_realignments': page_obj_realignments,
             'selected_year': selected_year,
             # Get all available years from archived budgets for the filter
             'avail_years': ApprovedBudget.all_objects.filter(is_archived=True).values_list('fiscal_year', flat=True).distinct().order_by('-fiscal_year')

@@ -86,6 +86,8 @@
 - audit_trail.html / AuditTrailListView
 - pr_list.html / AdminPRListView
 - departments_ad_request.html / DepartmentADRequestView
+- client_accounts.html / ClientAccountsListView
+- archive_center.html / ArchiveCenterView
 
 ## Execution Order
 

@@ -90,8 +90,8 @@
 
 ### Admin Panel Pagination
 
-- [ ] `client_accounts.html` / `ClientAccountsListView` — lists all users
-- [ ] `archive_center.html` / `ArchiveCenterView` — lists archived records
+- [x] `client_accounts.html` / `ClientAccountsListView` — lists all users
+- [x] `archive_center.html` / `ArchiveCenterView` — lists archived records
 
 ### UI/UX Polish
 

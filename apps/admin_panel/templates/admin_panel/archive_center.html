@@ -39,22 +39,22 @@
         <div class="mb-6 border-b border-gray-200">
             <ul class="flex flex-wrap -mb-px text-sm font-medium text-center" id="archiveTabs" data-tabs-toggle="#archiveTabContent" role="tablist">
                 <li class="mr-2" role="presentation">
-                    <button class="inline-block p-4 border-b-2 rounded-t-lg hover:text-gray-600 hover:border-gray-300" id="budgets-tab" data-tabs-target="#budgets" type="button" role="tab" aria-controls="budgets" aria-selected="false">Approved Budgets ({{ archived_budgets.count }})</button>
+                    <button class="inline-block p-4 border-b-2 rounded-t-lg hover:text-gray-600 hover:border-gray-300" id="budgets-tab" data-tabs-target="#budgets" type="button" role="tab" aria-controls="budgets" aria-selected="false">Approved Budgets ({{ archived_budgets.paginator.count }})</button>
                 </li>
                 <li class="mr-2" role="presentation">
-                    <button class="inline-block p-4 border-b-2 rounded-t-lg hover:text-gray-600 hover:border-gray-300" id="allocations-tab" data-tabs-target="#allocations" type="button" role="tab" aria-controls="allocations" aria-selected="false">Allocations ({{ archived_allocations.count }})</button>
+                    <button class="inline-block p-4 border-b-2 rounded-t-lg hover:text-gray-600 hover:border-gray-300" id="allocations-tab" data-tabs-target="#allocations" type="button" role="tab" aria-controls="allocations" aria-selected="false">Allocations ({{ archived_allocations.paginator.count }})</button>
                 </li>
                 <li class="mr-2" role="presentation">
-                    <button class="inline-block p-4 border-b-2 rounded-t-lg hover:text-gray-600 hover:border-gray-300" id="pres-tab" data-tabs-target="#pres" type="button" role="tab" aria-controls="pres" aria-selected="false">Department PREs ({{ archived_pres.count }})</button>
+                    <button class="inline-block p-4 border-b-2 rounded-t-lg hover:text-gray-600 hover:border-gray-300" id="pres-tab" data-tabs-target="#pres" type="button" role="tab" aria-controls="pres" aria-selected="false">Department PREs ({{ archived_pres.paginator.count }})</button>
                 </li>
                 <li class="mr-2" role="presentation">
-                    <button class="inline-block p-4 border-b-2 rounded-t-lg hover:text-gray-600 hover:border-gray-300" id="prs-tab" data-tabs-target="#prs" type="button" role="tab" aria-controls="prs" aria-selected="false">Purchase Requests ({{ archived_prs.count }})</button>
+                    <button class="inline-block p-4 border-b-2 rounded-t-lg hover:text-gray-600 hover:border-gray-300" id="prs-tab" data-tabs-target="#prs" type="button" role="tab" aria-controls="prs" aria-selected="false">Purchase Requests ({{ archived_prs.paginator.count }})</button>
                 </li>
                  <li class="mr-2" role="presentation">
-                    <button class="inline-block p-4 border-b-2 rounded-t-lg hover:text-gray-600 hover:border-gray-300" id="ads-tab" data-tabs-target="#ads" type="button" role="tab" aria-controls="ads" aria-selected="false">Activity Designs ({{ archived_ads.count }})</button>
+                    <button class="inline-block p-4 border-b-2 rounded-t-lg hover:text-gray-600 hover:border-gray-300" id="ads-tab" data-tabs-target="#ads" type="button" role="tab" aria-controls="ads" aria-selected="false">Activity Designs ({{ archived_ads.paginator.count }})</button>
                 </li>
                  <li class="mr-2" role="presentation">
-                    <button class="inline-block p-4 border-b-2 rounded-t-lg hover:text-gray-600 hover:border-gray-300" id="realign-tab" data-tabs-target="#realign" type="button" role="tab" aria-controls="realign" aria-selected="false">Realignments ({{ archived_realignments.count }})</button>
+                    <button class="inline-block p-4 border-b-2 rounded-t-lg hover:text-gray-600 hover:border-gray-300" id="realign-tab" data-tabs-target="#realign" type="button" role="tab" aria-controls="realign" aria-selected="false">Realignments ({{ archived_realignments.paginator.count }})</button>
                 </li>
             </ul>
         </div>
@@ -94,6 +94,44 @@
                             {% endfor %}
                         </tbody>
                     </table>
+            {% if archived_budgets.has_other_pages %}
+            <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                <div class="flex-1 flex justify-between sm:hidden">
+                    {% if archived_budgets.has_previous %}
+                        <a href="?budgets_page={{ archived_budgets.previous_page_number }}&year={{ selected_year }}&allocations_page={{ archived_allocations.number }}&pres_page={{ archived_pres.number }}&prs_page={{ archived_prs.number }}&ads_page={{ archived_ads.number }}&realignments_page={{ archived_realignments.number }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Previous</a>
+                    {% endif %}
+                    {% if archived_budgets.has_next %}
+                        <a href="?budgets_page={{ archived_budgets.next_page_number }}&year={{ selected_year }}&allocations_page={{ archived_allocations.number }}&pres_page={{ archived_pres.number }}&prs_page={{ archived_prs.number }}&ads_page={{ archived_ads.number }}&realignments_page={{ archived_realignments.number }}" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Next</a>
+                    {% endif %}
+                </div>
+                <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-sm text-gray-700">
+                            Showing page <span class="font-medium">{{ archived_budgets.number }}</span> of <span class="font-medium">{{ archived_budgets.paginator.num_pages }}</span>
+                        </p>
+                    </div>
+                    <div>
+                        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                            {% if archived_budgets.has_previous %}
+                                <a href="?budgets_page={{ archived_budgets.previous_page_number }}&year={{ selected_year }}&allocations_page={{ archived_allocations.number }}&pres_page={{ archived_pres.number }}&prs_page={{ archived_prs.number }}&ads_page={{ archived_ads.number }}&realignments_page={{ archived_realignments.number }}" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Previous</a>
+                            {% endif %}
+                            
+                            {% for i in archived_budgets.paginator.page_range %}
+                                {% if archived_budgets.number == i %}
+                                    <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-blue-50 text-sm font-medium text-blue-600">{{ i }}</span>
+                                {% else %}
+                                    <a href="?budgets_page={{ i }}&year={{ selected_year }}&allocations_page={{ archived_allocations.number }}&pres_page={{ archived_pres.number }}&prs_page={{ archived_prs.number }}&ads_page={{ archived_ads.number }}&realignments_page={{ archived_realignments.number }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">{{ i }}</a>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if archived_budgets.has_next %}
+                                <a href="?budgets_page={{ archived_budgets.next_page_number }}&year={{ selected_year }}&allocations_page={{ archived_allocations.number }}&pres_page={{ archived_pres.number }}&prs_page={{ archived_prs.number }}&ads_page={{ archived_ads.number }}&realignments_page={{ archived_realignments.number }}" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Next</a>
+                            {% endif %}
+                        </nav>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
                 </div>
             </div>
 
@@ -130,6 +168,44 @@
                             {% endfor %}
                         </tbody>
                     </table>
+            {% if archived_allocations.has_other_pages %}
+            <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                <div class="flex-1 flex justify-between sm:hidden">
+                    {% if archived_allocations.has_previous %}
+                        <a href="?allocations_page={{ archived_allocations.previous_page_number }}&year={{ selected_year }}&budgets_page={{ archived_budgets.number }}&pres_page={{ archived_pres.number }}&prs_page={{ archived_prs.number }}&ads_page={{ archived_ads.number }}&realignments_page={{ archived_realignments.number }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Previous</a>
+                    {% endif %}
+                    {% if archived_allocations.has_next %}
+                        <a href="?allocations_page={{ archived_allocations.next_page_number }}&year={{ selected_year }}&budgets_page={{ archived_budgets.number }}&pres_page={{ archived_pres.number }}&prs_page={{ archived_prs.number }}&ads_page={{ archived_ads.number }}&realignments_page={{ archived_realignments.number }}" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Next</a>
+                    {% endif %}
+                </div>
+                <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-sm text-gray-700">
+                            Showing page <span class="font-medium">{{ archived_allocations.number }}</span> of <span class="font-medium">{{ archived_allocations.paginator.num_pages }}</span>
+                        </p>
+                    </div>
+                    <div>
+                        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                            {% if archived_allocations.has_previous %}
+                                <a href="?allocations_page={{ archived_allocations.previous_page_number }}&year={{ selected_year }}&budgets_page={{ archived_budgets.number }}&pres_page={{ archived_pres.number }}&prs_page={{ archived_prs.number }}&ads_page={{ archived_ads.number }}&realignments_page={{ archived_realignments.number }}" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Previous</a>
+                            {% endif %}
+                            
+                            {% for i in archived_allocations.paginator.page_range %}
+                                {% if archived_allocations.number == i %}
+                                    <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-blue-50 text-sm font-medium text-blue-600">{{ i }}</span>
+                                {% else %}
+                                    <a href="?allocations_page={{ i }}&year={{ selected_year }}&budgets_page={{ archived_budgets.number }}&pres_page={{ archived_pres.number }}&prs_page={{ archived_prs.number }}&ads_page={{ archived_ads.number }}&realignments_page={{ archived_realignments.number }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">{{ i }}</a>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if archived_allocations.has_next %}
+                                <a href="?allocations_page={{ archived_allocations.next_page_number }}&year={{ selected_year }}&budgets_page={{ archived_budgets.number }}&pres_page={{ archived_pres.number }}&prs_page={{ archived_prs.number }}&ads_page={{ archived_ads.number }}&realignments_page={{ archived_realignments.number }}" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Next</a>
+                            {% endif %}
+                        </nav>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
                 </div>
             </div>
             
@@ -167,6 +243,44 @@
                             {% endfor %}
                          </tbody>
                     </table>
+            {% if archived_pres.has_other_pages %}
+            <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                <div class="flex-1 flex justify-between sm:hidden">
+                    {% if archived_pres.has_previous %}
+                        <a href="?pres_page={{ archived_pres.previous_page_number }}&year={{ selected_year }}&budgets_page={{ archived_budgets.number }}&allocations_page={{ archived_allocations.number }}&prs_page={{ archived_prs.number }}&ads_page={{ archived_ads.number }}&realignments_page={{ archived_realignments.number }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Previous</a>
+                    {% endif %}
+                    {% if archived_pres.has_next %}
+                        <a href="?pres_page={{ archived_pres.next_page_number }}&year={{ selected_year }}&budgets_page={{ archived_budgets.number }}&allocations_page={{ archived_allocations.number }}&prs_page={{ archived_prs.number }}&ads_page={{ archived_ads.number }}&realignments_page={{ archived_realignments.number }}" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Next</a>
+                    {% endif %}
+                </div>
+                <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-sm text-gray-700">
+                            Showing page <span class="font-medium">{{ archived_pres.number }}</span> of <span class="font-medium">{{ archived_pres.paginator.num_pages }}</span>
+                        </p>
+                    </div>
+                    <div>
+                        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                            {% if archived_pres.has_previous %}
+                                <a href="?pres_page={{ archived_pres.previous_page_number }}&year={{ selected_year }}&budgets_page={{ archived_budgets.number }}&allocations_page={{ archived_allocations.number }}&prs_page={{ archived_prs.number }}&ads_page={{ archived_ads.number }}&realignments_page={{ archived_realignments.number }}" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Previous</a>
+                            {% endif %}
+                            
+                            {% for i in archived_pres.paginator.page_range %}
+                                {% if archived_pres.number == i %}
+                                    <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-blue-50 text-sm font-medium text-blue-600">{{ i }}</span>
+                                {% else %}
+                                    <a href="?pres_page={{ i }}&year={{ selected_year }}&budgets_page={{ archived_budgets.number }}&allocations_page={{ archived_allocations.number }}&prs_page={{ archived_prs.number }}&ads_page={{ archived_ads.number }}&realignments_page={{ archived_realignments.number }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">{{ i }}</a>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if archived_pres.has_next %}
+                                <a href="?pres_page={{ archived_pres.next_page_number }}&year={{ selected_year }}&budgets_page={{ archived_budgets.number }}&allocations_page={{ archived_allocations.number }}&prs_page={{ archived_prs.number }}&ads_page={{ archived_ads.number }}&realignments_page={{ archived_realignments.number }}" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Next</a>
+                            {% endif %}
+                        </nav>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
                  </div>
             </div>
 
@@ -204,6 +318,44 @@
                             {% endfor %}
                          </tbody>
                     </table>
+            {% if archived_prs.has_other_pages %}
+            <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                <div class="flex-1 flex justify-between sm:hidden">
+                    {% if archived_prs.has_previous %}
+                        <a href="?prs_page={{ archived_prs.previous_page_number }}&year={{ selected_year }}&budgets_page={{ archived_budgets.number }}&allocations_page={{ archived_allocations.number }}&pres_page={{ archived_pres.number }}&ads_page={{ archived_ads.number }}&realignments_page={{ archived_realignments.number }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Previous</a>
+                    {% endif %}
+                    {% if archived_prs.has_next %}
+                        <a href="?prs_page={{ archived_prs.next_page_number }}&year={{ selected_year }}&budgets_page={{ archived_budgets.number }}&allocations_page={{ archived_allocations.number }}&pres_page={{ archived_pres.number }}&ads_page={{ archived_ads.number }}&realignments_page={{ archived_realignments.number }}" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Next</a>
+                    {% endif %}
+                </div>
+                <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-sm text-gray-700">
+                            Showing page <span class="font-medium">{{ archived_prs.number }}</span> of <span class="font-medium">{{ archived_prs.paginator.num_pages }}</span>
+                        </p>
+                    </div>
+                    <div>
+                        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                            {% if archived_prs.has_previous %}
+                                <a href="?prs_page={{ archived_prs.previous_page_number }}&year={{ selected_year }}&budgets_page={{ archived_budgets.number }}&allocations_page={{ archived_allocations.number }}&pres_page={{ archived_pres.number }}&ads_page={{ archived_ads.number }}&realignments_page={{ archived_realignments.number }}" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Previous</a>
+                            {% endif %}
+                            
+                            {% for i in archived_prs.paginator.page_range %}
+                                {% if archived_prs.number == i %}
+                                    <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-blue-50 text-sm font-medium text-blue-600">{{ i }}</span>
+                                {% else %}
+                                    <a href="?prs_page={{ i }}&year={{ selected_year }}&budgets_page={{ archived_budgets.number }}&allocations_page={{ archived_allocations.number }}&pres_page={{ archived_pres.number }}&ads_page={{ archived_ads.number }}&realignments_page={{ archived_realignments.number }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">{{ i }}</a>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if archived_prs.has_next %}
+                                <a href="?prs_page={{ archived_prs.next_page_number }}&year={{ selected_year }}&budgets_page={{ archived_budgets.number }}&allocations_page={{ archived_allocations.number }}&pres_page={{ archived_pres.number }}&ads_page={{ archived_ads.number }}&realignments_page={{ archived_realignments.number }}" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Next</a>
+                            {% endif %}
+                        </nav>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
                  </div>
              </div>
 
@@ -241,6 +393,44 @@
                             {% endfor %}
                          </tbody>
                     </table>
+            {% if archived_ads.has_other_pages %}
+            <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                <div class="flex-1 flex justify-between sm:hidden">
+                    {% if archived_ads.has_previous %}
+                        <a href="?ads_page={{ archived_ads.previous_page_number }}&year={{ selected_year }}&budgets_page={{ archived_budgets.number }}&allocations_page={{ archived_allocations.number }}&pres_page={{ archived_pres.number }}&prs_page={{ archived_prs.number }}&realignments_page={{ archived_realignments.number }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Previous</a>
+                    {% endif %}
+                    {% if archived_ads.has_next %}
+                        <a href="?ads_page={{ archived_ads.next_page_number }}&year={{ selected_year }}&budgets_page={{ archived_budgets.number }}&allocations_page={{ archived_allocations.number }}&pres_page={{ archived_pres.number }}&prs_page={{ archived_prs.number }}&realignments_page={{ archived_realignments.number }}" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Next</a>
+                    {% endif %}
+                </div>
+                <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-sm text-gray-700">
+                            Showing page <span class="font-medium">{{ archived_ads.number }}</span> of <span class="font-medium">{{ archived_ads.paginator.num_pages }}</span>
+                        </p>
+                    </div>
+                    <div>
+                        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                            {% if archived_ads.has_previous %}
+                                <a href="?ads_page={{ archived_ads.previous_page_number }}&year={{ selected_year }}&budgets_page={{ archived_budgets.number }}&allocations_page={{ archived_allocations.number }}&pres_page={{ archived_pres.number }}&prs_page={{ archived_prs.number }}&realignments_page={{ archived_realignments.number }}" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Previous</a>
+                            {% endif %}
+                            
+                            {% for i in archived_ads.paginator.page_range %}
+                                {% if archived_ads.number == i %}
+                                    <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-blue-50 text-sm font-medium text-blue-600">{{ i }}</span>
+                                {% else %}
+                                    <a href="?ads_page={{ i }}&year={{ selected_year }}&budgets_page={{ archived_budgets.number }}&allocations_page={{ archived_allocations.number }}&pres_page={{ archived_pres.number }}&prs_page={{ archived_prs.number }}&realignments_page={{ archived_realignments.number }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">{{ i }}</a>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if archived_ads.has_next %}
+                                <a href="?ads_page={{ archived_ads.next_page_number }}&year={{ selected_year }}&budgets_page={{ archived_budgets.number }}&allocations_page={{ archived_allocations.number }}&pres_page={{ archived_pres.number }}&prs_page={{ archived_prs.number }}&realignments_page={{ archived_realignments.number }}" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Next</a>
+                            {% endif %}
+                        </nav>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
                  </div>
              </div>
              
@@ -278,6 +468,44 @@
                             {% endfor %}
                          </tbody>
                     </table>
+            {% if archived_realignments.has_other_pages %}
+            <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                <div class="flex-1 flex justify-between sm:hidden">
+                    {% if archived_realignments.has_previous %}
+                        <a href="?realignments_page={{ archived_realignments.previous_page_number }}&year={{ selected_year }}&budgets_page={{ archived_budgets.number }}&allocations_page={{ archived_allocations.number }}&pres_page={{ archived_pres.number }}&prs_page={{ archived_prs.number }}&ads_page={{ archived_ads.number }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Previous</a>
+                    {% endif %}
+                    {% if archived_realignments.has_next %}
+                        <a href="?realignments_page={{ archived_realignments.next_page_number }}&year={{ selected_year }}&budgets_page={{ archived_budgets.number }}&allocations_page={{ archived_allocations.number }}&pres_page={{ archived_pres.number }}&prs_page={{ archived_prs.number }}&ads_page={{ archived_ads.number }}" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Next</a>
+                    {% endif %}
+                </div>
+                <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div>
+                        <p class="text-sm text-gray-700">
+                            Showing page <span class="font-medium">{{ archived_realignments.number }}</span> of <span class="font-medium">{{ archived_realignments.paginator.num_pages }}</span>
+                        </p>
+                    </div>
+                    <div>
+                        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                            {% if archived_realignments.has_previous %}
+                                <a href="?realignments_page={{ archived_realignments.previous_page_number }}&year={{ selected_year }}&budgets_page={{ archived_budgets.number }}&allocations_page={{ archived_allocations.number }}&pres_page={{ archived_pres.number }}&prs_page={{ archived_prs.number }}&ads_page={{ archived_ads.number }}" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Previous</a>
+                            {% endif %}
+                            
+                            {% for i in archived_realignments.paginator.page_range %}
+                                {% if archived_realignments.number == i %}
+                                    <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-blue-50 text-sm font-medium text-blue-600">{{ i }}</span>
+                                {% else %}
+                                    <a href="?realignments_page={{ i }}&year={{ selected_year }}&budgets_page={{ archived_budgets.number }}&allocations_page={{ archived_allocations.number }}&pres_page={{ archived_pres.number }}&prs_page={{ archived_prs.number }}&ads_page={{ archived_ads.number }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">{{ i }}</a>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if archived_realignments.has_next %}
+                                <a href="?realignments_page={{ archived_realignments.next_page_number }}&year={{ selected_year }}&budgets_page={{ archived_budgets.number }}&allocations_page={{ archived_allocations.number }}&pres_page={{ archived_pres.number }}&prs_page={{ archived_prs.number }}&ads_page={{ archived_ads.number }}" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Next</a>
+                            {% endif %}
+                        </nav>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
                  </div>
              </div>
 
