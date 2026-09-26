@@ -7,3 +7,6 @@ __pycache__/
 db.sqlite3
 .django_tailwind_cli/
 staticfiles/
+media/
+.ai-context/
+.ai-plans/
