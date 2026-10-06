@@ -118,3 +118,51 @@ This system provides:
 
 ## 📄 License
 This project is licensed under the MIT License - see the `LICENSE` file for details.
+
+
+## Screenshots
+
+### Admin panel
+
+![Admin panel: 095728](static/screenshots/Admin_panel/Screenshot 2026-01-23 095728.png)
+
+![Admin panel: 095903](static/screenshots/Admin_panel/Screenshot 2026-01-23 095903.png)
+
+![Admin panel: 095912](static/screenshots/Admin_panel/Screenshot 2026-01-23 095912.png)
+
+![Admin panel: 095927](static/screenshots/Admin_panel/Screenshot 2026-01-23 095927.png)
+
+![Admin panel: 095932](static/screenshots/Admin_panel/Screenshot 2026-01-23 095932.png)
+
+![Admin panel: 095939](static/screenshots/Admin_panel/Screenshot 2026-01-23 095939.png)
+
+![Admin panel: 100015](static/screenshots/Admin_panel/Screenshot 2026-01-23 100015.png)
+
+![Admin panel: 100103](static/screenshots/Admin_panel/Screenshot 2026-01-23 100103.png)
+
+![Admin panel: 100110](static/screenshots/Admin_panel/Screenshot 2026-01-23 100110.png)
+
+![Admin panel: 100116](static/screenshots/Admin_panel/Screenshot 2026-01-23 100116.png)
+
+![Admin panel: at 09:59:55 Admin Department's Purchase Request](static/screenshots/Admin_panel/Screenshot 2026-01-23 at 09-59-55 Admin Department's Purchase Request.png)
+
+### End user panel
+
+![End user panel: 100126](static/screenshots/End_user_panel/Screenshot 2026-01-23 100126.png)
+
+![End user panel: 100140](static/screenshots/End_user_panel/Screenshot 2026-01-23 100140.png)
+
+![End user panel: 100146](static/screenshots/End_user_panel/Screenshot 2026-01-23 100146.png)
+
+![End user panel: 100255](static/screenshots/End_user_panel/Screenshot 2026-01-23 100255.png)
+
+![End user panel: 100350](static/screenshots/End_user_panel/Screenshot 2026-01-23 100350.png)
+
+![End user panel: 100409](static/screenshots/End_user_panel/Screenshot 2026-01-23 100409.png)
+
+![End user panel: 100450](static/screenshots/End_user_panel/Screenshot 2026-01-23 100450.png)
+
+![End user panel: 100458](static/screenshots/End_user_panel/Screenshot 2026-01-23 100458.png)
+
+![End user panel: 100718](static/screenshots/End_user_panel/Screenshot 2026-01-23 100718.png)
+
