@@ -124,7 +124,7 @@ This project is licensed under the MIT License - see the `LICENSE` file for deta
 
 ### Admin panel
 
-![Admin panel: 095728](static/screenshots/Admin_panel/Screenshot 2026-01-23 095728.png)
+![Admin panel: 095728](https://github.com/RomeloDev/CAPSTONE-PROJECT---BUDGET-MONITORING-SYSTEM-V2/blob/main/static/screenshots/Admin_panel/Screenshot%202026-01-23%20095728.png)
 
 ![Admin panel: 095903](static/screenshots/Admin_panel/Screenshot 2026-01-23 095903.png)
 
