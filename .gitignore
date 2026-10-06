@@ -7,5 +7,11 @@ __pycache__/
 db.sqlite3
 .django_tailwind_cli/
 staticfiles/
+<<<<<<< HEAD
 .ai-context/
 .ai-pl
+=======
+media/
+.ai-context/
+.ai-plans/
+>>>>>>> 1e926e0e4d424fe317ebb34497e0b5961bae3b34

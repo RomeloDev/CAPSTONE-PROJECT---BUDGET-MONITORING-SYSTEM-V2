@@ -4,7 +4,7 @@ from django.views.generic import TemplateView, ListView, DetailView, View
 from django.db.models import Sum, Count, Q, F
 from django.utils import timezone
 from django.utils.decorators import method_decorator
-from datetime import datetime
+from datetime import datetime, date
 from apps.user_accounts.models import User
 from apps.budgets.models import (
     ApprovedBudget, 
@@ -17,11 +17,11 @@ from apps.budgets.models import (
     DepartmentPREApprovedDocument,
     PREBudgetRealignment,
     PRELineItem,
-    BudgetRealignmentSupportingDocument
+    BudgetRealignmentSupportingDocument,
+    BudgetTransaction
 )
 from django.contrib import messages
 from apps.admin_panel.models import AuditTrail
-from apps.budgets.models import ApprovedBudget, BudgetTransaction
 from apps.budgets.forms import ApprovedBudgetForm
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_http_methods
@@ -33,6 +33,7 @@ from django.views.decorators.http import require_POST
 from apps.admin_panel.utils import log_activity
 from django.db import transaction
 from apps.budgets.utils import log_budget_transaction
+from apps.budgets.notifications import notify_admins_new_request, notify_user_status_change
 
 class AdminDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     """Dashboard for Budget Officers/Admins"""
@@ -171,10 +172,6 @@ class ApprovedBudgetListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     def get_queryset(self):
         queryset = super().get_queryset()
         
-        year = self.request.GET.get('summary_year')
-        if year and year != 'all':
-            queryset = queryset.filter(fiscal_year=year)
-            
         # GET Parameters from the URL
         # 'summary_year' is the Card Filter, 'fiscal_year' is from the filter Modal
         summary_year = self.request.GET.get('summary_year')
@@ -185,6 +182,10 @@ class ApprovedBudgetListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
         date_to = self.request.GET.get('date_to')
         search = self.request.GET.get('search')
         
+        current_year = str(date.today().year)
+        if summary_year is None and fiscal_year is None:
+            summary_year = current_year
+
         # Apply Filters
         if fiscal_year:
             queryset = queryset.filter(fiscal_year=fiscal_year)
@@ -236,7 +237,16 @@ class ApprovedBudgetListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
             
         # --- 3. Pass Filter Options ---
         context['available_years'] = ApprovedBudget.objects.values_list('fiscal_year', flat=True).distinct().order_by('-fiscal_year')
-        context['selected_year'] = self.request.GET.get('summary_year', 'all')
+        
+        current_year = str(date.today().year)
+        summary_year = self.request.GET.get('summary_year')
+        fiscal_year = self.request.GET.get('fiscal_year')
+        if summary_year is None and fiscal_year is None:
+            context['selected_year'] = current_year
+        else:
+            context['selected_year'] = summary_year if summary_year else 'all'
+            
+        context['current_year'] = current_year
         
         return context
     def post(self, request, *args, **kwargs):
@@ -372,8 +382,10 @@ def approved_budget_detail(request, pk):
     documents = []
     for doc in budget.supporting_documents.all():
         documents.append({
+            'id': doc.id,
             'name': doc.file_name,
             'url': doc.document.url,
+            'converted_pdf_url': doc.converted_pdf.url if doc.converted_pdf else '',
             'size': f"{doc.file_size / 1024:.2f} KB" if doc.file_size else "N/A",
         })
     
@@ -407,10 +419,18 @@ class BudgetAllocationListView(ListView):
         self.mfo = self.request.GET.get('mfo')
         self.department = self.request.GET.get('department')
         self.search = self.request.GET.get('search')
-        self.summary_year = self.request.GET.get('summary_year', 'all')
+        self.summary_year = self.request.GET.get('summary_year')
         
+        current_year = str(date.today().year)
+        if self.fiscal_year is None and self.summary_year is None:
+            self.summary_year = current_year
+        elif self.summary_year is None:
+            self.summary_year = 'all'
+            
         if self.fiscal_year:
             queryset = queryset.filter(approved_budget__fiscal_year=self.fiscal_year)
+        elif self.summary_year and self.summary_year != 'all':
+            queryset = queryset.filter(approved_budget__fiscal_year=self.summary_year)
             
         if self.mfo:
             queryset = queryset.filter(end_user__mfo=self.mfo)
@@ -446,6 +466,7 @@ class BudgetAllocationListView(ListView):
         context['approved_budgets'] = ApprovedBudget.objects.filter(is_active=True, remaining_budget__gt=0)
         
         context['selected_year'] = self.summary_year
+        context['current_year'] = str(date.today().year)
         return context
     
     def post(self, request, *args, **kwargs):
@@ -596,7 +617,7 @@ class ClientAccountsListView(ListView):
     model = User
     template_name = 'admin_panel/client_accounts.html'
     context_object_name = 'users'
-    paginate_by = 20
+    paginate_by = 10
     
     def get_queryset(self):
         queryset = User.objects.filter(is_superuser=False, is_admin=False).order_by('-created_at')
@@ -758,8 +779,8 @@ def bulk_user_action(request):
     
 class AuditTrailListView(LoginRequiredMixin, ListView):
     template_name = 'admin_panel/audit_trail.html'
-    paginate_by = 20
-    context_object_name = 'page_obj'
+    paginate_by = 10
+    context_object_name = 'records'
     def get_queryset(self):
         tab = self.request.GET.get('tab', 'activity')
         
@@ -980,6 +1001,8 @@ def admin_handle_pre_action(request, pre_id):
                 record_id=pre.id
             )
             
+            # Email end-user: partially approved
+            notify_user_status_change(pre, 'pre', 'Partially Approved')
             messages.success(request, f'PRE {str(pre.id)[:8]} has been partially approved.')
         else:
             messages.warning(request, 'This PRE cannot be approved in its current status.')
@@ -1017,6 +1040,8 @@ def admin_handle_pre_action(request, pre_id):
                 record_id=pre.id
             )
             
+            # Email end-user: rejected
+            notify_user_status_change(pre, 'pre', 'Rejected')
             messages.success(request, 'PRE has been rejected.')
         else:
             messages.warning(request, 'This PRE cannot be rejected in its current status.')
@@ -1079,6 +1104,8 @@ def admin_verify_and_approve_pre(request, pre_id):
             record_id=pre.id
         )
         
+        # Email end-user: fully approved
+        notify_user_status_change(pre, 'pre', 'Approved')
         messages.success(request, 'PRE verified and fully approved!')
     elif action == 'reject':
         # Revert to Partially Approved, require re-upload
@@ -1154,165 +1181,12 @@ def admin_upload_approved_document(request, pre_id):
             
     return render(request, 'admin_panel/upload_approved_doc.html', {'pre': pre})
 
-# class AdminPRListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
-#     model = PurchaseRequest
-#     template_name = 'admin_panel/pr_list.html'
-#     context_object_name = 'purchase_requests'
-#     paginate_by = 20 # Optional but recommended
-    
-#     def test_func(self):
-#         return self.request.user.is_superuser or self.request.user.is_staff # Adjust permission logic
-#     def get_queryset(self):
-#         queryset = PurchaseRequest.objects.select_related('submitted_by', 'department').all().order_by('-created_at')
-        
-#         # 1. Year Filter (Default to current year or 'all'?)
-#         year = self.request.GET.get('summary_year')
-#         if year and year != 'all':
-#             queryset = queryset.filter(created_at__year=year)
-            
-#         # 2. Department Filter
-#         dept = self.request.GET.get('department')
-#         if dept:
-#             queryset = queryset.filter(department__name=dept) # Assuming dept name passed
-            
-#         # 3. Status Filter
-#         status = self.request.GET.get('status')
-#         if status:
-#             queryset = queryset.filter(status=status)
-            
-#         return queryset
-#     def get_context_data(self, **kwargs):
-#         context = super().get_context_data(**kwargs)
-        
-#         # Base Queryset for Stats (Separate from pagination, but usually respects Year filter)
-#         stats_qs = PurchaseRequest.objects.all()
-#         year = self.request.GET.get('summary_year')
-#         if year and year != 'all':
-#             stats_qs = stats_qs.filter(created_at__year=year)
-            
-#         # Aggregation
-#         stats = stats_qs.aggregate(
-#             total=Count('id'),
-#             pending=Count('id', filter=Q(status='Pending')),
-#             partially_approved=Count('id', filter=Q(status='Partially Approved')),
-#             approved=Count('id', filter=Q(status='Approved')),
-#             rejected=Count('id', filter=Q(status='Rejected')),
-#         )
-#         context['status_counts'] = stats
-        
-#         # Filters Data
-#         context['available_years'] = PurchaseRequest.objects.dates('created_at', 'year').distinct()
-        
-#         # If Department is a CharField, get distinct values:
-#         context['departments'] = PurchaseRequest.objects.values_list('department', flat=True).distinct().order_by('department') 
-#         # OR if you have a Department model, use Department.objects.all()
-        
-#         context['selected_year'] = year if year else 'all'
-#         context['current_year'] = timezone.now().year
-#         context['status_choices'] = PurchaseRequest.STATUS_CHOICES # Ensure this exists in Model
-        
-#         return context
-    
-# @require_POST
-# def handle_pr_action(request, pr_id):
-#     pr = get_object_or_404(PurchaseRequest, id=pr_id)
-#     action = request.POST.get('action')
-    
-#     if action == 'approve':
-#         # Logic for Approval
-#         # 1. Check if status is valid for approval
-#         if pr.status == 'Pending':
-#             # Initial Approval -> Move to 'Partially Approved' to allow User to upload signed docs
-#             pr.status = 'Partially Approved'
-#             pr.save()
-#             messages.success(request, f"PR {pr.pr_number} successfully approved! It is now 'Partially Approved' and awaiting user signature.")
-        
-#         elif pr.status == 'Awaiting Admin Verification':
-#              # Final Approval -> Move to 'Approved'
-#             pr.status = 'Approved'
-#             pr.save()
-#             messages.success(request, f"PR {pr.pr_number} has been fully APPROVED.")
-            
-#         else:
-#              messages.warning(request, f"PR {pr.pr_number} cannot be approved from its current status: {pr.status}")
-#     elif action == 'reject':
-#         # Logic for Rejection
-#         # Deduct/Release budget is handled automatically because 'Rejected' status 
-#         # is excluded from the 'total_used' aggregation in reports/views.
-#         pr.status = 'Rejected'
-#         pr.save()
-#         messages.error(request, f"PR {pr.pr_number} has been rejected.")
-        
-#     return redirect('admin_pr_list')
-
-
-# class BudgetAllocationListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
-#     model = BudgetAllocation
-#     template_name = 'admin_panel/budget_allocation.html'
-#     context_object_name = 'allocations'
-#     paginate_by = 10
-
-#     def test_func(self):
-#         return self.request.user.is_superuser or self.request.user.is_staff
-
-#     def get_queryset(self):
-#         queryset = BudgetAllocation.objects.select_related('approved_budget', 'end_user').order_by('-allocated_at')
-        
-#         # Filter by Fiscal Year
-#         fiscal_year = self.request.GET.get('fiscal_year')
-#         if fiscal_year and fiscal_year != 'all':
-#             queryset = queryset.filter(approved_budget__fiscal_year=fiscal_year)
-            
-#         return queryset
-
-#     def get_context_data(self, **kwargs):
-#         context = super().get_context_data(**kwargs)
-        
-#         # Fiscal Year Logic
-#         selected_year = self.request.GET.get('fiscal_year', 'all')
-#         # Get all unique fiscal years from ApprovedBudget
-#         fiscal_years = ApprovedBudget.objects.values_list('fiscal_year', flat=True).distinct().order_by('-fiscal_year')
-        
-#         # Calculate Totals based on filtered queryset (or base if no filter)
-#         # Note: self.object_list contains the filtered queryset
-#         allocations = self.object_list
-        
-#         total_allocated = allocations.aggregate(total=Sum('allocated_amount'))['total'] or 0
-        
-#         # Total Remaining (sum of remaining balances of allocations)
-#         total_remaining = allocations.aggregate(total=Sum('remaining_balance'))['total'] or 0
-        
-#         # Utilization Rate (Total Used / Total Allocated)
-#         total_used = sum(a.get_total_used() for a in allocations)
-#         utilization_rate = 0
-#         if total_allocated > 0:
-#             utilization_rate = (total_used / total_allocated) * 100
-            
-#         context['approved_budgets'] = ApprovedBudget.objects.filter(is_active=True, remaining_budget__gt=0)
-#         context['mfos'] = User.objects.values_list('mfo', flat=True).distinct()
-        
-#         context['total_allocated'] = total_allocated
-#         context['total_remaining'] = total_remaining
-#         context['total_departments'] = allocations.values('department').distinct().count()
-#         context['utilization_rate'] = utilization_rate
-#         context['fiscal_years'] = fiscal_years
-#         context['selected_year'] = selected_year
-        
-#         return context
-
-#     def post(self, request, *args, **kwargs):
-#         context = super().get_context_data(**kwargs)
-        
-#         # Base Queryset for Stats
-#         stats_qs = PurchaseRequest.objects.all()
-#         year = self.request.GET.get('summary_year')
-
 
 class AdminPRListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     model = PurchaseRequest
     template_name = 'admin_panel/pr_list.html'
     context_object_name = 'purchase_requests'
-    paginate_by = 20
+    paginate_by = 10
     
     def test_func(self):
         return self.request.user.is_superuser or self.request.user.is_staff
@@ -1388,6 +1262,8 @@ def handle_pr_action(request, pr_id):
                 record_id=pr.id,
             )
             
+            # Email end-user: partially approved
+            notify_user_status_change(pr, 'pr', 'Partially Approved')
             messages.success(request, f"PR {pr.pr_number} successfully approved! It is now 'Partially Approved'.")
         
         # elif pr.status == 'Awaiting Admin Verification':
@@ -1407,17 +1283,21 @@ def handle_pr_action(request, pr_id):
              messages.warning(request, f"PR {pr.pr_number} cannot be approved from its current status: {pr.status}")
 
     elif action == 'reject':
+        rejection_reason = request.POST.get('rejection_reason', '').strip()
         pr.status = 'Rejected'
+        pr.rejection_reason = rejection_reason
         pr.save()
         
         log_activity(
             user=request.user,
             action='REJECTED_PR',
-            detail=f'PR {pr.pr_number} has been Rejected.',
+            detail=f'PR {pr.pr_number} has been Rejected. Reason: {rejection_reason}',
             model_name='PurchaseRequest',
             record_id=pr.id,
         )
         
+        # Email end-user: rejected
+        notify_user_status_change(pr, 'pr', 'Rejected')
         messages.error(request, f"PR {pr.pr_number} has been rejected.")
         
     return redirect('admin_pr_list')
@@ -1508,6 +1388,8 @@ def admin_verify_and_approve_pr(request, pr_id):
             update_allocation=False # Usage is already updated by pr.update_budget_usage()
         )
         
+        # Email end-user: fully approved
+        notify_user_status_change(pr, 'pr', 'Approved')
         messages.success(request, f"PR {pr.pr_number} has been verified and fully APPROVED.")
         
     elif action == 'reject':
@@ -1518,6 +1400,7 @@ def admin_verify_and_approve_pr(request, pr_id):
         
         pr.status = 'Partially Approved' 
         # pr.admin_notes = f"Verification Rejected: {reason}" # Optional
+        pr.rejection_reason = f"Verification Rejected: {reason}" # Store reason in a dedicated field if you have one
         pr.save()
         
         log_activity(
@@ -1536,6 +1419,7 @@ class DepartmentADRequestView(LoginRequiredMixin, UserPassesTestMixin, ListView)
     model = ActivityDesign
     template_name = 'admin_panel/departments_ad_request.html'
     context_object_name = 'ads'
+    paginate_by = 10
     ordering = ['-created_at']
     def get_queryset(self):
         # Exclude Draft ADs so they do not show up as submitted requests
@@ -1628,6 +1512,8 @@ class HandleADRequestView(LoginRequiredMixin, UserPassesTestMixin, View):
                         record_id=ad.id
                     )
                     
+                    # Email end-user: partially approved
+                    notify_user_status_change(ad, 'ad', 'Partially Approved')
                     messages.success(request, f"AD-{ad.ad_number} Partially Approved. Waiting for signed docs.")
                 elif action == 'approve_final':
                     # 1. Lock the allocation row so no other request can touch it yet (Isolation)
@@ -1667,10 +1553,12 @@ class HandleADRequestView(LoginRequiredMixin, UserPassesTestMixin, View):
                         update_allocation=False # Do NOT change the Total Allocated Amount
                     )
                     
+                    # Email end-user: fully approved
+                    notify_user_status_change(ad, 'ad', 'Approved')
                     messages.success(request, f"AD-{ad.ad_number} Fully Approved!")
                 elif action == 'reject':
                     ad.status = 'Rejected'
-                    ad.rejection_reason = request.POST.get('rejection_reason', 'Admin Rejected')
+                    ad.rejection_reason = request.POST.get('rejection_reason', '').strip()
                     ad.save()
                     # If budget was reserved, clear it? 
                     # AD allocations usually sum up dynamically, so changing status to Rejected might be enough
@@ -1683,6 +1571,8 @@ class HandleADRequestView(LoginRequiredMixin, UserPassesTestMixin, View):
                         model_name='ActivityDesign',
                         record_id=ad.id
                     )
+                    # Email end-user: rejected
+                    notify_user_status_change(ad, 'ad', 'Rejected')
                     messages.warning(request, f"AD-{ad.ad_number} Rejected.")
                     
         except Exception as e:
@@ -1922,6 +1812,8 @@ def handle_admin_realignment_action(request, pk):
                         record_id=realignment.id
                     )
                     
+                    # Email end-user: realignment approved
+                    notify_user_status_change(realignment, 'realignment', 'Approved')
                     messages.success(request, f"Request #{pk} Fully Approved and Budget Transferred.")
                     
                 elif action == 'reject':
@@ -1938,6 +1830,8 @@ def handle_admin_realignment_action(request, pk):
                         record_id=realignment.id
                     )
                     
+                    # Email end-user: realignment rejected
+                    notify_user_status_change(realignment, 'realignment', 'Rejected')
                     messages.warning(request, f"Request #{pk} Rejected.")
         except Exception as e:
             messages.error(request, f"Error: {str(e)}")
@@ -2438,13 +2332,45 @@ class ArchiveCenterView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
         if selected_year != 'all':
             realignments = realignments.filter(source_pre__budget_allocation__approved_budget__fiscal_year=selected_year)
             
+        from django.core.paginator import Paginator
+        
+        # Paginate Budgets
+        budgets_page = self.request.GET.get('budgets_page', 1)
+        paginator_budgets = Paginator(budgets, 10)
+        page_obj_budgets = paginator_budgets.get_page(budgets_page)
+        
+        # Paginate Allocations
+        allocations_page = self.request.GET.get('allocations_page', 1)
+        paginator_allocations = Paginator(allocations, 10)
+        page_obj_allocations = paginator_allocations.get_page(allocations_page)
+        
+        # Paginate PREs
+        pres_page = self.request.GET.get('pres_page', 1)
+        paginator_pres = Paginator(pres, 10)
+        page_obj_pres = paginator_pres.get_page(pres_page)
+        
+        # Paginate PRs
+        prs_page = self.request.GET.get('prs_page', 1)
+        paginator_prs = Paginator(prs, 10)
+        page_obj_prs = paginator_prs.get_page(prs_page)
+        
+        # Paginate ADs
+        ads_page = self.request.GET.get('ads_page', 1)
+        paginator_ads = Paginator(ads, 10)
+        page_obj_ads = paginator_ads.get_page(ads_page)
+        
+        # Paginate Realignments
+        realignments_page = self.request.GET.get('realignments_page', 1)
+        paginator_realignments = Paginator(realignments, 10)
+        page_obj_realignments = paginator_realignments.get_page(realignments_page)
+        
         context.update({
-            'archived_budgets': budgets,
-            'archived_allocations': allocations,
-            'archived_pres': pres,
-            'archived_prs': prs,
-            'archived_ads': ads,
-            'archived_realignments': realignments,
+            'archived_budgets': page_obj_budgets,
+            'archived_allocations': page_obj_allocations,
+            'archived_pres': page_obj_pres,
+            'archived_prs': page_obj_prs,
+            'archived_ads': page_obj_ads,
+            'archived_realignments': page_obj_realignments,
             'selected_year': selected_year,
             # Get all available years from archived budgets for the filter
             'avail_years': ApprovedBudget.all_objects.filter(is_archived=True).values_list('fiscal_year', flat=True).distinct().order_by('-fiscal_year')

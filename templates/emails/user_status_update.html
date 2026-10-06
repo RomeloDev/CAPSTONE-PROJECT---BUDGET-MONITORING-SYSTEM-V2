@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your {{ label }} Status Update</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f1f5f9; font-family: 'Segoe UI', Arial, sans-serif; }
+    .wrapper { max-width: 600px; margin: 32px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+
+    /* Dynamic header colours based on status */
+    .header-approved  { background: linear-gradient(135deg, #065f46 0%, #10b981 100%); }
+    .header-partial   { background: linear-gradient(135deg, #1e3a8a 0%, #6366f1 100%); }
+    .header-rejected  { background: linear-gradient(135deg, #7f1d1d 0%, #ef4444 100%); }
+    .header-default   { background: linear-gradient(135deg, #374151 0%, #6b7280 100%); }
+
+    .header { padding: 32px 40px; }
+    .header h1 { margin: 0; color: #ffffff; font-size: 22px; font-weight: 700; }
+    .header p  { margin: 6px 0 0; color: rgba(255,255,255,0.75); font-size: 13px; }
+    .badge { display: inline-block; background: rgba(255,255,255,0.2); color: #fff; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 10px; border-radius: 20px; margin-bottom: 10px; }
+
+    .body { padding: 32px 40px; }
+    .intro { font-size: 15px; color: #374151; line-height: 1.7; margin-bottom: 24px; }
+
+    .status-pill { display: inline-block; padding: 6px 18px; border-radius: 20px; font-size: 13px; font-weight: 700; margin-bottom: 24px; }
+    .status-approved { background: #d1fae5; color: #065f46; }
+    .status-partial  { background: #e0e7ff; color: #3730a3; }
+    .status-rejected { background: #fee2e2; color: #7f1d1d; }
+    .status-default  { background: #f3f4f6; color: #374151; }
+
+    .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px 24px; margin-bottom: 24px; }
+    .card-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid #e2e8f0; }
+    .card-row:last-child { border-bottom: none; }
+    .card-label { font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; }
+    .card-value { font-size: 14px; font-weight: 600; color: #111827; text-align: right; max-width: 60%; }
+
+    .rejection-box { background: #fff5f5; border: 1px solid #fecaca; border-left: 4px solid #ef4444; border-radius: 8px; padding: 16px 20px; margin-bottom: 24px; }
+    .rejection-box h3 { margin: 0 0 8px; color: #7f1d1d; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .rejection-box p { margin: 0; color: #b91c1c; font-size: 14px; line-height: 1.6; }
+
+    .cta { text-align: center; margin: 28px 0 8px; }
+    .cta a { display: inline-block; background: #1d4ed8; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; padding: 12px 28px; border-radius: 8px; }
+
+    .footer { background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 40px; text-align: center; font-size: 12px; color: #9ca3af; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+
+    <!-- Header — colour changes by status -->
+    {% if new_status == 'Approved' %}
+    <div class="header header-approved">
+      <div class="badge">Approved</div>
+      <h1>Your Request Has Been Approved!</h1>
+      <p>Great news — no further action is required from you at this time.</p>
+    </div>
+    {% elif new_status == 'Partially Approved' %}
+    <div class="header header-partial">
+      <div class="badge">Action Required</div>
+      <h1>Your Request is Partially Approved</h1>
+      <p>Please follow the next steps below to complete the approval process.</p>
+    </div>
+    {% elif new_status == 'Rejected' %}
+    <div class="header header-rejected">
+      <div class="badge">Rejected</div>
+      <h1>Your Request Has Been Rejected</h1>
+      <p>Please review the reason below and contact the admin if needed.</p>
+    </div>
+    {% else %}
+    <div class="header header-default">
+      <div class="badge">Status Update</div>
+      <h1>Your Request Status Has Changed</h1>
+      <p>Log in to the system for more details.</p>
+    </div>
+    {% endif %}
+
+    <!-- Body -->
+    <div class="body">
+      <p class="intro">
+        Hi <strong>{{ first_name }}</strong>, your <strong>{{ label }}</strong>
+        (Ref: <strong>{{ display_id }}</strong>) status has been updated.
+      </p>
+
+      <!-- Status Pill -->
+      {% if new_status == 'Approved' %}
+        <div><span class="status-pill status-approved">&#10003; {{ new_status }}</span></div>
+      {% elif new_status == 'Partially Approved' %}
+        <div><span class="status-pill status-partial">&#10003; {{ new_status }}</span></div>
+      {% elif new_status == 'Rejected' %}
+        <div><span class="status-pill status-rejected">&#10007; {{ new_status }}</span></div>
+      {% else %}
+        <div><span class="status-pill status-default">{{ new_status }}</span></div>
+      {% endif %}
+
+      <!-- Details Card -->
+      <div class="card">
+        <div class="card-row">
+          <span class="card-label">Request Type</span>
+          <span class="card-value">{{ label }}</span>
+        </div>
+        <div class="card-row">
+          <span class="card-label">Reference ID</span>
+          <span class="card-value">{{ display_id }}</span>
+        </div>
+        <div class="card-row">
+          <span class="card-label">New Status</span>
+          <span class="card-value">{{ new_status }}</span>
+        </div>
+      </div>
+
+      <!-- Partially Approved Guidance -->
+      {% if new_status == 'Partially Approved' %}
+      <div style="background:#eff6ff; border:1px solid #bfdbfe; border-left:4px solid #3b82f6; border-radius:8px; padding:16px 20px; margin-bottom:24px;">
+        <h3 style="margin:0 0 8px; color:#1e3a8a; font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Next Steps Required</h3>
+        <ol style="margin:0; padding-left:18px; color:#1e40af; font-size:14px; line-height:1.8;">
+          <li>Log in to the Budget System.</li>
+          <li>Open your <strong>{{ label }}</strong> detail page.</li>
+          <li>Download the approved document and get it signed by the Approving Officer.</li>
+          <li>Upload the signed document back through the system.</li>
+        </ol>
+      </div>
+      {% endif %}
+
+      <!-- Rejection Reason Box -->
+      {% if new_status == 'Rejected' and rejection_reason %}
+      <div class="rejection-box">
+        <h3>Reason for Rejection</h3>
+        <p>{{ rejection_reason }}</p>
+      </div>
+      {% endif %}
+
+      <div class="cta">
+        <a href="#">View My Request &rarr;</a>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <p>This is an automated notification from <strong>{{ system_name }}</strong>.</p>
+      <p>Please do not reply to this email.</p>
+    </div>
+  </div>
+</body>
+</html>

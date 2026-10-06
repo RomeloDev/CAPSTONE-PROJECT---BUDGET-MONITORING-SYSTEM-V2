@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>New {{ label }} Submitted</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f1f5f9; font-family: 'Segoe UI', Arial, sans-serif; }
+    .wrapper { max-width: 600px; margin: 32px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+    .header  { background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); padding: 32px 40px; }
+    .header h1 { margin: 0; color: #ffffff; font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+    .header p  { margin: 6px 0 0; color: #bfdbfe; font-size: 13px; }
+    .badge { display: inline-block; background: #ffffff22; color: #ffffff; font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; padding: 3px 10px; border-radius: 20px; margin-bottom: 10px; }
+    .body { padding: 32px 40px; }
+    .intro { font-size: 15px; color: #374151; line-height: 1.6; margin-bottom: 24px; }
+    .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px 24px; margin-bottom: 24px; }
+    .card-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid #e2e8f0; }
+    .card-row:last-child { border-bottom: none; }
+    .card-label { font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; }
+    .card-value { font-size: 14px; font-weight: 600; color: #111827; text-align: right; max-width: 60%; }
+    .amount { color: #1d4ed8; font-size: 16px; }
+    .cta { text-align: center; margin: 28px 0 8px; }
+    .cta a { display: inline-block; background: #1d4ed8; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; padding: 12px 28px; border-radius: 8px; }
+    .footer { background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 40px; text-align: center; font-size: 12px; color: #9ca3af; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <!-- Header -->
+    <div class="header">
+      <div class="badge">Action Required</div>
+      <h1>New Request Submitted</h1>
+      <p>A new {{ label }} is pending your review.</p>
+    </div>
+
+    <!-- Body -->
+    <div class="body">
+      <p class="intro">
+        A new <strong>{{ label }}</strong> has been submitted and is awaiting admin review.
+        Please log in to the system to take action.
+      </p>
+
+      <div class="card">
+        <div class="card-row">
+          <span class="card-label">Request Type</span>
+          <span class="card-value">{{ label }}</span>
+        </div>
+        <div class="card-row">
+          <span class="card-label">Reference ID</span>
+          <span class="card-value">{{ display_id }}</span>
+        </div>
+        <div class="card-row">
+          <span class="card-label">Submitted By</span>
+          <span class="card-value">{{ submitted_by }}</span>
+        </div>
+        <div class="card-row">
+          <span class="card-label">Department</span>
+          <span class="card-value">{{ department }}</span>
+        </div>
+        {% if total_amount %}
+        <div class="card-row">
+          <span class="card-label">Total Amount</span>
+          <span class="card-value amount">₱{{ total_amount|floatformat:2 }}</span>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="cta">
+        <a href="#">Log in to Review &rarr;</a>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <p>This is an automated notification from <strong>{{ system_name }}</strong>.</p>
+      <p>Please do not reply to this email.</p>
+    </div>
+  </div>
+</body>
+</html>

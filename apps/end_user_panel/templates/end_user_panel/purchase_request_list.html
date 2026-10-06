@@ -46,7 +46,7 @@
             <div class="grid grid-cols-3 gap-4">
                 <div class="p-3 bg-gray-50 rounded-lg text-center">
                     <p class="text-xs text-gray-500 uppercase font-semibold">Total</p>
-                    <p class="text-xl font-bold text-gray-900 mt-1">{{ purchase_requests|length }}</p>
+                    <p class="text-xl font-bold text-gray-900 mt-1">{{ page_obj_pr.paginator.count }}</p>
                 </div>
                 <div class="p-3 bg-amber-50 rounded-lg text-center">
                     <p class="text-xs text-amber-600 uppercase font-semibold">Pending</p>
@@ -72,7 +72,7 @@
             <div class="grid grid-cols-3 gap-4">
                 <div class="p-3 bg-gray-50 rounded-lg text-center">
                     <p class="text-xs text-gray-500 uppercase font-semibold">Total</p>
-                    <p class="text-xl font-bold text-gray-900 mt-1">{{ activity_designs|length }}</p>
+                    <p class="text-xl font-bold text-gray-900 mt-1">{{ page_obj_ad.paginator.count }}</p>
                 </div>
                 <div class="p-3 bg-amber-50 rounded-lg text-center">
                     <p class="text-xs text-amber-600 uppercase font-semibold">Pending</p>
@@ -137,7 +137,7 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 bg-white">
-                    {% for pr in purchase_requests %}
+                    {% for pr in page_obj_pr %}
                     <tr class="hover:bg-gray-50 transition-colors">
                         <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">{{ pr.pr_number }}</td>
                         <td class="px-6 py-4 text-gray-600">
@@ -177,6 +177,43 @@
                 </tbody>
             </table>
         </div>
+
+        {% if page_obj_pr.has_other_pages %}
+        <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+            <div class="flex-1 flex justify-between sm:hidden">
+                {% if page_obj_pr.has_previous %}
+                    <a href="?pr_page={{ page_obj_pr.previous_page_number }}&ad_page={{ request.GET.ad_page|default:1 }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Previous</a>
+                {% endif %}
+                {% if page_obj_pr.has_next %}
+                    <a href="?pr_page={{ page_obj_pr.next_page_number }}&ad_page={{ request.GET.ad_page|default:1 }}" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Next</a>
+                {% endif %}
+            </div>
+            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-sm text-gray-700">
+                        Showing page <span class="font-medium">{{ page_obj_pr.number }}</span> of <span class="font-medium">{{ page_obj_pr.paginator.num_pages }}</span>
+                    </p>
+                </div>
+                <div>
+                    <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Purchase Requests Pagination">
+                        {% if page_obj_pr.has_previous %}
+                            <a href="?pr_page={{ page_obj_pr.previous_page_number }}&ad_page={{ request.GET.ad_page|default:1 }}" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Previous</a>
+                        {% endif %}
+                        {% for i in page_obj_pr.paginator.page_range %}
+                            {% if page_obj_pr.number == i %}
+                                <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-blue-50 text-sm font-medium text-blue-600">{{ i }}</span>
+                            {% else %}
+                                <a href="?pr_page={{ i }}&ad_page={{ request.GET.ad_page|default:1 }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">{{ i }}</a>
+                            {% endif %}
+                        {% endfor %}
+                        {% if page_obj_pr.has_next %}
+                            <a href="?pr_page={{ page_obj_pr.next_page_number }}&ad_page={{ request.GET.ad_page|default:1 }}" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Next</a>
+                        {% endif %}
+                    </nav>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </section>
 
     <!-- Activity Designs Table -->
@@ -199,7 +236,7 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 bg-white">
-                    {% for ad in activity_designs %}
+                    {% for ad in page_obj_ad %}
                     <tr class="hover:bg-gray-50 transition-colors">
                         <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">{{ ad.ad_number|default:"Draft" }}</td>
                         <td class="px-6 py-4 text-gray-600 max-w-xs truncate" title="{{ ad.purpose }}">
@@ -239,6 +276,43 @@
                 </tbody>
             </table>
         </div>
+
+        {% if page_obj_ad.has_other_pages %}
+        <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+            <div class="flex-1 flex justify-between sm:hidden">
+                {% if page_obj_ad.has_previous %}
+                    <a href="?ad_page={{ page_obj_ad.previous_page_number }}&pr_page={{ request.GET.pr_page|default:1 }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Previous</a>
+                {% endif %}
+                {% if page_obj_ad.has_next %}
+                    <a href="?ad_page={{ page_obj_ad.next_page_number }}&pr_page={{ request.GET.pr_page|default:1 }}" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Next</a>
+                {% endif %}
+            </div>
+            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-sm text-gray-700">
+                        Showing page <span class="font-medium">{{ page_obj_ad.number }}</span> of <span class="font-medium">{{ page_obj_ad.paginator.num_pages }}</span>
+                    </p>
+                </div>
+                <div>
+                    <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Activity Designs Pagination">
+                        {% if page_obj_ad.has_previous %}
+                            <a href="?ad_page={{ page_obj_ad.previous_page_number }}&pr_page={{ request.GET.pr_page|default:1 }}" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Previous</a>
+                        {% endif %}
+                        {% for i in page_obj_ad.paginator.page_range %}
+                            {% if page_obj_ad.number == i %}
+                                <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-blue-50 text-sm font-medium text-blue-600">{{ i }}</span>
+                            {% else %}
+                                <a href="?ad_page={{ i }}&pr_page={{ request.GET.pr_page|default:1 }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">{{ i }}</a>
+                            {% endif %}
+                        {% endfor %}
+                        {% if page_obj_ad.has_next %}
+                            <a href="?ad_page={{ page_obj_ad.next_page_number }}&pr_page={{ request.GET.pr_page|default:1 }}" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Next</a>
+                        {% endif %}
+                    </nav>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </section>
 </div>
 
